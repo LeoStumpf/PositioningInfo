@@ -104,9 +104,12 @@ data class BandBaselineSamples(val agcDb: List<Double> = emptyList(), val meanCn
  *     different elevations differ; a single transmitter makes them alike);
  *   - more power in the band (AGC level down by [SPOOF_AGC_SHIFT_DB] or more) while C/N0
  *     rises: a source stronger than the sky, where a jammer would make C/N0 fall;
- *   - a hardware clock discontinuity, as when a receiver is dragged onto a fake time;
  *   - the clock drift jumping by more than [DRIFT_JUMP_PPM] between consecutive epochs,
  *     which a crystal oscillator does not do by itself.
+ *
+ * Hardware clock discontinuities are counted but deliberately not treated as an indicator:
+ * phone chips reset their clock routinely when they duty-cycle to save power, so a Pixel
+ * racks up a dozen within minutes of normal use.
  *
  * Immutable, like [SkyTracker]: every event returns a new instance.
  */
@@ -232,10 +235,6 @@ data class InterferenceMonitor(
                 out += "${s.band.label}: more power in the band (AGC %.0f dB below baseline) ".format(drop) +
                     "while signals got stronger. This could be a source stronger than the sky."
             }
-        }
-        if (discontinuities > 0) {
-            out += "The receiver clock had $discontinuities discontinuit${if (discontinuities == 1) "y" else "ies"}. " +
-                "Usually a restart, but it can also mean the receiver was pulled onto another time."
         }
         val jumpAt = lastDriftJumpMs
         val now = lastEpoch?.atMs

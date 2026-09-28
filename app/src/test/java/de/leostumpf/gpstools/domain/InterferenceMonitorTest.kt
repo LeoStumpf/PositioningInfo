@@ -157,7 +157,8 @@ class InterferenceMonitorTest {
         m = m.onEpoch(epoch(2000, discontinuity = 8))
         m = m.onEpoch(epoch(3000, discontinuity = 10))
         assertEquals(3, m.assessment.clockDiscontinuities)
-        assertTrue(m.assessment.spoofingIndicators.any { it.contains("discontinuit") })
+        // Routine on phone chips (duty cycling), so counted but not flagged.
+        assertTrue(m.assessment.spoofingIndicators.none { it.contains("discontinuit") })
     }
 
     @Test
