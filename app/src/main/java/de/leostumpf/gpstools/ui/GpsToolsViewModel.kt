@@ -10,9 +10,15 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import de.leostumpf.gpstools.data.AssistanceDataSource
+import de.leostumpf.gpstools.data.CellInfoDataSource
 import de.leostumpf.gpstools.data.GnssCapabilityDataSource
 import de.leostumpf.gpstools.data.GnssStatusDataSource
 import de.leostumpf.gpstools.data.LocationDataSource
+import de.leostumpf.gpstools.data.NetworkLocationDataSource
+import de.leostumpf.gpstools.data.WifiScanDataSource
+import de.leostumpf.gpstools.data.model.AccessPoint
+import de.leostumpf.gpstools.data.model.CellTower
+import de.leostumpf.gpstools.data.model.NetworkFix
 import de.leostumpf.gpstools.data.model.GnssSnapshot
 import de.leostumpf.gpstools.data.model.SpeedFix
 import de.leostumpf.gpstools.domain.AlmanacStatus
@@ -27,6 +33,7 @@ import de.leostumpf.gpstools.domain.SpeedResolver
 import de.leostumpf.gpstools.settings.UnitPreference
 import de.leostumpf.gpstools.ui.gnss.GnssUiState
 import de.leostumpf.gpstools.ui.gnss.TimingUiState
+import de.leostumpf.gpstools.ui.network.NetworkUiState
 import de.leostumpf.gpstools.ui.signal.SignalUiState
 import de.leostumpf.gpstools.ui.sky.SkyUiState
 import de.leostumpf.gpstools.ui.speed.SpeedUiState
@@ -52,6 +59,9 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
     private val unitPreference = UnitPreference(application)
     private val capabilitySource = GnssCapabilityDataSource(application)
     private val assistanceSource = AssistanceDataSource(application)
+    private val networkLocationSource = NetworkLocationDataSource(application)
+    private val cellSource = CellInfoDataSource(application)
+    private val wifiSource = WifiScanDataSource(application)
 
     /** Static for the life of the device, so it is read once rather than streamed. */
     private val capabilities = capabilitySource.read()
@@ -68,7 +78,14 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
     private val _skyState = MutableStateFlow(SkyUiState())
     val skyState: StateFlow<SkyUiState> = _skyState.asStateFlow()
 
+    private val _networkState = MutableStateFlow(NetworkUiState())
+    val networkState: StateFlow<NetworkUiState> = _networkState.asStateFlow()
+
     private var lastSnapshot = GnssSnapshot.EMPTY
+
+    private var networkFix: NetworkFix? = null
+    private var cells: List<CellTower> = emptyList()
+    private var accessPoints: List<AccessPoint> = emptyList()
 
     /** Deliberately kept across stop/start, so the sky view's history survives backgrounding. */
     private var skyTracker = SkyTracker()
@@ -115,6 +132,18 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
         trackingJobs += viewModelScope.launch {
             gnssSource.snapshots().collect(::publishGnss)
         }
+        // Network positioning runs alongside GNSS for the comparison page. All three are
+        // cheap: the network provider does one lookup every few seconds, and the cell and
+        // Wi-Fi readings mostly return what the radios already know.
+        trackingJobs += viewModelScope.launch {
+            networkLocationSource.fixes().collect { networkFix = it; publishNetwork() }
+        }
+        trackingJobs += viewModelScope.launch {
+            cellSource.cells().collect { cells = it; publishNetwork() }
+        }
+        trackingJobs += viewModelScope.launch {
+            wifiSource.accessPoints().collect { accessPoints = it; publishNetwork() }
+        }
         // A fix ages whether or not a new one arrives, so the reading has to be
         // re-evaluated on a timer as well as on new data — otherwise a lost signal would
         // leave the last number frozen on screen indefinitely.
@@ -126,6 +155,7 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
                 val now = SystemClock.elapsedRealtime()
                 skyTracker = skyTracker.onTick(now)
                 publishSky(now)
+                publishNetwork()
             }
         }
 
@@ -230,6 +260,19 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
         val now = SystemClock.elapsedRealtime()
         skyTracker = skyTracker.onSnapshot(snapshot.satellites, now)
         publishSky(now)
+    }
+
+    private fun publishNetwork() {
+        _networkState.value = NetworkUiState.from(
+            providerEnabled = networkLocationSource.isEnabled,
+            fix = networkFix,
+            gnss = lastFix,
+            nowMs = SystemClock.elapsedRealtime(),
+            hasTelephony = cellSource.hasTelephony,
+            cells = cells,
+            wifiAvailable = wifiSource.canScan,
+            accessPoints = accessPoints,
+        )
     }
 
     private fun publishSky(nowMs: Long) {

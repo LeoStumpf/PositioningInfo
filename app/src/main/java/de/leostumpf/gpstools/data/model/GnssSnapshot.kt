@@ -27,6 +27,9 @@ data class SpeedFix(
      * clock — or null when absent. Only used to compare the two clocks.
      */
     val utcTimeMs: Long? = null,
+    /** WGS84 position; only used to measure how far off the network location is. */
+    val latitude: Double? = null,
+    val longitude: Double? = null,
 )
 
 /**

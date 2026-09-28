@@ -130,4 +130,53 @@ object Glossary {
                 "satellites below 5–10°.",
         ),
     )
+
+    val network = listOf(
+        PrimerEntry(
+            "Network location",
+            "A position without satellites: the phone reports the Wi-Fi access points and " +
+                "cell towers it hears, and a database of their known locations (Google's, " +
+                "on this phone) returns an estimate. Fast, works indoors, costs little " +
+                "battery.",
+        ),
+        PrimerEntry(
+            "Wi-Fi positioning",
+            "Access points have short range and are densely mapped, so in built-up areas " +
+                "this gives roughly 10–50\u00A0m. Uses signal strengths, and on newer phones " +
+                "round-trip time (Wi-Fi RTT) to reach a few metres.",
+        ),
+        PrimerEntry(
+            "Cell positioning",
+            "Based on the known positions of the cells in range: a few hundred metres in " +
+                "cities, several kilometres in the countryside, where cells are large.",
+        ),
+        PrimerEntry(
+            "Claimed vs. actual accuracy",
+            "The ± figure is the provider's own 68\u00A0% estimate. With a good GNSS fix as " +
+                "the reference the real error can be measured directly — the section below.",
+        ),
+        PrimerEntry(
+            "Serving / neighbour cell",
+            "Serving: the cell the phone is attached to. Neighbours: others it measures for " +
+                "handover; usually reported with less detail.",
+        ),
+        PrimerEntry(
+            "dBm",
+            "Received power. LTE/5G: above −80 is excellent, below −110 is the cell edge. " +
+                "Wi-Fi: above −60 is strong, below −85 barely usable.",
+        ),
+        PrimerEntry(
+            "Timing advance",
+            "How early the phone must transmit so its signal reaches the tower on time: the " +
+                "round trip, in steps of about 78\u00A0m in LTE (553\u00A0m in GSM). It gives " +
+                "the distance to the serving tower.",
+        ),
+        PrimerEntry(
+            "Network-side positioning",
+            "The operator can also locate the phone itself (cell ID, timing measurements, " +
+                "LTE OTDOA, 5G positioning), for example for emergency calls. That position " +
+                "is not visible to apps; emergency calls in Europe additionally send the " +
+                "phone's own GNSS/Wi-Fi fix (AML).",
+        ),
+    )
 }
