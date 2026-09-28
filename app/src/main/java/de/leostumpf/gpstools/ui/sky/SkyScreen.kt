@@ -3,6 +3,7 @@ package de.leostumpf.gpstools.ui.sky
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -13,11 +14,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
@@ -35,6 +38,9 @@ import de.leostumpf.gpstools.ui.common.Primer
 import de.leostumpf.gpstools.domain.Constellation
 import de.leostumpf.gpstools.domain.SkyPoint
 import de.leostumpf.gpstools.ui.theme.DimGrey
+import de.leostumpf.gpstools.ui.theme.ErrorRed
+import de.leostumpf.gpstools.ui.theme.OkGreen
+import de.leostumpf.gpstools.ui.theme.WarnAmber
 import de.leostumpf.gpstools.ui.theme.StatusLineStyle
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -49,7 +55,12 @@ import kotlin.math.sin
  * with the real sky.
  */
 @Composable
-fun SkyScreen(state: SkyUiState, modifier: Modifier = Modifier) {
+fun SkyScreen(
+    state: SkyUiState,
+    onToggleCompass: () -> Unit,
+    onToggleMap: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -61,13 +72,43 @@ fun SkyScreen(state: SkyUiState, modifier: Modifier = Modifier) {
         item { Spacer(Modifier.height(20.dp)) }
         item { SectionLabel("SKY") }
         item { Spacer(Modifier.height(10.dp)) }
-        item { SkyPlot(state.markers) }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(
+                    selected = state.compassMode,
+                    onClick = onToggleCompass,
+                    label = { Text("Compass") },
+                )
+                FilterChip(
+                    selected = state.mapMode,
+                    onClick = onToggleMap,
+                    label = { Text("Signal map") },
+                )
+            }
+        }
+        state.headingText?.let { text ->
+            item {
+                Text(
+                    text = text + if (state.compassUnreliable) " · compass needs calibrating (figure-eight)" else "",
+                    style = StatusLineStyle,
+                    color = if (state.compassUnreliable) WarnAmber else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+        item { SkyPlot(state) }
         item { Spacer(Modifier.height(8.dp)) }
         item {
             Text(
-                text = "Solid: path so far. Dashed: next 15 minutes, estimated from recent " +
-                    "motion — needs a couple of minutes of history, and cannot show " +
-                    "satellites that have not risen yet.",
+                text = if (state.mapMode) {
+                    "Average signal strength by direction, from ${state.obstructionSamples} " +
+                        "measurements: green strong (35+ dB-Hz), amber 25–35, red weak. Weak or " +
+                        "empty regions near the horizon are buildings and trees. Fills in as " +
+                        "satellites move — give it half an hour."
+                } else {
+                    "Solid: path so far. Dashed: next 15 minutes, estimated from recent " +
+                        "motion — needs a couple of minutes of history, and cannot show " +
+                        "satellites that have not risen yet."
+                } + if (state.compassMode) " Hold the phone flat; the plot turns with it." else "",
                 style = MaterialTheme.typography.bodySmall,
                 color = DimGrey,
             )
@@ -96,7 +137,9 @@ fun SkyScreen(state: SkyUiState, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun SkyPlot(markers: List<SkyMarker>) {
+private fun SkyPlot(state: SkyUiState) {
+    val markers = state.markers
+    val rotation = if (state.compassMode) state.headingDegrees ?: 0f else 0f
     val measurer = rememberTextMeasurer()
     val ringColour = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
     val labelColour = MaterialTheme.colorScheme.onSurfaceVariant
@@ -109,7 +152,7 @@ private fun SkyPlot(markers: List<SkyMarker>) {
         val centre = Offset(size.width / 2f, size.height / 2f)
         fun at(point: SkyPoint): Offset {
             val r = radius * (90f - point.elevationDegrees.coerceIn(0f, 90f)) / 90f
-            val az = Math.toRadians(point.azimuthDegrees.toDouble())
+            val az = Math.toRadians((point.azimuthDegrees - rotation).toDouble())
             return Offset(centre.x + r * sin(az).toFloat(), centre.y - r * cos(az).toFloat())
         }
 
@@ -131,8 +174,38 @@ private fun SkyPlot(markers: List<SkyMarker>) {
             )
         }
 
+        if (state.mapMode) {
+            // Annular sectors, one per bin, coloured by mean C/N0.
+            for (cell in state.obstruction) {
+                val outer = radius * (90f - cell.elevationFrom) / 90f
+                val inner = radius * (90f - cell.elevationTo) / 90f
+                val start = cell.azimuthFrom - rotation - 90f
+                val sweep = cell.azimuthTo - cell.azimuthFrom
+                val path = Path().apply {
+                    arcTo(Rect(centre, outer), start, sweep, true)
+                    arcTo(Rect(centre, inner), start + sweep, -sweep, false)
+                    close()
+                }
+                drawPath(path, cn0Colour(cell.meanCn0DbHz).copy(alpha = 0.55f))
+            }
+        }
+        if (state.compassMode) {
+            // The phone's top edge.
+            val tip = Offset(centre.x, centre.y - radius - 2.dp.toPx())
+            drawPath(
+                Path().apply {
+                    moveTo(tip.x, tip.y)
+                    lineTo(tip.x - 6.dp.toPx(), tip.y - 10.dp.toPx())
+                    lineTo(tip.x + 6.dp.toPx(), tip.y - 10.dp.toPx())
+                    close()
+                },
+                labelColour,
+            )
+        }
+
         val stroke = 2.dp.toPx()
         for (marker in markers) {
+            if (state.mapMode) break
             val colour = marker.constellation.colour()
             val faded = if (marker.current == null) colour.copy(alpha = 0.3f) else colour.copy(alpha = 0.6f)
             marker.trail.filter { it.size > 1 }.forEach { segment ->
@@ -172,6 +245,12 @@ private fun DrawScope.drawSatellite(position: Offset, marker: SkyMarker, measure
 private fun pathOf(points: List<Offset>) = Path().apply {
     moveTo(points[0].x, points[0].y)
     points.drop(1).forEach { lineTo(it.x, it.y) }
+}
+
+private fun cn0Colour(cn0: Float): Color = when {
+    cn0 >= 35f -> OkGreen
+    cn0 >= 25f -> WarnAmber
+    else -> ErrorRed
 }
 
 private fun Constellation.colour(): Color = when (this) {

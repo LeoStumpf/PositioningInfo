@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package de.leostumpf.gpstools.ui
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -16,25 +18,33 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.leostumpf.gpstools.ui.gnss.GnssScreen
 import de.leostumpf.gpstools.ui.network.NetworkScreen
+import de.leostumpf.gpstools.ui.position.PositionScreen
+import de.leostumpf.gpstools.ui.receiver.ReceiverScreen
 import de.leostumpf.gpstools.ui.signal.SignalScreen
 import de.leostumpf.gpstools.ui.sky.SkyScreen
 import de.leostumpf.gpstools.ui.speed.SpeedScreen
+import de.leostumpf.gpstools.ui.trip.TripScreen
 import de.leostumpf.gpstools.ui.theme.DimGrey
 
 /** The tools, in swipe order. Adding a screen later means adding an entry here. */
 private const val PAGE_SPEED = 0
-private const val PAGE_GNSS = 1
-private const val PAGE_SIGNAL = 2
-private const val PAGE_SKY = 3
-private const val PAGE_NETWORK = 4
-private const val PAGE_COUNT = 5
+private const val PAGE_TRIP = 1
+private const val PAGE_POSITION = 2
+private const val PAGE_GNSS = 3
+private const val PAGE_SKY = 4
+private const val PAGE_SIGNAL = 5
+private const val PAGE_RECEIVER = 6
+private const val PAGE_NETWORK = 7
+private const val PAGE_COUNT = 8
 
 /**
  * Holds the app's screens in a horizontal pager.
@@ -54,6 +64,20 @@ fun GpsToolsApp(
     val signalState by viewModel.signalState.collectAsStateWithLifecycle()
     val skyState by viewModel.skyState.collectAsStateWithLifecycle()
     val networkState by viewModel.networkState.collectAsStateWithLifecycle()
+    val positionState by viewModel.analysis.positionState.collectAsStateWithLifecycle()
+    val tripState by viewModel.analysis.tripState.collectAsStateWithLifecycle()
+    val receiverState by viewModel.analysis.receiverState.collectAsStateWithLifecycle()
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/gpx+xml"),
+    ) { uri -> uri?.let(viewModel.analysis::exportTrip) }
+
+    // A recording only runs while the app is in front, so the screen stays on meanwhile.
+    val view = LocalView.current
+    DisposableEffect(tripState.recording) {
+        view.keepScreenOn = tripState.recording
+        onDispose { view.keepScreenOn = false }
+    }
     val pagerState = rememberPagerState(initialPage = PAGE_SPEED) { PAGE_COUNT }
 
     // The background runs under the system bars; the content stays clear of them and of
@@ -81,7 +105,26 @@ fun GpsToolsApp(
 
                 PAGE_SIGNAL -> SignalScreen(state = signalState)
 
-                PAGE_SKY -> SkyScreen(state = skyState)
+                PAGE_TRIP -> TripScreen(
+                    state = tripState,
+                    onToggleRecording = viewModel.analysis::toggleTrip,
+                    onExport = { exportLauncher.launch(viewModel.analysis.suggestedTripFileName()) },
+                    onClear = viewModel.analysis::clearTrip,
+                )
+
+                PAGE_POSITION -> PositionScreen(
+                    state = positionState,
+                    onToggleScatter = viewModel.analysis::toggleScatter,
+                    onResetScatter = viewModel.analysis::resetScatter,
+                )
+
+                PAGE_SKY -> SkyScreen(
+                    state = skyState,
+                    onToggleCompass = viewModel.analysis::toggleCompass,
+                    onToggleMap = viewModel.analysis::toggleMap,
+                )
+
+                PAGE_RECEIVER -> ReceiverScreen(state = receiverState)
 
                 PAGE_NETWORK -> NetworkScreen(state = networkState)
             }

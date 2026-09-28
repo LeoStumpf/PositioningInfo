@@ -2,6 +2,7 @@
 package de.leostumpf.gpstools.ui.sky
 
 import de.leostumpf.gpstools.domain.Constellation
+import de.leostumpf.gpstools.domain.ObstructionCell
 import de.leostumpf.gpstools.domain.SatelliteId
 import de.leostumpf.gpstools.domain.SkyEvent
 import de.leostumpf.gpstools.domain.SkyPoint
@@ -15,6 +16,16 @@ data class SkyUiState(
     /** Satellites expected to set soon, soonest first. */
     val upcoming: List<UpcomingSet> = emptyList(),
     val events: List<EventRow> = emptyList(),
+    /** Rotate the plot so the phone's top edge is up, instead of north. */
+    val compassMode: Boolean = false,
+    /** Show where signals are weak (the obstruction map) instead of the satellite paths. */
+    val mapMode: Boolean = false,
+    /** True heading of the phone's top edge, when the compass is running. */
+    val headingDegrees: Float? = null,
+    val headingText: String? = null,
+    val compassUnreliable: Boolean = false,
+    val obstruction: List<ObstructionCell> = emptyList(),
+    val obstructionSamples: Int = 0,
 ) {
     companion object {
         fun from(tracker: SkyTracker, nowMs: Long) = SkyUiState(

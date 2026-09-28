@@ -30,6 +30,13 @@ data class SpeedFix(
     /** WGS84 position; only used to measure how far off the network location is. */
     val latitude: Double? = null,
     val longitude: Double? = null,
+    /** Height above the WGS84 ellipsoid, as Android reports it — not above sea level. */
+    val ellipsoidAltitudeM: Double? = null,
+    /** Height above mean sea level, where the platform computes it (Android 14+). */
+    val mslAltitudeM: Double? = null,
+    val verticalAccuracyM: Float? = null,
+    /** Course over ground in degrees, meaningful only while moving. */
+    val bearingDegrees: Float? = null,
 )
 
 /**

@@ -110,4 +110,12 @@ private fun Location.toSpeedFix(): SpeedFix = SpeedFix(
     utcTimeMs = time.takeIf { it > 0L },
     latitude = latitude,
     longitude = longitude,
+    ellipsoidAltitudeM = if (hasAltitude()) altitude else null,
+    mslAltitudeM = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE && hasMslAltitude()) {
+        mslAltitudeMeters
+    } else {
+        null
+    },
+    verticalAccuracyM = if (hasVerticalAccuracy()) verticalAccuracyMeters else null,
+    bearingDegrees = if (hasBearing()) bearing else null,
 )

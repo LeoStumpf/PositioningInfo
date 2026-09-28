@@ -65,6 +65,13 @@ object Glossary {
 
     val signal = listOf(
         PrimerEntry(
+            "DOP (dilution of precision)",
+            "How much the satellite geometry magnifies range errors into position errors. " +
+                "Error ≈ DOP × range error. Below 2 is excellent, above 5 noticeably poor. " +
+                "HDOP is horizontal, VDOP vertical (always worse: all satellites are above " +
+                "you), TDOP the receiver clock.",
+        ),
+        PrimerEntry(
             "Horizontal accuracy",
             "The receiver's own estimate: a circle with 68\u00A0% confidence, so about two " +
                 "fixes in three lie within it. It is an estimate, not a measurement against " +
@@ -96,6 +103,19 @@ object Glossary {
     )
 
     val sky = listOf(
+        PrimerEntry(
+            "Compass mode",
+            "Turns the plot with the phone, using the rotation sensor, so it matches the " +
+                "real sky. The magnetometer points to magnetic north; the app adds the local " +
+                "magnetic declination (from the World Magnetic Model built into Android) to " +
+                "get true north.",
+        ),
+        PrimerEntry(
+            "Signal map",
+            "Average signal strength per 10°\u00A0×\u00A010° patch of sky, collected over time. " +
+                "Patches that stay weak or empty while satellites cross them are blocked — " +
+                "a map of your horizon.",
+        ),
         PrimerEntry(
             "Sky plot",
             "Looking straight up with north at the top: the centre is overhead (90°), the " +
@@ -177,6 +197,113 @@ object Glossary {
                 "LTE OTDOA, 5G positioning), for example for emergency calls. That position " +
                 "is not visible to apps; emergency calls in Europe additionally send the " +
                 "phone's own GNSS/Wi-Fi fix (AML).",
+        ),
+    )
+
+    val position = listOf(
+        PrimerEntry(
+            "WGS84",
+            "The reference frame GNSS positions are expressed in. Coordinates below are all " +
+                "the same point, in different notations.",
+        ),
+        PrimerEntry(
+            "UTM / MGRS",
+            "UTM cuts the Earth into 60 zones of 6° longitude and gives metres east and north " +
+                "within the zone. MGRS is the military grid built on UTM: zone, 100\u00A0km square " +
+                "letters, then metres.",
+        ),
+        PrimerEntry(
+            "Plus Code / Maidenhead",
+            "Short alphanumeric grid codes. A 10-digit Plus Code is a ~14\u00A0m square; the " +
+                "6-character Maidenhead locator (used in amateur radio) a ~5\u00A0×\u00A02.5\u00A0km one.",
+        ),
+        PrimerEntry(
+            "Ellipsoid, geoid, sea level",
+            "GNSS measures height above the WGS84 ellipsoid, a smooth mathematical shape. Sea " +
+                "level follows the geoid, which is up to ±100\u00A0m away from it (about +45\u00A0m in " +
+                "Germany). Height above sea level = ellipsoid height − geoid height.",
+        ),
+        PrimerEntry(
+            "Barometric altitude",
+            "Air pressure falls about 1\u00A0hPa per 8\u00A0m of height, so the barometer resolves " +
+                "changes of under a metre — far smoother than GNSS, which is 1.5–3× worse " +
+                "vertically than horizontally. But weather shifts the pressure, so it is " +
+                "calibrated against good GNSS heights, which yields the sea-level pressure.",
+        ),
+        PrimerEntry(
+            "CEP50 / CEP95 / 2DRMS",
+            "Measured accuracy of a stationary receiver: the radius around the mean position " +
+                "holding 50\u00A0% / 95\u00A0% of the fixes. 2DRMS is twice the root-mean-square " +
+                "distance, roughly a 95\u00A0% radius. Compare with the claimed ±, a 68\u00A0% radius.",
+        ),
+    )
+
+    val trip = listOf(
+        PrimerEntry(
+            "Distance",
+            "Summed from fix to fix, ignoring the jitter of a phone standing still and fixes " +
+                "worse than ±30\u00A0m.",
+        ),
+        PrimerEntry(
+            "Moving time",
+            "Time spent above 0.5\u00A0m/s, so stops at traffic lights do not dilute the average.",
+        ),
+        PrimerEntry(
+            "Ascent / descent",
+            "Height gained and lost, counted only in steps of 3\u00A0m so noise does not add up. " +
+                "Uses the barometer when there is one.",
+        ),
+        PrimerEntry(
+            "GPX",
+            "The standard open file format for tracks; readable by practically every map and " +
+                "sports app. Export writes it to a file you choose.",
+        ),
+    )
+
+    val receiver = listOf(
+        PrimerEntry(
+            "Raw measurements",
+            "What the chip measures per signal before computing a position: pseudorange, " +
+                "Doppler, C/N₀, and its own clock. Android exposes them since version 7.",
+        ),
+        PrimerEntry(
+            "AGC (automatic gain control)",
+            "The receiver's input amplification. GNSS signals are below the noise floor, so " +
+                "the gain normally sits steady. Extra power in the band — a jammer — makes the " +
+                "receiver turn the gain down.",
+        ),
+        PrimerEntry(
+            "Jamming / spoofing",
+            "Jamming drowns the signals: AGC and C/N₀ fall together. Spoofing fakes them: " +
+                "signals that are unnaturally even or stronger than a real sky can deliver, or " +
+                "jumps in time. These are indicators, not proof.",
+        ),
+        PrimerEntry(
+            "Multipath",
+            "A signal arriving reflected as well as direct, which biases the range. The chip " +
+                "flags signals where it detects this.",
+        ),
+        PrimerEntry(
+            "Clock drift (ppm)",
+            "How fast the phone's crystal oscillator runs off its nominal frequency, measured " +
+                "against the satellites' atomic clocks. A few ppm is normal; it changes with " +
+                "temperature.",
+        ),
+        PrimerEntry(
+            "NMEA",
+            "The text sentences GNSS receivers have output since the 1980s: GGA position, GSA " +
+                "DOP and fix type, GSV satellites, GST error estimate, RMC summary.",
+        ),
+        PrimerEntry(
+            "Navigation message",
+            "The data each satellite broadcasts at 50\u00A0bit/s: its ephemeris, the almanac, " +
+                "health flags, an ionosphere model and GPS−UTC offset including announced leap " +
+                "seconds. Decoded here from the bits the chip passes on.",
+        ),
+        PrimerEntry(
+            "GPS week",
+            "GPS counts time in weeks since 6 January 1980, broadcast with only 10 bits, so it " +
+                "rolls over every 1024 weeks (last in April 2019); the phone's date resolves it.",
         ),
     )
 }

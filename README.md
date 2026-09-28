@@ -7,13 +7,29 @@ Built because every speedometer on the Play Store had been buried under advertis
 
 ## Current features
 
-Swipe between three screens.
+Swipe between eight screens. Each detail screen has a collapsible glossary of the terms it uses.
 
 **Speedometer**
 
 - Live speed straight from the GNSS receiver, in km/h, mph or knots (tap the unit to cycle)
-- Session maximum and time-weighted average
+- Session maximum and time-weighted average, with a reset button
 - Honest status line: fix state, horizontal accuracy, satellites used / visible
+
+**Trip**
+
+- Records a track while the app is open (the screen stays on), saved on the phone as it goes
+- Distance, moving time, maximum and moving-average speed, ascent and descent (barometric
+  when the phone has a barometer)
+- Exports GPX to a file you choose
+
+**Position**
+
+- Coordinates as decimal, DMS, UTM, MGRS, Plus Code and Maidenhead locator
+- Height above sea level (from the chip's geoid model), above the ellipsoid, and the geoid
+  height in between
+- Barometric altitude calibrated against GNSS, derived sea-level pressure, vertical speed
+- Accuracy test: leave the phone still and see the real spread (CEP50, CEP95, 2DRMS) against
+  the accuracy the receiver claims
 
 **GNSS status**
 
@@ -23,6 +39,15 @@ Swipe between three screens.
 - Every visible satellite with its signal strength and orbital-data flags
 - How long this session's first fix actually took, to check the hot / warm / cold verdict
 - How far the phone's clock is from GNSS time
+- Cold start (clear aiding data) and A-GNSS download, to watch the difference assistance makes
+
+**Sky**
+
+- Sky plot of every satellite with its path so far and a 15-minute projection, estimated
+  offline from its recent motion
+- Satellites about to set, and which appeared or were lost
+- Compass mode that turns the plot with the phone, corrected for magnetic declination
+- Signal map: signal strength by direction over time, showing where buildings block the sky
 
 **Signals and accuracy**
 
@@ -31,12 +56,21 @@ Swipe between three screens.
 - Which frequency bands are in use, and whether the phone is running dual-frequency
 - Which augmentation system (EGNOS, WAAS, MSAS, GAGAN, …) is overhead, and whether its
   corrections are actually being applied
+- Satellite geometry (PDOP, HDOP, VDOP, TDOP), computed and as the chip reports it
 - Which assistance services the receiver reports, plus its chipset and generation
 
-## Planned
+**Receiver internals**
 
-The name is deliberate — the speedometer was the first tool, not the only one. Still to
-come: raw `GnssMeasurement` statistics, a sky plot, and trip recording.
+- Jamming and spoofing indicators from the receiver's gain control and signal strengths
+- Receiver clock: oscillator frequency error, discontinuities, leap seconds
+- The chip's NMEA output: fix type, DOP, error ellipse, sentence statistics
+- GPS navigation messages decoded where the chip passes them on: health, week, leap-second
+  announcements, ionosphere model, almanac pages
+
+**Network location**
+
+- Position from Wi-Fi and cell towers, its claimed accuracy and its real error against GNSS
+- The raw inputs: cells (with timing-advance distance) and Wi-Fi access points in range
 
 ## How it works
 

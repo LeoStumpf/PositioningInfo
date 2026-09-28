@@ -97,6 +97,14 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
     private var assistanceMessage: String? = null
     private val trackingJobs = mutableListOf<Job>()
 
+    /** Position formats, altitude, accuracy test, trip, receiver internals, compass and signal map. */
+    val analysis = AnalysisSession(
+        application = application,
+        scope = viewModelScope,
+        speedUnit = { _speedState.value.unit },
+        onSkyChanged = { publishSky(SystemClock.elapsedRealtime()) },
+    )
+
     init {
         viewModelScope.launch {
             unitPreference.unit.collect { unit -> _speedState.update { it.copy(unit = unit) } }
@@ -127,6 +135,7 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
                 ClockOffset.of(fix, System.currentTimeMillis(), SystemClock.elapsedRealtime())
                     ?.let { clockOffsetMs = it }
                 publishSpeed(fix)
+                analysis.onFix(fix)
             }
         }
         trackingJobs += viewModelScope.launch {
@@ -144,6 +153,7 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
         trackingJobs += viewModelScope.launch {
             wifiSource.accessPoints().collect { accessPoints = it; publishNetwork() }
         }
+        trackingJobs += analysis.start()
         // A fix ages whether or not a new one arrives, so the reading has to be
         // re-evaluated on a timer as well as on new data — otherwise a lost signal would
         // leave the last number frozen on screen indefinitely.
@@ -156,6 +166,7 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
                 skyTracker = skyTracker.onTick(now)
                 publishSky(now)
                 publishNetwork()
+                analysis.onTick()
             }
         }
 
@@ -257,6 +268,7 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
         )
         publishSignal()
 
+        analysis.onSnapshot(snapshot)
         val now = SystemClock.elapsedRealtime()
         skyTracker = skyTracker.onSnapshot(snapshot.satellites, now)
         publishSky(now)
@@ -276,14 +288,16 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun publishSky(nowMs: Long) {
-        _skyState.value = SkyUiState.from(skyTracker, nowMs)
+        _skyState.value = analysis.decorateSky(SkyUiState.from(skyTracker, nowMs))
     }
 
     private fun publishSignal() {
-        _signalState.value = SignalUiState.from(
-            quality = PositioningQuality.from(lastSnapshot),
-            measuredAccuracyM = _speedState.value.horizontalAccuracyM,
-            capabilities = capabilities,
+        _signalState.value = analysis.decorateSignal(
+            SignalUiState.from(
+                quality = PositioningQuality.from(lastSnapshot),
+                measuredAccuracyM = _speedState.value.horizontalAccuracyM,
+                capabilities = capabilities,
+            ),
         )
     }
 

@@ -3,6 +3,7 @@ package de.leostumpf.gpstools.ui.signal
 
 import de.leostumpf.gpstools.data.model.AssistanceCapabilities
 import de.leostumpf.gpstools.domain.Constellation
+import de.leostumpf.gpstools.domain.Dop
 import de.leostumpf.gpstools.domain.PositioningQuality
 import de.leostumpf.gpstools.domain.ResolutionClass
 import de.leostumpf.gpstools.domain.SbasSystem
@@ -20,6 +21,13 @@ data class SignalUiState(
     val dualFrequency: Boolean = false,
     val bandsUnavailable: Boolean = false,
     val capabilities: AssistanceCapabilities = AssistanceCapabilities(),
+    /** Geometry of the satellites in the fix, computed here from their directions. */
+    val dop: Dop? = null,
+    val dopSatellites: Int = 0,
+    /** The chip's own figures from NMEA GSA, for comparison; null when not reported. */
+    val chipPdop: Double? = null,
+    val chipHdop: Double? = null,
+    val chipVdop: Double? = null,
 ) {
     companion object {
         fun from(

@@ -21,11 +21,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import de.leostumpf.gpstools.ui.common.Glossary
-import de.leostumpf.gpstools.ui.common.Primer
 import de.leostumpf.gpstools.data.model.AssistanceCapabilities
 import de.leostumpf.gpstools.domain.ResolutionClass
 import de.leostumpf.gpstools.domain.SignalBand
+import de.leostumpf.gpstools.ui.common.Glossary
+import de.leostumpf.gpstools.ui.common.Note
+import de.leostumpf.gpstools.ui.common.Primer
+import de.leostumpf.gpstools.ui.common.ValueRow
+import de.leostumpf.gpstools.ui.common.fmt
 import de.leostumpf.gpstools.ui.theme.DimGrey
 import de.leostumpf.gpstools.ui.theme.OkGreen
 import de.leostumpf.gpstools.ui.theme.StatusLineStyle
@@ -56,6 +59,11 @@ fun SignalScreen(state: SignalUiState, modifier: Modifier = Modifier) {
         item { ExpectedResolution(state) }
 
         item { Spacer(Modifier.height(28.dp)) }
+        item { SectionLabel("SATELLITE GEOMETRY (DOP)") }
+        item { Spacer(Modifier.height(8.dp)) }
+        item { Geometry(state) }
+
+        item { Spacer(Modifier.height(28.dp)) }
         item { SectionLabel("FREQUENCY BANDS IN USE") }
         item { Spacer(Modifier.height(8.dp)) }
         item { Bands(state) }
@@ -76,6 +84,45 @@ fun SignalScreen(state: SignalUiState, modifier: Modifier = Modifier) {
             item { Spacer(Modifier.height(8.dp)) }
             item { Receiver(state.capabilities) }
         }
+    }
+}
+
+@Composable
+private fun Geometry(state: SignalUiState) {
+    val dop = state.dop
+    if (dop == null) {
+        Note("Needs at least four satellites in the fix.")
+        return
+    }
+    Column {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = dop.rating.label,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = when {
+                    dop.pdop <= 2.0 -> OkGreen
+                    dop.pdop <= 5.0 -> MaterialTheme.colorScheme.onBackground
+                    else -> WarnAmber
+                },
+            )
+            Spacer(Modifier.width(10.dp))
+            Text(
+                text = "from ${state.dopSatellites} satellites",
+                style = StatusLineStyle,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(6.dp))
+        ValueRow("PDOP (3D position)", dop.pdop.fmt(2), detail = state.chipPdop?.let { "chip reports ${it.fmt(1)}" })
+        ValueRow("HDOP (horizontal)", dop.hdop.fmt(2), detail = state.chipHdop?.let { "chip reports ${it.fmt(1)}" })
+        ValueRow("VDOP (vertical)", dop.vdop.fmt(2), detail = state.chipVdop?.let { "chip reports ${it.fmt(1)}" })
+        ValueRow("TDOP (time)", dop.tdop.fmt(2))
+        Spacer(Modifier.height(4.dp))
+        Note(
+            "Position error ≈ DOP × range error. Many satellites spread over the whole sky " +
+                "give low values; a street canyon that hides half the sky drives them up.",
+        )
     }
 }
 
