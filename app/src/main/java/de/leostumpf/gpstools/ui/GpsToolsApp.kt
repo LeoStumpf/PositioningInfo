@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.leostumpf.gpstools.ui.gnss.GnssScreen
 import de.leostumpf.gpstools.ui.signal.SignalScreen
+import de.leostumpf.gpstools.ui.sky.SkyScreen
 import de.leostumpf.gpstools.ui.speed.SpeedScreen
 import de.leostumpf.gpstools.ui.theme.DimGrey
 
@@ -30,7 +31,8 @@ import de.leostumpf.gpstools.ui.theme.DimGrey
 private const val PAGE_SPEED = 0
 private const val PAGE_GNSS = 1
 private const val PAGE_SIGNAL = 2
-private const val PAGE_COUNT = 3
+private const val PAGE_SKY = 3
+private const val PAGE_COUNT = 4
 
 /**
  * Holds the app's screens in a horizontal pager.
@@ -48,6 +50,7 @@ fun GpsToolsApp(
     val speedState by viewModel.speedState.collectAsStateWithLifecycle()
     val gnssState by viewModel.gnssState.collectAsStateWithLifecycle()
     val signalState by viewModel.signalState.collectAsStateWithLifecycle()
+    val skyState by viewModel.skyState.collectAsStateWithLifecycle()
     val pagerState = rememberPagerState(initialPage = PAGE_SPEED) { PAGE_COUNT }
 
     // The background runs under the system bars; the content stays clear of them and of
@@ -74,6 +77,8 @@ fun GpsToolsApp(
                 )
 
                 PAGE_SIGNAL -> SignalScreen(state = signalState)
+
+                PAGE_SKY -> SkyScreen(state = skyState)
             }
         }
 

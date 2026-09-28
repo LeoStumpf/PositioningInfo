@@ -20,6 +20,7 @@ import de.leostumpf.gpstools.domain.ClockOffset
 import de.leostumpf.gpstools.domain.FirstFixTimer
 import de.leostumpf.gpstools.domain.FixFreshness
 import de.leostumpf.gpstools.domain.SessionStats
+import de.leostumpf.gpstools.domain.SkyTracker
 import de.leostumpf.gpstools.domain.SpeedReading
 import de.leostumpf.gpstools.domain.PositioningQuality
 import de.leostumpf.gpstools.domain.SpeedResolver
@@ -27,6 +28,7 @@ import de.leostumpf.gpstools.settings.UnitPreference
 import de.leostumpf.gpstools.ui.gnss.GnssUiState
 import de.leostumpf.gpstools.ui.gnss.TimingUiState
 import de.leostumpf.gpstools.ui.signal.SignalUiState
+import de.leostumpf.gpstools.ui.sky.SkyUiState
 import de.leostumpf.gpstools.ui.speed.SpeedUiState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -63,7 +65,13 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
     private val _signalState = MutableStateFlow(SignalUiState(capabilities = capabilities))
     val signalState: StateFlow<SignalUiState> = _signalState.asStateFlow()
 
+    private val _skyState = MutableStateFlow(SkyUiState())
+    val skyState: StateFlow<SkyUiState> = _skyState.asStateFlow()
+
     private var lastSnapshot = GnssSnapshot.EMPTY
+
+    /** Deliberately kept across stop/start, so the sky view's history survives backgrounding. */
+    private var skyTracker = SkyTracker()
 
     private var stats = SessionStats()
     private var lastFix: SpeedFix? = null
@@ -115,6 +123,9 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
                 delay(FRESHNESS_TICK_MS)
                 publishSpeed(lastFix)
                 publishTiming()
+                val now = SystemClock.elapsedRealtime()
+                skyTracker = skyTracker.onTick(now)
+                publishSky(now)
             }
         }
 
@@ -124,6 +135,7 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
     fun stopTracking() {
         trackingJobs.forEach(Job::cancel)
         trackingJobs.clear()
+        skyTracker = skyTracker.onPause()
     }
 
     fun cycleUnit() {
@@ -214,6 +226,14 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
             assistanceMessage = assistanceMessage,
         )
         publishSignal()
+
+        val now = SystemClock.elapsedRealtime()
+        skyTracker = skyTracker.onSnapshot(snapshot.satellites, now)
+        publishSky(now)
+    }
+
+    private fun publishSky(nowMs: Long) {
+        _skyState.value = SkyUiState.from(skyTracker, nowMs)
     }
 
     private fun publishSignal() {
