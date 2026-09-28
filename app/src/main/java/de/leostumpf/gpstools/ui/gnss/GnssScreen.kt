@@ -32,6 +32,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import de.leostumpf.gpstools.ui.common.Glossary
+import de.leostumpf.gpstools.ui.common.Primer
 import de.leostumpf.gpstools.data.model.SatelliteInfo
 import de.leostumpf.gpstools.domain.AlmanacReadiness
 import de.leostumpf.gpstools.domain.AlmanacStatus
@@ -68,6 +70,8 @@ fun GnssScreen(
             bottom = 48.dp,
         ),
     ) {
+        item { Primer(Glossary.gnss) }
+        item { Spacer(Modifier.height(20.dp)) }
         item { ReadinessHeader(state) }
         item { Spacer(Modifier.height(20.dp)) }
         item { OrbitalDataCounts(state) }

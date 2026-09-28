@@ -21,6 +21,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import de.leostumpf.gpstools.ui.common.Glossary
+import de.leostumpf.gpstools.ui.common.Primer
 import de.leostumpf.gpstools.data.model.AssistanceCapabilities
 import de.leostumpf.gpstools.domain.ResolutionClass
 import de.leostumpf.gpstools.domain.SignalBand
@@ -47,6 +49,8 @@ fun SignalScreen(state: SignalUiState, modifier: Modifier = Modifier) {
             .padding(horizontal = 20.dp),
         contentPadding = PaddingValues(top = 24.dp, bottom = 48.dp),
     ) {
+        item { Primer(Glossary.signal) }
+        item { Spacer(Modifier.height(20.dp)) }
         item { MeasuredAccuracy(state) }
         item { Spacer(Modifier.height(24.dp)) }
         item { ExpectedResolution(state) }

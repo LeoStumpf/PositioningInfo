@@ -30,6 +30,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import de.leostumpf.gpstools.ui.common.Glossary
+import de.leostumpf.gpstools.ui.common.Primer
 import de.leostumpf.gpstools.domain.Constellation
 import de.leostumpf.gpstools.domain.SkyPoint
 import de.leostumpf.gpstools.ui.theme.DimGrey
@@ -55,6 +57,8 @@ fun SkyScreen(state: SkyUiState, modifier: Modifier = Modifier) {
             .padding(horizontal = 20.dp),
         contentPadding = PaddingValues(top = 24.dp, bottom = 48.dp),
     ) {
+        item { Primer(Glossary.sky) }
+        item { Spacer(Modifier.height(20.dp)) }
         item { SectionLabel("SKY") }
         item { Spacer(Modifier.height(10.dp)) }
         item { SkyPlot(state.markers) }
