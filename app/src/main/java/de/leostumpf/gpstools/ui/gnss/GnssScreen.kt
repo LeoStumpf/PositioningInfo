@@ -17,9 +17,16 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -45,7 +52,12 @@ import de.leostumpf.gpstools.ui.theme.WarnAmber
  * fix in half a minute, one with neither may take several.
  */
 @Composable
-fun GnssScreen(state: GnssUiState, modifier: Modifier = Modifier) {
+fun GnssScreen(
+    state: GnssUiState,
+    onColdStart: () -> Unit,
+    onFetchAssistance: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
@@ -59,6 +71,14 @@ fun GnssScreen(state: GnssUiState, modifier: Modifier = Modifier) {
         item { ReadinessHeader(state) }
         item { Spacer(Modifier.height(20.dp)) }
         item { OrbitalDataCounts(state) }
+        item { Spacer(Modifier.height(28.dp)) }
+        item { SectionLabel("TIMING") }
+        item { Spacer(Modifier.height(10.dp)) }
+        item { Timing(state) }
+        item { Spacer(Modifier.height(28.dp)) }
+        item { SectionLabel("ASSISTANCE") }
+        item { Spacer(Modifier.height(10.dp)) }
+        item { Assistance(state, onColdStart, onFetchAssistance) }
 
         if (state.ephemerisUnavailable) {
             item { Spacer(Modifier.height(16.dp)) }
@@ -136,6 +156,101 @@ private fun CountCell(label: String, value: String, modifier: Modifier = Modifie
             text = label,
             style = StatusLineStyle,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * How long this session's first fix actually took, so the readiness verdict above can be
+ * checked against reality, and how far the phone's clock is from GNSS time.
+ */
+@Composable
+private fun Timing(state: GnssUiState) {
+    Column {
+        TimingRow("Time to first fix", state.timing.firstFixText(state.gpsEnabled))
+        TimingRow("Phone clock", state.timing.clockText())
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = "Measured afresh each time the app comes to the front. Hot starts fix in " +
+                "seconds, warm in about half a minute, cold in up to 12 minutes.",
+            style = MaterialTheme.typography.bodySmall,
+            color = DimGrey,
+        )
+    }
+}
+
+@Composable
+private fun TimingRow(label: String, value: TimingText) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.weight(1f),
+        )
+        Text(
+            text = value.text,
+            style = StatusLineStyle,
+            fontWeight = FontWeight.Medium,
+            color = when (value.tone) {
+                TimingTone.GOOD -> OkGreen
+                TimingTone.PENDING, TimingTone.WARN -> WarnAmber
+                TimingTone.NONE -> MaterialTheme.colorScheme.onSurfaceVariant
+            },
+        )
+    }
+}
+
+/**
+ * Cold start and A-GNSS download, so the difference assistance data makes can be seen
+ * directly: clear everything, watch the flags empty and the timer run, then fetch.
+ */
+@Composable
+private fun Assistance(state: GnssUiState, onColdStart: () -> Unit, onFetchAssistance: () -> Unit) {
+    var confirmColdStart by rememberSaveable { mutableStateOf(false) }
+
+    Column {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            OutlinedButton(onClick = { confirmColdStart = true }, modifier = Modifier.weight(1f)) {
+                Text("Cold start")
+            }
+            OutlinedButton(onClick = onFetchAssistance, modifier = Modifier.weight(1f)) {
+                Text("Fetch A-GNSS data")
+            }
+        }
+        state.assistanceMessage?.let {
+            Spacer(Modifier.height(6.dp))
+            Text(text = it, style = StatusLineStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Spacer(Modifier.height(6.dp))
+        Text(
+            text = "Phones download predicted orbits and the time over Wi-Fi or mobile data " +
+                "instead of waiting minutes for the satellites to broadcast them.",
+            style = MaterialTheme.typography.bodySmall,
+            color = DimGrey,
+        )
+    }
+
+    if (confirmColdStart) {
+        AlertDialog(
+            onDismissRequest = { confirmColdStart = false },
+            title = { Text("Clear aiding data?") },
+            text = {
+                Text(
+                    "Deletes the receiver's stored almanac, ephemeris, position and time. " +
+                        "The next fix will be slower for every app on this phone until the " +
+                        "data is downloaded again.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { confirmColdStart = false; onColdStart() }) { Text("Clear") }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmColdStart = false }) { Text("Cancel") }
+            },
         )
     }
 }

@@ -8,13 +8,14 @@ import android.os.Bundle
 import android.provider.Settings
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -24,6 +25,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import de.leostumpf.gpstools.ui.about.AboutDialog
@@ -35,6 +37,14 @@ import de.leostumpf.gpstools.ui.GpsToolsViewModel
 import de.leostumpf.gpstools.ui.theme.GpsToolsTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Edge-to-edge is enforced from Android 15 at this targetSdk, so it is opted into on
+        // every version for one consistent layout; the screens pad themselves for the system
+        // bars. The bars are always styled dark because the app is always black — following
+        // the system theme would put dark icons on a black background in light mode.
+        enableEdgeToEdge(
+            statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+            navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+        )
         super.onCreate(savedInstanceState)
         // A speedometer that blanks mid-journey is useless; the screen stays awake for as
         // long as the app is in front.
@@ -51,6 +61,12 @@ private fun GpsToolsRoot() {
     val context = LocalContext.current
     val activity = context as ComponentActivity
     var hasFineLocation by remember { mutableStateOf(context.hasFineLocation()) }
+    // Re-checked on every resume: the "Open app settings" route grants the permission
+    // outside the app, and nothing else would notice when the user comes back.
+    LifecycleResumeEffect(Unit) {
+        hasFineLocation = context.hasFineLocation()
+        onPauseOrDispose { }
+    }
     var wasDenied by rememberSaveable { mutableStateOf(false) }
     var showAbout by rememberSaveable { mutableStateOf(false) }
     val launcher = rememberLauncherForActivityResult(

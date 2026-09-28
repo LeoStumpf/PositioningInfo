@@ -21,6 +21,8 @@ Swipe between three screens.
 - How many satellites the phone holds almanac and ephemeris data for
 - Per-constellation breakdown across GPS, GLONASS, Galileo, BeiDou, QZSS, NavIC and SBAS
 - Every visible satellite with its signal strength and orbital-data flags
+- How long this session's first fix actually took, to check the hot / warm / cold verdict
+- How far the phone's clock is from GNSS time
 
 **Signals and accuracy**
 

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -143,26 +144,20 @@ private fun SpeedReadout(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun SessionStatsRow(state: SpeedUiState, onResetSession: () -> Unit) {
-    val interaction = remember { MutableInteractionSource() }
     Row(
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .combinedClickable(
-                interactionSource = interaction,
-                indication = null,
-                onClick = {},
-                onLongClickLabel = "Reset session statistics",
-                onLongClick = onResetSession,
-            )
-            .padding(vertical = 8.dp, horizontal = 16.dp),
+        modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp),
     ) {
         StatCell(label = "MAX", value = formatSpeed(state.maxMps, state.unit))
         Spacer(Modifier.width(36.dp))
         StatCell(label = "AVG", value = formatSpeed(state.averageMps, state.unit))
+        Spacer(Modifier.width(20.dp))
+        TextButton(onClick = onResetSession) {
+            Text("RESET", style = StatusLineStyle)
+        }
     }
 }
 

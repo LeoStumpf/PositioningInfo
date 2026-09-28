@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -49,7 +50,14 @@ fun GpsToolsApp(
     val signalState by viewModel.signalState.collectAsStateWithLifecycle()
     val pagerState = rememberPagerState(initialPage = PAGE_SPEED) { PAGE_COUNT }
 
-    Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+    // The background runs under the system bars; the content stays clear of them and of
+    // any display cutout, which matters in a landscape car mount.
+    Box(
+        modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .safeDrawingPadding(),
+    ) {
         HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize()) { page ->
             when (page) {
                 PAGE_SPEED -> SpeedScreen(
@@ -59,7 +67,11 @@ fun GpsToolsApp(
                     onShowAbout = onShowAbout,
                 )
 
-                PAGE_GNSS -> GnssScreen(state = gnssState)
+                PAGE_GNSS -> GnssScreen(
+                    state = gnssState,
+                    onColdStart = viewModel::coldStart,
+                    onFetchAssistance = viewModel::fetchAssistance,
+                )
 
                 PAGE_SIGNAL -> SignalScreen(state = signalState)
             }
@@ -75,7 +87,7 @@ fun GpsToolsApp(
     }
 }
 
-/** Two dots, so the second screen is discoverable without spending a toolbar on it. */
+/** One dot per page, so the other screens are discoverable without spending a toolbar on it. */
 @Composable
 private fun PageIndicator(current: Int, count: Int, modifier: Modifier = Modifier) {
     Row(

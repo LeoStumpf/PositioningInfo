@@ -107,4 +107,5 @@ private fun Location.toSpeedFix(): SpeedFix = SpeedFix(
     speedAccuracyMps = if (hasSpeedAccuracy()) speedAccuracyMetersPerSecond else null,
     horizontalAccuracyM = if (hasAccuracy()) accuracy else null,
     elapsedRealtimeMs = elapsedRealtimeNanos / 1_000_000L,
+    utcTimeMs = time.takeIf { it > 0L },
 )

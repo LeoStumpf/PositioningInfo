@@ -9,12 +9,15 @@ import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import de.leostumpf.gpstools.data.AssistanceDataSource
 import de.leostumpf.gpstools.data.GnssCapabilityDataSource
 import de.leostumpf.gpstools.data.GnssStatusDataSource
 import de.leostumpf.gpstools.data.LocationDataSource
 import de.leostumpf.gpstools.data.model.GnssSnapshot
 import de.leostumpf.gpstools.data.model.SpeedFix
 import de.leostumpf.gpstools.domain.AlmanacStatus
+import de.leostumpf.gpstools.domain.ClockOffset
+import de.leostumpf.gpstools.domain.FirstFixTimer
 import de.leostumpf.gpstools.domain.FixFreshness
 import de.leostumpf.gpstools.domain.SessionStats
 import de.leostumpf.gpstools.domain.SpeedReading
@@ -22,6 +25,7 @@ import de.leostumpf.gpstools.domain.PositioningQuality
 import de.leostumpf.gpstools.domain.SpeedResolver
 import de.leostumpf.gpstools.settings.UnitPreference
 import de.leostumpf.gpstools.ui.gnss.GnssUiState
+import de.leostumpf.gpstools.ui.gnss.TimingUiState
 import de.leostumpf.gpstools.ui.signal.SignalUiState
 import de.leostumpf.gpstools.ui.speed.SpeedUiState
 import kotlinx.coroutines.Job
@@ -45,6 +49,7 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
     private val gnssSource = GnssStatusDataSource(application)
     private val unitPreference = UnitPreference(application)
     private val capabilitySource = GnssCapabilityDataSource(application)
+    private val assistanceSource = AssistanceDataSource(application)
 
     /** Static for the life of the device, so it is read once rather than streamed. */
     private val capabilities = capabilitySource.read()
@@ -62,6 +67,9 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
 
     private var stats = SessionStats()
     private var lastFix: SpeedFix? = null
+    private var firstFixTimer: FirstFixTimer? = null
+    private var clockOffsetMs: Long? = null
+    private var assistanceMessage: String? = null
     private val trackingJobs = mutableListOf<Job>()
 
     init {
@@ -84,9 +92,15 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
         if (trackingJobs.isNotEmpty()) return
         if (!hasLocationPermission()) return
 
+        // Each start is a new receiver session, so it gets its own time to first fix.
+        firstFixTimer = FirstFixTimer(startedAtMs = SystemClock.elapsedRealtime())
+
         trackingJobs += viewModelScope.launch {
             locationSource.fixes().collect { fix ->
                 lastFix = fix
+                firstFixTimer = firstFixTimer?.onFix(fix)
+                ClockOffset.of(fix, System.currentTimeMillis(), SystemClock.elapsedRealtime())
+                    ?.let { clockOffsetMs = it }
                 publishSpeed(fix)
             }
         }
@@ -100,6 +114,7 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
             while (true) {
                 delay(FRESHNESS_TICK_MS)
                 publishSpeed(lastFix)
+                publishTiming()
             }
         }
 
@@ -118,6 +133,36 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
     fun resetSession() {
         stats = SessionStats()
         _speedState.update { it.copy(maxMps = null, averageMps = null) }
+    }
+
+    /**
+     * Wipes the receiver's aiding data and restarts it, so the next fix is a real cold
+     * start. Restarting also begins a new session, so the time to first fix measures it.
+     */
+    fun coldStart() {
+        val accepted = assistanceSource.clearAidingData()
+        publishAssistance(
+            if (accepted) "Aiding data cleared — cold start running" else "Command rejected by device",
+        )
+        if (!accepted) return
+        stopTracking()
+        lastFix = null
+        startTracking()
+    }
+
+    fun fetchAssistance() {
+        publishAssistance(
+            if (assistanceSource.injectAssistanceData()) {
+                "Download requested — needs Wi-Fi or mobile data"
+            } else {
+                "Command rejected by device"
+            },
+        )
+    }
+
+    private fun publishAssistance(message: String) {
+        assistanceMessage = message
+        _gnssState.update { it.copy(assistanceMessage = message) }
     }
 
     private fun publishSpeed(fix: SpeedFix?) {
@@ -165,6 +210,8 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
             status = AlmanacStatus.from(snapshot),
             satellites = snapshot.satellites,
             gpsEnabled = enabled,
+            timing = currentTiming(),
+            assistanceMessage = assistanceMessage,
         )
         publishSignal()
     }
@@ -174,6 +221,26 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
             quality = PositioningQuality.from(lastSnapshot),
             measuredAccuracyM = _speedState.value.horizontalAccuracyM,
             capabilities = capabilities,
+        )
+    }
+
+    /** Re-evaluated on the ticker, so "searching…" counts up while nothing else changes. */
+    private fun publishTiming() {
+        val enabled = locationSource.isGpsEnabled
+        firstFixTimer = firstFixTimer?.holdWhileDisabled(
+            nowMs = SystemClock.elapsedRealtime(),
+            gpsEnabled = enabled,
+        )
+        // No satellite sweeps arrive while location is off, so the switch is picked up here.
+        _gnssState.update { it.copy(timing = currentTiming(), gpsEnabled = enabled) }
+    }
+
+    private fun currentTiming(): TimingUiState {
+        val timer = firstFixTimer
+        return TimingUiState(
+            firstFixMs = timer?.firstFixAfterMs,
+            searchingForMs = timer?.searchingForMs(SystemClock.elapsedRealtime()),
+            clockOffsetMs = clockOffsetMs,
         )
     }
 

@@ -19,6 +19,9 @@ data class GnssUiState(
     val signals: List<SignalRow> = emptyList(),
     val gpsEnabled: Boolean = true,
     val ephemerisUnavailable: Boolean = false,
+    val timing: TimingUiState = TimingUiState(),
+    /** Outcome of the last cold start or assistance download, or null if none was requested. */
+    val assistanceMessage: String? = null,
 ) {
 
     companion object {
@@ -26,6 +29,8 @@ data class GnssUiState(
             status: AlmanacStatus,
             satellites: List<SatelliteInfo>,
             gpsEnabled: Boolean,
+            timing: TimingUiState,
+            assistanceMessage: String?,
         ) = GnssUiState(
             readiness = status.readiness,
             visible = status.visible,
@@ -44,9 +49,21 @@ data class GnssUiState(
             ),
             gpsEnabled = gpsEnabled,
             ephemerisUnavailable = status.ephemerisUnavailable,
+            timing = timing,
+            assistanceMessage = assistanceMessage,
         )
     }
 }
+
+/** How long this session's first fix took, and how the phone's clock compares with GNSS time. */
+data class TimingUiState(
+    /** Time to first fix, or null while still searching. */
+    val firstFixMs: Long? = null,
+    /** How long the receiver has been searching, or null once it has a fix. */
+    val searchingForMs: Long? = null,
+    /** Phone clock minus GNSS time; positive when the phone is ahead. Null before a fix. */
+    val clockOffsetMs: Long? = null,
+)
 
 /**
  * One signal in the satellite list, with a key that is unique within the list.

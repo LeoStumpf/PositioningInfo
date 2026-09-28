@@ -22,6 +22,11 @@ data class SpeedFix(
      * which should only reflect what the app actually observed while open.
      */
     val isCached: Boolean = false,
+    /**
+     * UTC time of the fix as the receiver reports it — from GNSS, not from the phone's
+     * clock — or null when absent. Only used to compare the two clocks.
+     */
+    val utcTimeMs: Long? = null,
 )
 
 /**
