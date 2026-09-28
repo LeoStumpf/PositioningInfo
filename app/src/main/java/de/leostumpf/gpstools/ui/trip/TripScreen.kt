@@ -25,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import de.leostumpf.gpstools.ui.common.BackgroundModeButton
 import de.leostumpf.gpstools.ui.common.DASH
 import de.leostumpf.gpstools.ui.common.Glossary
 import de.leostumpf.gpstools.ui.common.Note
@@ -46,6 +47,8 @@ fun TripScreen(
     onToggleRecording: () -> Unit,
     onExport: () -> Unit,
     onClear: () -> Unit,
+    backgroundActive: Boolean,
+    onSetBackground: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var confirmClear by rememberSaveable { mutableStateOf(false) }
@@ -115,10 +118,18 @@ fun TripScreen(
         item { Spacer(Modifier.height(16.dp)) }
         item {
             Note(
-                "Records only while this app is open: the screen is kept on during a recording. " +
-                    "The track is saved on the phone as it goes, so it survives the app being closed.",
+                if (backgroundActive) {
+                    "Background mode is on: recording continues while you use other apps or " +
+                        "switch the screen off. The track is saved on the phone as it goes."
+                } else {
+                    "Records while GPS Tools is on screen (it keeps the screen awake). To keep " +
+                        "recording with the screen off or in other apps, switch background mode " +
+                        "on. The track is saved on the phone as it goes."
+                },
             )
         }
+        item { Spacer(Modifier.height(8.dp)) }
+        item { BackgroundModeButton(active = backgroundActive, onSetActive = onSetBackground) }
         if ((stats?.points ?: 0) > 0 && !state.recording) {
             item { Spacer(Modifier.height(12.dp)) }
             item {

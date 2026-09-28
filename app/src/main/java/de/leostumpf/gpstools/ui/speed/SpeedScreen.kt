@@ -36,6 +36,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.animation.core.animateFloatAsState
 import de.leostumpf.gpstools.domain.FixFreshness
+import de.leostumpf.gpstools.ui.common.BackgroundModeButton
+import de.leostumpf.gpstools.ui.common.Glossary
+import de.leostumpf.gpstools.ui.common.Primer
 import de.leostumpf.gpstools.ui.theme.DimGrey
 import de.leostumpf.gpstools.ui.theme.ErrorRed
 import de.leostumpf.gpstools.ui.theme.OkGreen
@@ -59,6 +62,8 @@ fun SpeedScreen(
     onCycleUnit: () -> Unit,
     onResetSession: () -> Unit,
     onShowAbout: () -> Unit,
+    backgroundActive: Boolean,
+    onSetBackground: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(
@@ -78,6 +83,16 @@ fun SpeedScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             SpeedReadout(state = state, fontSize = readoutSize, onCycleUnit = onCycleUnit)
+        }
+
+        // Drawn last so an expanded glossary lies over the readout rather than under it.
+        Row(
+            modifier = Modifier.align(Alignment.TopCenter).fillMaxWidth(),
+            verticalAlignment = Alignment.Top,
+        ) {
+            Primer(Glossary.speed, modifier = Modifier.weight(1f))
+            Spacer(Modifier.width(10.dp))
+            BackgroundModeButton(active = backgroundActive, onSetActive = onSetBackground)
         }
 
         Column(

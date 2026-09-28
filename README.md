@@ -13,6 +13,7 @@ Swipe between eight screens. Each detail screen has a collapsible glossary of th
 
 - Live speed straight from the GNSS receiver, in km/h, mph or knots (tap the unit to cycle)
 - Session maximum and time-weighted average, with a reset button
+- Background mode button: keep running with the screen off, shown by a notification
 - Honest status line: fix state, horizontal accuracy, satellites used / visible
 
 **Trip**
@@ -128,8 +129,11 @@ Three things the app does that cheap speedometers usually do not:
 - **It admits when the fix is stale.** Fix age is tracked on the monotonic clock; a reading
   older than three seconds dims, and one older than ten seconds is withdrawn entirely.
 
-Location is used only while the app is in the foreground. There is no background location
-permission and no foreground service — the receiver is released the moment you leave.
+Location is used while the app is on screen, and the receiver is released the moment you
+leave — unless you switch **background mode** on. That runs a location foreground service with
+a permanent notification and a Stop button, so trips and measurements continue with the screen
+off. It is off by default, explained before it is enabled, and ends when the app is swiped away.
+The app never asks for "allow all the time" location access.
 
 ## Building
 

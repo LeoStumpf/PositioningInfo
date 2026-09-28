@@ -18,11 +18,9 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import de.leostumpf.gpstools.ui.gnss.GnssScreen
@@ -71,13 +69,7 @@ fun GpsToolsApp(
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/gpx+xml"),
     ) { uri -> uri?.let(viewModel.analysis::exportTrip) }
-
-    // A recording only runs while the app is in front, so the screen stays on meanwhile.
-    val view = LocalView.current
-    DisposableEffect(tripState.recording) {
-        view.keepScreenOn = tripState.recording
-        onDispose { view.keepScreenOn = false }
-    }
+    val backgroundActive by viewModel.backgroundActive.collectAsStateWithLifecycle()
     val pagerState = rememberPagerState(initialPage = PAGE_SPEED) { PAGE_COUNT }
 
     // The background runs under the system bars; the content stays clear of them and of
@@ -95,6 +87,8 @@ fun GpsToolsApp(
                     onCycleUnit = viewModel::cycleUnit,
                     onResetSession = viewModel::resetSession,
                     onShowAbout = onShowAbout,
+                    backgroundActive = backgroundActive,
+                    onSetBackground = viewModel::setBackgroundMode,
                 )
 
                 PAGE_GNSS -> GnssScreen(
@@ -110,6 +104,8 @@ fun GpsToolsApp(
                     onToggleRecording = viewModel.analysis::toggleTrip,
                     onExport = { exportLauncher.launch(viewModel.analysis.suggestedTripFileName()) },
                     onClear = viewModel.analysis::clearTrip,
+                    backgroundActive = backgroundActive,
+                    onSetBackground = viewModel::setBackgroundMode,
                 )
 
                 PAGE_POSITION -> PositionScreen(

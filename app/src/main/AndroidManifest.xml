@@ -2,13 +2,20 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- Foreground-only: no ACCESS_BACKGROUND_LOCATION, no location foreground service. -->
+    <!--
+      No ACCESS_BACKGROUND_LOCATION: location is used while the app is on screen, or — only
+      when the user switches background mode on — by a visible location foreground service.
+    -->
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <!-- Install-time permission for clearing and re-injecting the receiver's assistance data. -->
     <uses-permission android:name="android.permission.ACCESS_LOCATION_EXTRA_COMMANDS" />
     <!-- Install-time permission for listing nearby Wi-Fi access points on the network page. -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- Background mode: a location foreground service and its notification. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!--
       Required, not optional: this app is a GNSS readout and has nothing to show on a
@@ -38,6 +45,11 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".background.BackgroundTrackingService"
+            android:exported="false"
+            android:foregroundServiceType="location" />
     </application>
 
 </manifest>

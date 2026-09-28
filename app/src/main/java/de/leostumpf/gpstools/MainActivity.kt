@@ -121,19 +121,19 @@ private fun SpeedRoute(onShowAbout: () -> Unit) {
     val viewModel: GpsToolsViewModel = viewModel()
     val lifecycleOwner = LocalLifecycleOwner.current
     // Tracking is bound to STARTED, so the receiver is released the moment the app is no
-    // longer in front. This is what keeps the app foreground-only.
+    // longer in front — unless the user has switched background mode on.
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
-                Lifecycle.Event.ON_START -> viewModel.startTracking()
-                Lifecycle.Event.ON_STOP -> viewModel.stopTracking()
+                Lifecycle.Event.ON_START -> viewModel.onUiStart()
+                Lifecycle.Event.ON_STOP -> viewModel.onUiStop()
                 else -> Unit
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
-            viewModel.stopTracking()
+            viewModel.onUiStop()
         }
     }
     GpsToolsApp(viewModel = viewModel, onShowAbout = onShowAbout)

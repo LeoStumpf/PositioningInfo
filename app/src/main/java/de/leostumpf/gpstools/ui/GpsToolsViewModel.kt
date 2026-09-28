@@ -9,6 +9,7 @@ import android.os.SystemClock
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import de.leostumpf.gpstools.background.BackgroundMode
 import de.leostumpf.gpstools.data.AssistanceDataSource
 import de.leostumpf.gpstools.data.CellInfoDataSource
 import de.leostumpf.gpstools.data.GnssCapabilityDataSource
@@ -105,16 +106,51 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
         onSkyChanged = { publishSky(SystemClock.elapsedRealtime()) },
     )
 
+    /** Whether the app keeps running when it leaves the screen; see [BackgroundMode]. */
+    val backgroundActive: StateFlow<Boolean> = BackgroundMode.active
+
+    private var uiVisible = false
+
     init {
         viewModelScope.launch {
             unitPreference.unit.collect { unit -> _speedState.update { it.copy(unit = unit) } }
         }
+        // Stopped from the notification while the app is out of sight: release the receiver.
+        viewModelScope.launch {
+            BackgroundMode.active.collect { active -> if (!active && !uiVisible) stopTracking() }
+        }
+    }
+
+    /** The app came to the front. */
+    fun onUiStart() {
+        uiVisible = true
+        startTracking()
     }
 
     /**
-     * Starts consuming GNSS updates. Called on every STARTED lifecycle pass, so tracking
-     * stops whenever the app is backgrounded — which is why this app needs no
-     * background-location permission and no foreground service.
+     * The app left the screen. Tracking stops here unless background mode is on, in which
+     * case the foreground service keeps the process and its location access alive.
+     */
+    fun onUiStop() {
+        uiVisible = false
+        if (!BackgroundMode.active.value) stopTracking()
+    }
+
+    fun setBackgroundMode(enabled: Boolean) {
+        val context = getApplication<Application>()
+        if (enabled) BackgroundMode.start(context) else BackgroundMode.stop(context)
+    }
+
+    override fun onCleared() {
+        // The screen is gone for good (the task was closed), so background mode ends with it.
+        if (BackgroundMode.active.value) BackgroundMode.stop(getApplication())
+        super.onCleared()
+    }
+
+    /**
+     * Starts consuming GNSS updates. Called on every STARTED lifecycle pass; tracking stops
+     * when the app is backgrounded unless the user has switched background mode on, so the
+     * app never needs the "allow all the time" location permission.
      *
      * The permission is re-checked here rather than trusted from the caller: it can be
      * revoked from the notification shade while the app sits in the background, and the

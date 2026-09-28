@@ -61,6 +61,23 @@ object Glossary {
                 "number in the satellite list. Open sky gives 35–50; below about 20 a " +
                 "signal is barely usable.",
         ),
+        PrimerEntry(
+            "Constellation table",
+            "Per system: VIS satellites listed, ALM with almanac, EPH with ephemeris, FIX " +
+                "used in the current fix. Counted per satellite, not per signal.",
+        ),
+        PrimerEntry(
+            "Satellite list",
+            "One row per signal, strongest in-fix first: system and number, band (L1, L5, " +
+                "…) when the chip reports it, C/N₀ with a bar, and the A/E flags.",
+        ),
+        PrimerEntry(
+            "Cold start / Fetch A-GNSS",
+            "Cold start deletes the stored orbits, position and time and restarts the " +
+                "receiver, so the next time to first fix shows the worst case. Fetch asks " +
+                "Android to download fresh assistance data — the app itself makes no " +
+                "connection.",
+        ),
     )
 
     val signal = listOf(
@@ -99,6 +116,17 @@ object Glossary {
             "Assistance services",
             "Data delivered over the network rather than from the satellites: orbits " +
                 "(A-GNSS), time injection, and on some phones correction data.",
+        ),
+        PrimerEntry(
+            "Expected resolution",
+            "The typical open-sky accuracy of the technique in use — single-constellation, " +
+                "multi-constellation, SBAS-corrected, dual-frequency — as a yardstick for the " +
+                "measured figure above it.",
+        ),
+        PrimerEntry(
+            "Receiver",
+            "The GNSS chipset model and its hardware generation (year), as the platform " +
+                "reports them. Not every phone does.",
         ),
     )
 
@@ -149,6 +177,28 @@ object Glossary {
                 "blocked or reflected, so they are weaker and receivers often ignore " +
                 "satellites below 5–10°.",
         ),
+        PrimerEntry(
+            "Projection (dashed)",
+            "Where a satellite should be over the next 15\u00A0min, continued from its last " +
+                "≤10\u00A0min of movement. Needs 2\u00A0min of history; satellites below the " +
+                "horizon cannot be predicted offline.",
+        ),
+        PrimerEntry(
+            "Setting soon",
+            "Satellites whose projection reaches the horizon within 15\u00A0min.",
+        ),
+        PrimerEntry(
+            "Events",
+            "Satellites entering or leaving the receiver's list. Below 15° this is rising " +
+                "or setting; higher up it means acquired or lost — usually something blocking " +
+                "the view.",
+        ),
+        PrimerEntry(
+            "Heading, declination, course",
+            "Heading: where the top of the phone points (compass). Declination: the local " +
+                "angle between magnetic and true north. Course: direction of travel from GNSS, " +
+                "shown while moving.",
+        ),
     )
 
     val network = listOf(
@@ -198,6 +248,17 @@ object Glossary {
                 "is not visible to apps; emergency calls in Europe additionally send the " +
                 "phone's own GNSS/Wi-Fi fix (AML).",
         ),
+        PrimerEntry(
+            "Cell identifiers",
+            "MCC-MNC: country and operator (262 = Germany). TAC/LAC: tracking or location " +
+                "area. CI/CID/NCI: the cell's identity. PCI, BSIC, PSC: the short physical code " +
+                "that tells neighbouring cells apart on the air.",
+        ),
+        PrimerEntry(
+            "Wi-Fi bands",
+            "2.4\u00A0GHz reaches furthest; 5 and 6\u00A0GHz have shorter range, so hearing " +
+                "them means the access point is close.",
+        ),
     )
 
     val position = listOf(
@@ -236,6 +297,15 @@ object Glossary {
                 "holding 50\u00A0% / 95\u00A0% of the fixes. 2DRMS is twice the root-mean-square " +
                 "distance, roughly a 95\u00A0% radius. Compare with the claimed ±, a 68\u00A0% radius.",
         ),
+        PrimerEntry(
+            "Derived sea-level pressure",
+            "The pressure at sea level that makes the barometer agree with GNSS — " +
+                "equivalent to the QNH pilots set. It changes with the weather.",
+        ),
+        PrimerEntry(
+            "Vertical speed",
+            "Rate of climb or descent from the barometer over the last few seconds.",
+        ),
     )
 
     val trip = listOf(
@@ -257,6 +327,15 @@ object Glossary {
             "GPX",
             "The standard open file format for tracks; readable by practically every map and " +
                 "sports app. Export writes it to a file you choose.",
+        ),
+        PrimerEntry(
+            "Max / average speed",
+            "Highest recorded speed, and distance divided by moving time.",
+        ),
+        PrimerEntry(
+            "Background mode",
+            "Without it, recording stops as soon as you leave the app. With it, a " +
+                "notification keeps the receiver running with the screen off or in other apps.",
         ),
     )
 
@@ -304,6 +383,73 @@ object Glossary {
             "GPS week",
             "GPS counts time in weeks since 6 January 1980, broadcast with only 10 bits, so it " +
                 "rolls over every 1024 weeks (last in April 2019); the phone's date resolves it.",
+        ),
+        PrimerEntry(
+            "Band rows",
+            "Per frequency band: signals, AGC level and mean C/N₀, with the change against " +
+                "the baseline learnt during the first minute in brackets (− a drop, + a rise).",
+        ),
+        PrimerEntry(
+            "Leap seconds, discontinuities",
+            "GPS time runs ahead of UTC by the leap seconds added since 1980 (18 so far). A " +
+                "discontinuity is a reset of the chip's clock, which would break any " +
+                "measurement across it.",
+        ),
+        PrimerEntry(
+            "Absolute time, carrier phase",
+            "Absolute: the chip knows GNSS time outright, not just relative to its start. " +
+                "Carrier phase: signals tracked with centimetre-precise phase, the basis of " +
+                "high-precision positioning; phones rarely keep it.",
+        ),
+        PrimerEntry(
+            "Fix type, GGA quality",
+            "From NMEA: 3D fix, 2D (height assumed) or none; quality 1 = plain GNSS, 2 = " +
+                "SBAS-corrected, 4/5 = RTK.",
+        ),
+        PrimerEntry(
+            "Error ellipse (GST)",
+            "The chip's own 1σ estimate of the position error as an ellipse: half-axes and " +
+                "orientation, plus latitude, longitude and height sigmas. Not every chip " +
+                "reports it.",
+        ),
+        PrimerEntry(
+            "Health, almanac, ionosphere",
+            "Health: each satellite's own status flag, 0 = usable. Almanac pages: how much " +
+                "of the 12.5-minute almanac has been decoded. Klobuchar α/β: the broadcast " +
+                "model single-frequency receivers use to correct ionospheric delay. A0/A1: " +
+                "GPS-to-UTC offset and its rate.",
+        ),
+    )
+
+    val speed = listOf(
+        PrimerEntry(
+            "Speed",
+            "Measured by the receiver from the Doppler shift of the satellite signals, not " +
+                "from position changes, so it reacts at once without jitter. Readings inside " +
+                "the receiver's own speed uncertainty show as 0. Tap the number to switch km/h, " +
+                "mph and knots.",
+        ),
+        PrimerEntry(
+            "Max / avg",
+            "Highest and time-weighted average speed since the app was opened or RESET was " +
+                "tapped. Stale readings are not counted.",
+        ),
+        PrimerEntry(
+            "Status line",
+            "FIX (green): a fresh fix. STALE (amber): older than 3\u00A0s. NO FIX: older " +
+                "than 10\u00A0s or none. Then the horizontal accuracy (a 68\u00A0% radius) and " +
+                "satellites used in the fix / visible. Long-press it for About.",
+        ),
+        PrimerEntry(
+            "Background mode",
+            "Off by default: the receiver is released the moment you leave the app. " +
+                "Switched on, it keeps running for trips and measurements, announced by a " +
+                "notification with a Stop button.",
+        ),
+        PrimerEntry(
+            "More tools",
+            "Swipe left: trip, position, GNSS status, sky, signal, receiver internals and " +
+                "network location. Each has a glossary like this one.",
         ),
     )
 }
