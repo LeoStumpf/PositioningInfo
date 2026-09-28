@@ -2,221 +2,215 @@
 package de.leostumpf.gpstools.ui.receiver
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import de.leostumpf.gpstools.data.model.RawStreamStatus
 import de.leostumpf.gpstools.domain.Band
 import de.leostumpf.gpstools.domain.BandStatus
 import de.leostumpf.gpstools.domain.InterferenceAssessment
+import de.leostumpf.gpstools.ui.common.AppIcons
 import de.leostumpf.gpstools.ui.common.DASH
-import de.leostumpf.gpstools.ui.common.Glossary
 import de.leostumpf.gpstools.ui.common.Note
-import de.leostumpf.gpstools.ui.common.Primer
-import de.leostumpf.gpstools.ui.common.SectionLabel
+import de.leostumpf.gpstools.ui.common.Notice
+import de.leostumpf.gpstools.ui.common.Page
+import de.leostumpf.gpstools.ui.common.PageScaffold
+import de.leostumpf.gpstools.ui.common.StatTile
+import de.leostumpf.gpstools.ui.common.Tone
 import de.leostumpf.gpstools.ui.common.ValueRow
 import de.leostumpf.gpstools.ui.common.fmt
-import de.leostumpf.gpstools.ui.theme.ErrorRed
-import de.leostumpf.gpstools.ui.theme.OkGreen
-import de.leostumpf.gpstools.ui.theme.WarnAmber
+import de.leostumpf.gpstools.ui.common.section
+import de.leostumpf.gpstools.ui.theme.BodyStyle
+import de.leostumpf.gpstools.ui.theme.CaptionStyle
+import de.leostumpf.gpstools.ui.theme.DataStyle
+import de.leostumpf.gpstools.ui.theme.OverlineStyle
+import de.leostumpf.gpstools.ui.theme.Palette
+import de.leostumpf.gpstools.ui.theme.StatusLineStyle
+import de.leostumpf.gpstools.ui.theme.TitleStyle
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
-/** What the chip reports below the position: interference, its clock, NMEA and the satellites' own messages. */
+/**
+ * What the chip reports below the position: interference, its clock, its NMEA output, the
+ * satellites' own messages, and what the hardware supports.
+ */
 @Composable
 fun ReceiverScreen(state: ReceiverUiState, modifier: Modifier = Modifier) {
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(top = 24.dp, bottom = 48.dp),
-    ) {
-        item { Primer(Glossary.receiver) }
-        item { Spacer(Modifier.height(20.dp)) }
-
-        // Interference and clock both come from the raw measurements.
-        item { SectionLabel("INTERFERENCE") }
-        item { Spacer(Modifier.height(6.dp)) }
-        val a = state.assessment
-        if (a == null || state.rawStatus != RawStreamStatus.READY && state.rawEpochs == 0) {
-            item { Note(rawStatusText(state.rawStatus, "raw measurements")) }
+    val a = state.assessment
+    PageScaffold(Page.RECEIVER, modifier) {
+        section("Interference")
+        if (a == null || (state.rawStatus != RawStreamStatus.READY && state.rawEpochs == 0)) {
+            item { Notice(rawStatusText(state.rawStatus, "raw measurements")) }
         } else {
-            item { InterferenceHeadline(a) }
-            item { Spacer(Modifier.height(8.dp)) }
-            items(a.bands.filter { it.band != Band.OTHER || it.signals > 0 }) { BandRow(it) }
-            item {
-                ValueRow("Multipath flagged", "${a.multipathSignals} of ${signals(a.totalSignals)}")
+            item { Verdict(a) }
+            if (a.bands.any { it.signals > 0 }) {
+                item { BandHeader() }
+                a.bands.filter { it.signals > 0 || it.band != Band.OTHER }.forEach { b -> item { BandRow(b) } }
             }
+            item { ValueRow("Multipath flagged", "${a.multipathSignals} of ${a.totalSignals}", divider = false) }
         }
 
-        item { Spacer(Modifier.height(28.dp)) }
-        item { SectionLabel("RECEIVER CLOCK") }
-        item { Spacer(Modifier.height(6.dp)) }
+        section("Receiver clock")
         if (a == null) {
             item { Note(rawStatusText(state.rawStatus, "raw measurements")) }
         } else {
             item {
                 ValueRow(
-                    "Oscillator frequency error",
-                    a.clockDriftPpm?.let { "${it.fmt(3)} ppm" } ?: DASH,
-                    detail = a.clockDriftStdDevPpm?.let { "varies by ±${it.fmt(4)} ppm over the last minute" },
+                    "Oscillator error",
+                    a.clockDriftPpm?.let { "${it.fmt(3).replace("-", "−")} ppm" } ?: DASH,
+                    detail = a.clockDriftStdDevPpm?.let { "±${it.fmt(4)} ppm over the last minute" },
                 )
+            }
+            item { ValueRow("Leap seconds GPS − UTC", a.leapSecond?.let { "$it s" } ?: DASH) }
+            item {
+                ValueRow("GNSS time", when (state.hasFullBias) { true -> "absolute"; false -> "relative only"; null -> DASH })
             }
             item { ValueRow("Clock discontinuities", a.clockDiscontinuities.toString()) }
-            item { ValueRow("Leap seconds (GPS − UTC)", a.leapSecond?.let { "$it s" } ?: DASH) }
-            item {
-                ValueRow(
-                    "GNSS time known",
-                    when (state.hasFullBias) { true -> "absolute"; false -> "relative only"; null -> DASH },
-                )
-            }
-            item { ValueRow("Carrier phase valid", signals(state.carrierPhaseValid)) }
+            item { ValueRow("Carrier phase valid", signals(state.carrierPhaseValid), divider = false) }
         }
 
-        item { Spacer(Modifier.height(28.dp)) }
-        item { SectionLabel("NMEA FROM THE CHIP") }
-        item { Spacer(Modifier.height(6.dp)) }
+        section("NMEA from the chip")
         val n = state.nmea
         if (n.total == 0) {
             item { Note("No NMEA sentences received yet.") }
         } else {
             item {
-                ValueRow(
-                    "Fix type",
-                    when (n.gsa?.fixType) { 3 -> "3D"; 2 -> "2D"; 1 -> "none"; else -> DASH },
-                    detail = n.gga?.fixQuality?.let { "GGA quality $it: ${ggaQuality(it)}" },
-                )
-            }
-            item { ValueRow("Satellites (GGA)", n.gga?.satellites?.toString() ?: DASH) }
-            item {
-                ValueRow(
-                    "DOP reported by the chip",
-                    n.gsa?.let { g ->
-                        listOf("P" to g.pdop, "H" to g.hdop, "V" to g.vdop)
-                            .joinToString("  ") { (k, v) -> "$k ${v?.fmt(1) ?: DASH}" }
-                    } ?: DASH,
-                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StatTile(
+                        "Fix", when (n.gsa?.fixType) { 3 -> "3D"; 2 -> "2D"; 1 -> "none"; else -> DASH }, Modifier.weight(1f),
+                        footnote = n.gga?.fixQuality?.let { "quality $it · ${ggaQuality(it)}" },
+                    )
+                    StatTile("Satellites", n.gga?.satellites?.toString() ?: DASH, Modifier.weight(1f), footnote = "in solution")
+                    StatTile(
+                        "Chip DOP", n.gsa?.pdop?.fmt(1) ?: DASH, Modifier.weight(1f),
+                        footnote = n.gsa?.let { "H ${it.hdop?.fmt(1) ?: DASH} · V ${it.vdop?.fmt(1) ?: DASH}" },
+                    )
+                }
             }
             n.gst?.let { gst ->
                 item {
                     ValueRow(
-                        "Error ellipse (GST, 1σ)",
-                        if (gst.semiMajorM != null && gst.semiMinorM != null) {
-                            "${gst.semiMajorM.fmt(1)} × ${gst.semiMinorM.fmt(1)} m"
-                        } else {
-                            DASH
-                        },
+                        "Error ellipse, 1σ",
+                        if (gst.semiMajorM != null && gst.semiMinorM != null) "${gst.semiMajorM.fmt(1)} × ${gst.semiMinorM.fmt(1)} m" else DASH,
                         detail = listOfNotNull(
-                            gst.orientationDeg?.let { "major axis at ${it.roundToInt()}°" },
-                            gst.latSigmaM?.let { "σ lat ${it.fmt(1)} m" },
-                            gst.lonSigmaM?.let { "σ lon ${it.fmt(1)} m" },
-                            gst.altSigmaM?.let { "σ alt ${it.fmt(1)} m" },
+                            gst.orientationDeg?.let { "major axis ${it.roundToInt()}°" },
+                            gst.altSigmaM?.let { "height σ ${it.fmt(1)} m" },
                         ).joinToString(" · ").ifEmpty { null },
                     )
                 }
             }
-            item {
-                ValueRow(
-                    "Sentences",
-                    "${n.total}${if (n.rejected > 0) " (${n.rejected} bad checksum)" else ""}",
-                    detail = n.counts.entries.sortedByDescending { it.value }
-                        .joinToString(" · ") { "${it.key} ${it.value}" },
-                )
-            }
+            item { SentenceMix(n.counts, n.total, n.rejected) }
         }
 
-        item { Spacer(Modifier.height(28.dp)) }
-        item { SectionLabel("NAVIGATION MESSAGES") }
-        item { Spacer(Modifier.height(6.dp)) }
+        section("Navigation messages")
         if (state.navFrames.isEmpty()) {
             item {
-                Note(
+                Notice(
                     if (state.navStatus == RawStreamStatus.UNKNOWN && state.navSilentMs > NAV_PATIENCE_MS) {
-                        "Nothing received after ${state.navSilentMs / 1_000} s. Many phone chips do not " +
-                            "pass the navigation message on to Android, and this one apparently " +
-                            "does not either."
+                        "Nothing received after ${state.navSilentMs / 1_000} s. This chip doesn't pass the " +
+                            "satellites' broadcast messages on to Android — many phone chips don't."
                     } else {
                         rawStatusText(state.navStatus, "navigation messages")
                     },
                 )
             }
         } else {
-            item {
-                ValueRow(
-                    "Frames received",
-                    state.navFrames.values.sum().toString(),
-                    detail = state.navFrames.entries.sortedByDescending { it.value }
-                        .joinToString(" · ") { "${it.key} ${it.value}" },
-                )
-            }
             val gps = state.gps
             item {
                 ValueRow(
-                    "GPS subframes decoded",
-                    gps.subframesDecoded.toString(),
+                    "Frames received", state.navFrames.values.sum().toString(),
+                    detail = state.navFrames.entries.sortedByDescending { it.value }.joinToString(" · ") { "${it.key} ${it.value}" },
+                )
+            }
+            item {
+                ValueRow(
+                    "GPS subframes decoded", gps.subframesDecoded.toString(),
                     detail = if (gps.subframesRejected > 0) "${gps.subframesRejected} failed parity" else null,
                 )
             }
             item {
                 ValueRow(
                     "GPS week",
-                    gps.weekNumber?.let { wn -> fullWeek(wn, state.currentGpsWeek)?.let { "$it (broadcast $wn)" } ?: "$wn (mod 1024)" } ?: DASH,
+                    gps.weekNumber?.let { wn -> fullWeek(wn, state.currentGpsWeek)?.let { "$it" } ?: "$wn mod 1024" } ?: DASH,
+                    detail = gps.weekNumber?.let { "broadcast as $it (10 bits)" },
                 )
             }
             item {
                 val unhealthy = gps.health.filterValues { it != 0 }.keys.sorted()
                 ValueRow(
                     "Satellite health",
-                    if (gps.health.isEmpty()) DASH else if (unhealthy.isEmpty()) "all ${gps.health.size} healthy" else "unhealthy: ${unhealthy.joinToString { "G%02d".format(it) }}",
-                    valueColor = if (unhealthy.isNotEmpty()) WarnAmber else null,
+                    when {
+                        gps.health.isEmpty() -> DASH
+                        unhealthy.isEmpty() -> "all ${gps.health.size} healthy"
+                        else -> unhealthy.joinToString { "G%02d".format(it) }
+                    },
+                    valueColor = if (unhealthy.isNotEmpty()) Palette.Degraded else null,
                 )
             }
-            item { ValueRow("Almanac pages decoded", "${gps.almanacSvids.size} of 32") }
+            item { ValueRow("Almanac pages", "${gps.almanacSvids.size} of 32") }
             gps.utc?.let { utc ->
                 item {
                     ValueRow(
-                        "Leap seconds broadcast",
-                        "${utc.deltaTls} s",
-                        detail = if (utc.leapSecondPending) {
-                            "change to ${utc.deltaTlsf} s announced (week ${utc.wnLsf} mod 256, day ${utc.dn})"
-                        } else {
-                            "no leap second announced"
-                        },
-                        valueColor = if (utc.leapSecondPending) WarnAmber else null,
+                        "Leap seconds broadcast", "${utc.deltaTls} s",
+                        detail = if (utc.leapSecondPending) "change to ${utc.deltaTlsf} s announced (week ${utc.wnLsf} mod 256, day ${utc.dn})" else "none announced",
+                        valueColor = if (utc.leapSecondPending) Palette.Degraded else null,
                     )
                 }
-                item {
-                    ValueRow(
-                        "GPS − UTC offset polynomial",
-                        "A0 ${(utc.a0 * 1e9).fmt(2)} ns",
-                        detail = "A1 ${(utc.a1 * 1e15).fmt(3)} fs/s",
-                    )
-                }
+                item { ValueRow("GPS − UTC offset", "A0 ${(utc.a0 * 1e9).fmt(2)} ns", detail = "A1 ${(utc.a1 * 1e15).fmt(3)} fs/s") }
             }
             gps.ionosphere?.let { k ->
                 item {
                     ValueRow(
-                        "Ionosphere model (Klobuchar)",
-                        "received",
-                        detail = "α " + k.alpha.joinToString(" ") { "%.2e".format(it) } +
-                            " · β " + k.beta.joinToString(" ") { "%.2e".format(it) },
+                        "Ionosphere model", "received",
+                        detail = "α " + k.alpha.joinToString(" ") { "%.2e".format(it) } + " · β " + k.beta.joinToString(" ") { "%.2e".format(it) },
+                        divider = false,
                     )
                 }
             }
-            if (gps.subframesDecoded == 0) {
+        }
+
+        section("Hardware")
+        val caps = state.capabilities
+        caps.hardwareModel?.let { item { ValueRow("Chipset", it.replace(';', ' ').trim()) } }
+        caps.hardwareYear?.let { item { ValueRow("Hardware generation", it.toString()) } }
+        if (!caps.reported) {
+            item { Note("Android 12 and later report which services the receiver supports; this device is older.", modifier = Modifier.padding(top = 6.dp)) }
+        } else {
+            item { Capability("Raw measurements", caps.rawMeasurements) }
+            item { Capability("Navigation messages", caps.navigationMessages) }
+            if (caps.assistanceReported) {
+                item { Capability("A-GNSS, network computes", caps.assistedMsa) }
+                item { Capability("A-GNSS, phone computes", caps.assistedMsb) }
+                item { Capability("Time injection", caps.onDemandTime) }
+                item { Capability("Measurement corrections", caps.measurementCorrections) }
+                item { Capability("Carrier phase tracking", caps.carrierPhase, last = true) }
+            } else {
                 item {
-                    Note("GPS messages take 30 s per satellite to arrive, and the almanac 12.5 minutes in full. Keep the app open under open sky.")
+                    Note(
+                        "Android reports the assistance services (A-GNSS, time injection, corrections) only from version 14; " +
+                            "this phone almost certainly uses assisted GNSS but cannot say so.",
+                        modifier = Modifier.padding(top = 10.dp),
+                    )
                 }
             }
         }
@@ -224,33 +218,100 @@ fun ReceiverScreen(state: ReceiverUiState, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun InterferenceHeadline(a: InterferenceAssessment) {
-    val (text, color) = when {
-        a.jammingSuspected -> "Possible jamming" to ErrorRed
-        a.spoofingIndicators.isNotEmpty() -> "Spoofing indicators present" to WarnAmber
-        a.epochs < 60 -> "Learning the baseline…" to MaterialTheme.colorScheme.onSurfaceVariant
-        else -> "No interference detected" to OkGreen
+private fun Verdict(a: InterferenceAssessment) {
+    val (title, subtitle, tone) = when {
+        a.jammingSuspected -> Triple("Possible jamming", "Gain and signal strength dropped together", Tone.BAD)
+        a.spoofingIndicators.isNotEmpty() -> Triple("Spoofing indicators", a.spoofingIndicators.first(), Tone.DEGRADED)
+        a.epochs < 60 -> Triple("Learning the baseline…", "Judged after the first minute", Tone.NEUTRAL)
+        else -> Triple("No interference detected", "Gain and signal strength match the baseline", Tone.GOOD)
     }
-    Text(text, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = color)
-    a.spoofingIndicators.forEach { Note("• $it", WarnAmber) }
+    val shape = RoundedCornerShape(16.dp)
+    Row(
+        Modifier.fillMaxWidth().clip(shape)
+            .background(if (tone == Tone.NEUTRAL) Palette.Surface else tone.color.copy(alpha = 0.08f))
+            .border(1.dp, if (tone == Tone.NEUTRAL) Palette.CardBorder else tone.color.copy(alpha = 0.3f), shape)
+            .padding(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            if (tone == Tone.GOOD || tone == Tone.NEUTRAL) AppIcons.ShieldCheck else AppIcons.ShieldAlert,
+            contentDescription = null, tint = tone.color, modifier = Modifier.size(28.dp),
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = TitleStyle, color = Palette.TextPrimary)
+            Text(subtitle, style = CaptionStyle, color = Palette.TextSecondary)
+        }
+    }
+    a.spoofingIndicators.drop(1).forEach { Note("• $it", Palette.Degraded, Modifier.padding(top = 6.dp)) }
+}
+
+private val BandWeights = listOf(1.4f, 1f, 1f, 0.6f)
+
+@Composable
+private fun BandHeader() {
+    Row(Modifier.fillMaxWidth().padding(top = 14.dp, bottom = 4.dp)) {
+        listOf("BAND", "AGC dB", "C/N₀", "SIG").forEachIndexed { i, h ->
+            Text(h, style = OverlineStyle.copy(fontWeight = FontWeight.Normal), color = Palette.TextTertiary,
+                textAlign = if (i == 0) TextAlign.Start else TextAlign.End, modifier = Modifier.weight(BandWeights[i]))
+        }
+    }
 }
 
 @Composable
 private fun BandRow(b: BandStatus) {
-    val name = when (b.band) {
-        Band.L1_E1_B1 -> "L1 / E1 / B1"
-        Band.L5_E5A_B2A -> "L5 / E5a / B2a"
-        Band.OTHER -> "Other"
+    Column {
+        Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.Bottom) {
+            Text(
+                when (b.band) { Band.L1_E1_B1 -> "L1/E1/B1"; Band.L5_E5A_B2A -> "L5/E5a/B2a"; Band.OTHER -> "Other" },
+                style = BodyStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary, modifier = Modifier.weight(BandWeights[0]),
+            )
+            ValueWithDelta(b.agcDb, b.agcDropDb?.let { -it }, alarm = (b.agcDropDb ?: 0.0) >= 6.0, modifier = Modifier.weight(BandWeights[1]))
+            ValueWithDelta(
+                b.meanCn0DbHz,
+                if (b.meanCn0DbHz != null && b.cn0BaselineDbHz != null) b.meanCn0DbHz - b.cn0BaselineDbHz else null,
+                alarm = false, modifier = Modifier.weight(BandWeights[2]),
+            )
+            Text(b.signals.toString(), style = DataStyle, color = Palette.TextPrimary, textAlign = TextAlign.End, modifier = Modifier.weight(BandWeights[3]))
+        }
+        HorizontalDivider(color = Palette.Divider)
     }
-    fun delta(d: Double?) = d?.let { " (${if (it >= 0) "−" else "+"}${abs(it).fmt(1)})" } ?: ""
-    ValueRow(
-        name,
-        signals(b.signals),
-        detail = "AGC ${b.agcDb?.fmt(1) ?: DASH} dB${delta(b.agcDropDb)} · " +
-            "C/N₀ ${b.meanCn0DbHz?.fmt(1) ?: DASH} dB-Hz" +
-            delta(if (b.meanCn0DbHz != null && b.cn0BaselineDbHz != null) b.cn0BaselineDbHz - b.meanCn0DbHz else null),
-        valueColor = if ((b.agcDropDb ?: 0.0) >= 6.0) ErrorRed else null,
-    )
+}
+
+/** A value with its change against the baseline in small type: "−58.6 +0.1". */
+@Composable
+private fun ValueWithDelta(value: Double?, delta: Double?, alarm: Boolean, modifier: Modifier) {
+    Row(modifier, horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.Bottom) {
+        Text(value?.fmt(1)?.replace("-", "−") ?: DASH, style = DataStyle, color = if (alarm) Palette.Bad else Palette.TextPrimary)
+        delta?.let {
+            Text(" ${if (it >= 0) "+" else "−"}${abs(it).fmt(1)}", style = DataStyle.copy(fontSize = 10.sp), color = Palette.TextTertiary)
+        }
+    }
+}
+
+/** The mix of sentence types as one bar in shades of grey, with the counts below. */
+@Composable
+private fun SentenceMix(counts: Map<String, Int>, total: Int, rejected: Int) {
+    val sorted = counts.entries.sortedByDescending { it.value }
+    val shades = listOf(Palette.TextPrimary, Palette.TextSecondary, Palette.TextTertiary, Palette.Inactive, Color(0xFF444444), Palette.Outline)
+    Column(Modifier.padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row {
+            Text("Sentences", style = BodyStyle, color = Palette.TextSecondary, modifier = Modifier.weight(1f))
+            Text("%,d".format(total).replace(',', ' ') + if (rejected > 0) " ($rejected bad)" else "", style = DataStyle, color = Palette.TextPrimary)
+        }
+        Row(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+            val sum = sorted.sumOf { it.value }.coerceAtLeast(1)
+            sorted.forEachIndexed { i, e ->
+                Box(Modifier.weight(e.value.toFloat() / sum).fillMaxHeight().background(shades[i.coerceAtMost(shades.lastIndex)]))
+            }
+        }
+        Text(sorted.joinToString(" · ") { "${it.key} ${it.value}" }, style = StatusLineStyle.copy(fontSize = 11.sp), color = Palette.TextTertiary)
+    }
+}
+
+@Composable
+private fun Capability(label: String, available: Boolean, last: Boolean = false) {
+    ValueRow(label, if (available) "yes" else "no", valueColor = if (available) Palette.Good else Palette.TextTertiary, divider = !last)
 }
 
 private fun signals(n: Int) = if (n == 1) "1 signal" else "$n signals"
@@ -264,7 +325,7 @@ private fun rawStatusText(status: RawStreamStatus, what: String) = when (status)
 }
 
 private fun ggaQuality(q: Int) = when (q) {
-    0 -> "no fix"; 1 -> "GNSS"; 2 -> "differential (SBAS)"; 4 -> "RTK fixed"; 5 -> "RTK float"; 6 -> "estimated"
+    0 -> "no fix"; 1 -> "GNSS"; 2 -> "SBAS"; 4 -> "RTK fixed"; 5 -> "RTK float"; 6 -> "estimated"
     else -> "other"
 }
 

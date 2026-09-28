@@ -72,6 +72,10 @@ Swipe between eight screens. Each detail screen has a collapsible glossary of th
 
 - Position from Wi-Fi and cell towers, its claimed accuracy and its real error against GNSS
 - The raw inputs: cells (with timing-advance distance) and Wi-Fi access points in range
+- About: what the app is, its licence (AGPL-3.0) and a link to the source
+
+The interface ("Instrument Black") is monochrome on true black, with colour reserved for
+state and constellations, set in IBM Plex (bundled under the SIL Open Font License).
 
 ## How it works
 

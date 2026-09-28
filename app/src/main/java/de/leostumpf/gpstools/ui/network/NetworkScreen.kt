@@ -1,219 +1,234 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package de.leostumpf.gpstools.ui.network
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import de.leostumpf.gpstools.data.model.AccessPoint
 import de.leostumpf.gpstools.data.model.CellTower
-import de.leostumpf.gpstools.ui.common.Glossary
-import de.leostumpf.gpstools.ui.common.Primer
-import de.leostumpf.gpstools.ui.theme.DimGrey
-import de.leostumpf.gpstools.ui.theme.OkGreen
-import de.leostumpf.gpstools.ui.theme.StatusLineStyle
-import de.leostumpf.gpstools.ui.theme.WarnAmber
+import de.leostumpf.gpstools.ui.about.AboutSection
+import de.leostumpf.gpstools.ui.common.DASH
+import de.leostumpf.gpstools.ui.common.HeroValue
+import de.leostumpf.gpstools.ui.common.InfoCard
+import de.leostumpf.gpstools.ui.common.LevelBar
+import de.leostumpf.gpstools.ui.common.Notice
+import de.leostumpf.gpstools.ui.common.Page
+import de.leostumpf.gpstools.ui.common.PageScaffold
+import de.leostumpf.gpstools.ui.common.QuietButton
+import de.leostumpf.gpstools.ui.common.Tone
+import de.leostumpf.gpstools.ui.common.section
+import de.leostumpf.gpstools.ui.theme.BodyStyle
+import de.leostumpf.gpstools.ui.theme.CaptionStyle
+import de.leostumpf.gpstools.ui.theme.DataStyle
+import de.leostumpf.gpstools.ui.theme.OverlineStyle
+import de.leostumpf.gpstools.ui.theme.Palette
+import de.leostumpf.gpstools.ui.theme.PlexCondensed
+import kotlin.math.min
+import kotlin.math.roundToInt
 
 /**
- * Positioning without satellites: what the network provider reports, how good it really
- * is, and the Wi-Fi and cell data it is built from.
+ * Positioning without satellites — what the network provider reports, how good it really
+ * is, and the Wi-Fi and cell data it is built from — followed by the app's About notice.
  */
 @Composable
 fun NetworkScreen(state: NetworkUiState, modifier: Modifier = Modifier) {
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(top = 24.dp, bottom = 48.dp),
-    ) {
-        item { Primer(Glossary.network) }
-        item { Spacer(Modifier.height(20.dp)) }
-        item { NetworkFixHeader(state) }
+    var showAllAps by rememberSaveable { mutableStateOf(false) }
+    PageScaffold(Page.NETWORK, modifier) {
+        item {
+            Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                HeroValue(
+                    value = state.accuracyM?.let { "±${formatDistance(it.toDouble()).substringBefore(' ')}" } ?: DASH,
+                    unit = state.accuracyM?.let { formatDistance(it.toDouble()).substringAfter(' ') },
+                    caption = when {
+                        !state.providerEnabled -> null
+                        state.ageMs == null -> "Waiting for a network position…"
+                        else -> listOfNotNull("Claimed accuracy", state.source?.let { "from $it" }, formatAge(state.ageMs)).joinToString(" · ")
+                    },
+                )
+                if (!state.providerEnabled) {
+                    Notice(
+                        "Network location is switched off. On a Pixel: Settings › Location › Location services › Google Location Accuracy.",
+                        Tone.DEGRADED,
+                    )
+                }
+                Comparison(state)
+            }
+        }
 
-        item { Spacer(Modifier.height(24.dp)) }
-        item { SectionLabel("COMPARED WITH GNSS") }
-        item { Spacer(Modifier.height(8.dp)) }
-        item { Comparison(state) }
-
-        item { Spacer(Modifier.height(28.dp)) }
-        item { SectionLabel("CELL TOWERS") }
-        item { Spacer(Modifier.height(6.dp)) }
+        section("Cell towers")
         when {
-            !state.hasTelephony -> item { Note("This device has no mobile radio.") }
-            state.cells.isEmpty() -> item { Note("No cells reported. Is a SIM inserted and airplane mode off?") }
+            !state.hasTelephony -> item { Notice("This device has no mobile radio.") }
+            state.cells.isEmpty() -> item { Notice("No cells reported. Is a SIM inserted and airplane mode off?") }
             else -> {
                 if (state.cells.none { it.registered }) {
                     item {
-                        Note(
-                            "No serving cell: the phone is not attached to a network (no SIM, " +
-                                "or out of service). The modem still measures the towers around it.",
-                        )
+                        Box(Modifier.padding(bottom = 6.dp)) {
+                            Notice("No serving cell — no SIM, or out of service. The modem still measures the towers around it.")
+                        }
                     }
-                    item { Spacer(Modifier.height(4.dp)) }
                 }
                 items(state.cells) { CellRow(it) }
             }
         }
 
-        item { Spacer(Modifier.height(28.dp)) }
-        item { SectionLabel("WI-FI ACCESS POINTS") }
-        item { Spacer(Modifier.height(6.dp)) }
+        section("Wi-Fi access points", trailing = state.accessPoints.size.takeIf { it > 0 }?.toString())
         when {
-            !state.wifiAvailable -> item {
-                Note("Wi-Fi is off and background Wi-Fi scanning is disabled, so no access points are visible.")
-            }
-            state.accessPoints.isEmpty() -> item { Note("No access points found yet.") }
+            !state.wifiAvailable -> item { Notice("Wi-Fi is off and background Wi-Fi scanning is disabled, so no access points are visible.") }
+            state.accessPoints.isEmpty() -> item { Notice("No access points found yet.") }
             else -> {
-                item { Note("${state.accessPoints.size} in range, strongest first.") }
-                item { Spacer(Modifier.height(4.dp)) }
-                items(state.accessPoints.take(MAX_ACCESS_POINTS), key = { it.bssid }) { AccessPointRow(it) }
+                val shown = if (showAllAps) state.accessPoints else state.accessPoints.take(AP_PREVIEW)
+                items(shown, key = { it.bssid }) { AccessPointRow(it) }
+                if (state.accessPoints.size > AP_PREVIEW) {
+                    item {
+                        QuietButton(
+                            if (showAllAps) "Show fewer" else "Show all ${state.accessPoints.size}",
+                            onClick = { showAllAps = !showAllAps },
+                        )
+                    }
+                }
             }
         }
+
+        section("About")
+        item { AboutSection() }
     }
 }
 
-@Composable
-private fun NetworkFixHeader(state: NetworkUiState) {
-    Column {
-        Text(
-            text = state.accuracyM?.let { "±" + formatDistance(it.toDouble()) } ?: "—",
-            style = MaterialTheme.typography.displaySmall,
-            fontWeight = FontWeight.Light,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Text(
-            text = when {
-                !state.providerEnabled ->
-                    "Network location is switched off. On a Pixel: Settings › Location › " +
-                        "Location services › Google Location Accuracy."
-                state.ageMs == null -> "Waiting for a network position…"
-                else -> listOfNotNull(
-                    "Claimed accuracy (68 % confidence)",
-                    state.source?.let { "from $it" },
-                    formatAge(state.ageMs),
-                ).joinToString(" · ")
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = if (state.providerEnabled) MaterialTheme.colorScheme.onSurfaceVariant else WarnAmber,
-        )
-    }
-}
-
+/** Where the network position lies relative to GNSS, drawn to scale inside its claimed circle. */
 @Composable
 private fun Comparison(state: NetworkUiState) {
-    val comparison = state.comparison
-    Column(
-        Modifier
-            .fillMaxWidth()
-            .background(Color(0xFF121212), RoundedCornerShape(10.dp))
-            .padding(14.dp),
-    ) {
-        if (comparison == null) {
-            Text(
-                text = state.comparisonUnavailableReason,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            return@Column
+    val c = state.comparison
+    InfoCard {
+        if (c == null) {
+            Text("REAL ERROR VS GNSS", style = OverlineStyle, color = Palette.TextTertiary)
+            Text(state.comparisonUnavailableReason, style = CaptionStyle, color = Palette.TextSecondary, modifier = Modifier.padding(top = 6.dp))
+            return@InfoCard
         }
-        Text(
-            text = "${formatDistance(comparison.distanceM)} off",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Text(
-            text = "Actual error: distance to the GNSS position, itself good to " +
-                "±${comparison.gnssAccuracyM.toInt()} m.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        comparison.withinClaimed?.let { within ->
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = if (within) "Inside the claimed accuracy circle." else "Outside the claimed accuracy circle.",
-                style = StatusLineStyle,
-                color = if (within) OkGreen else WarnAmber,
-            )
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            val claimed = state.accuracyM?.toDouble()
+            Canvas(Modifier.size(88.dp)) {
+                val centre = Offset(size.width / 2, size.height / 2)
+                val r = size.minDimension / 2 - 4.dp.toPx()
+                val scale = if (claimed != null && claimed > 0) r / maxOf(claimed, c.distanceM) else r / maxOf(c.distanceM, 1.0)
+                claimed?.let {
+                    drawCircle(Palette.TextTertiary, (it * scale).toFloat(), centre, style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f))))
+                }
+                drawCircle(Palette.TextPrimary, 4.dp.toPx(), centre)
+                val offset = min((c.distanceM * scale).toFloat(), r)
+                drawCircle(
+                    if (c.withinClaimed == false) Palette.Degraded else Palette.Good, 3.dp.toPx(),
+                    Offset(centre.x + offset * 0.8f, centre.y - offset * 0.6f), style = Stroke(1.5.dp.toPx()),
+                )
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text("REAL ERROR VS GNSS", style = OverlineStyle, color = Palette.TextTertiary)
+                Text(
+                    buildAnnotatedString {
+                        append(formatDistance(c.distanceM).substringBefore(' '))
+                        withStyle(SpanStyle(fontSize = 16.sp, color = Palette.TextSecondary)) { append(" ${formatDistance(c.distanceM).substringAfter(' ')} off") }
+                    },
+                    style = BodyStyle.copy(fontFamily = PlexCondensed, fontSize = 32.sp, lineHeight = 36.sp),
+                    color = Palette.TextPrimary,
+                )
+                c.withinClaimed?.let {
+                    Text(
+                        if (it) "Inside the claimed circle" else "Outside the claimed circle",
+                        style = CaptionStyle, color = if (it) Palette.Good else Palette.Degraded,
+                    )
+                }
+                Text("GNSS reference ±${c.gnssAccuracyM.roundToInt()} m", style = CaptionStyle.copy(fontSize = 12.sp), color = Palette.TextTertiary)
+            }
         }
     }
 }
 
 @Composable
 private fun CellRow(cell: CellTower) {
-    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-        Row {
+    Column {
+        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                text = cell.technology + if (cell.registered) " · serving" else " · neighbour",
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (cell.registered) MaterialTheme.colorScheme.onBackground else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.weight(1f),
+                cell.technology.replace("5G NR", "NR"),
+                style = DataStyle.copy(fontSize = 11.sp),
+                color = if (cell.registered) Palette.TextPrimary else Palette.TextSecondary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.width(44.dp).border(1.dp, if (cell.registered) Palette.TextPrimary else Palette.Outline, RoundedCornerShape(6.dp)).padding(vertical = 2.dp),
             )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    listOfNotNull(cell.network, cell.identity?.substringAfterLast(" · ")).joinToString(" · ").ifEmpty { cell.technology },
+                    style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary,
+                )
+                Text(
+                    listOfNotNull(
+                        if (cell.registered) "serving" else "neighbour",
+                        cell.identity?.substringBeforeLast(" · ")?.takeIf { cell.identity.contains(" · ") },
+                        cell.physicalId?.let { "${cell.physicalIdLabel} $it" },
+                        cell.timingAdvanceDistanceM?.let { "tower ≈ ${formatDistance(it)}" },
+                    ).joinToString(" · "),
+                    style = CaptionStyle.copy(fontSize = 12.sp), color = Palette.TextTertiary,
+                )
+            }
             Text(
-                text = cell.signalDbm?.let { "$it dBm" } ?: "—",
-                style = StatusLineStyle,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                buildAnnotatedString {
+                    append(cell.signalDbm?.toString()?.replace("-", "−") ?: DASH)
+                    withStyle(SpanStyle(fontSize = 11.sp, color = Palette.TextTertiary)) { append(" dBm") }
+                },
+                style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary,
             )
         }
-        val details = listOfNotNull(
-            cell.network,
-            cell.identity,
-            cell.physicalId?.let { "${cell.physicalIdLabel} $it" },
-            cell.timingAdvanceDistanceM?.let { "tower ≈ ${formatDistance(it)} away" },
-        )
-        if (details.isNotEmpty()) {
-            Text(text = details.joinToString(" · "), style = StatusLineStyle, color = DimGrey)
-        }
+        HorizontalDivider(color = Palette.Divider)
     }
 }
 
 @Composable
 private fun AccessPointRow(ap: AccessPoint) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Text(
-            text = ap.ssid ?: "(hidden) ${ap.bssid}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-            maxLines = 1,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            text = "${ap.rssiDbm} dBm · ${band(ap.frequencyMhz)}",
-            style = StatusLineStyle,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+    Column {
+        Row(Modifier.fillMaxWidth().heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                ap.ssid ?: "hidden · ${ap.bssid}",
+                style = BodyStyle.copy(fontSize = 14.sp),
+                color = if (ap.ssid != null) Palette.TextPrimary else Palette.TextTertiary,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Text(band(ap.frequencyMhz), style = DataStyle.copy(fontSize = 11.sp), color = Palette.TextTertiary)
+            // −30 dBm is as strong as Wi-Fi gets, −90 is the edge.
+            val fraction = ((ap.rssiDbm + 90) / 60f).coerceIn(0f, 1f)
+            LevelBar(fraction, if (ap.rssiDbm >= -60) Palette.TextPrimary else if (ap.rssiDbm >= -75) Palette.TextSecondary else Palette.TextTertiary, Modifier.width(56.dp))
+            Text(ap.rssiDbm.toString().replace("-", "−"), style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary, textAlign = TextAlign.End, modifier = Modifier.width(32.dp))
+        }
+        HorizontalDivider(color = Color15)
     }
 }
 
-@Composable
-private fun SectionLabel(text: String) {
-    Text(
-        text = text,
-        style = StatusLineStyle,
-        fontWeight = FontWeight.Medium,
-        color = MaterialTheme.colorScheme.primary,
-    )
-}
-
-@Composable
-private fun Note(text: String) {
-    Text(text = text, style = MaterialTheme.typography.bodySmall, color = DimGrey)
-}
-
-private const val MAX_ACCESS_POINTS = 12
+private val Color15 = androidx.compose.ui.graphics.Color(0xFF151515)
+private const val AP_PREVIEW = 8

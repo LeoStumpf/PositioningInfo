@@ -1,7 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package de.leostumpf.gpstools.ui.common
 
-/** The terms each page relies on, in the order a reader meets them. */
+/** One term and a reminder of what it means. */
+data class PrimerEntry(val term: String, val meaning: String)
+
+/**
+ * The terms each page relies on, in the order a reader meets them. Written as a reminder
+ * for a technical reader rather than a tutorial: enough to read the numbers correctly.
+ */
 object Glossary {
 
     val gnss = listOf(
@@ -113,20 +119,10 @@ object Glossary {
                 "EGNOS in Europe, WAAS in North America, MSAS, GAGAN.",
         ),
         PrimerEntry(
-            "Assistance services",
-            "Data delivered over the network rather than from the satellites: orbits " +
-                "(A-GNSS), time injection, and on some phones correction data.",
-        ),
-        PrimerEntry(
             "Expected resolution",
             "The typical open-sky accuracy of the technique in use — single-constellation, " +
                 "multi-constellation, SBAS-corrected, dual-frequency — as a yardstick for the " +
                 "measured figure above it.",
-        ),
-        PrimerEntry(
-            "Receiver",
-            "The GNSS chipset model and its hardware generation (year), as the platform " +
-                "reports them. Not every phone does.",
         ),
     )
 
@@ -419,6 +415,16 @@ object Glossary {
                 "model single-frequency receivers use to correct ionospheric delay. A0/A1: " +
                 "GPS-to-UTC offset and its rate.",
         ),
+        PrimerEntry(
+            "Chipset, generation",
+            "The GNSS chipset model and its hardware generation (year), as the platform " +
+                "reports them. Not every phone does.",
+        ),
+        PrimerEntry(
+            "Assistance services",
+            "Data delivered over the network rather than from the satellites: orbits " +
+                "(A-GNSS), time injection, and on some phones correction data.",
+        ),
     )
 
     val speed = listOf(
@@ -438,7 +444,7 @@ object Glossary {
             "Status line",
             "FIX (green): a fresh fix. STALE (amber): older than 3\u00A0s. NO FIX: older " +
                 "than 10\u00A0s or none. Then the horizontal accuracy (a 68\u00A0% radius) and " +
-                "satellites used in the fix / visible. Long-press it for About.",
+                "satellites used in the fix / visible.",
         ),
         PrimerEntry(
             "Background mode",
@@ -449,7 +455,8 @@ object Glossary {
         PrimerEntry(
             "More tools",
             "Swipe left: trip, position, GNSS status, sky, signal, receiver internals and " +
-                "network location. Each has a glossary like this one.",
+                "network location. Each has a glossary like this one; the last page also " +
+                "says what the app is, its licence and where the source lives.",
         ),
     )
 }

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package de.leostumpf.gpstools.ui.receiver
 
+import de.leostumpf.gpstools.data.model.AssistanceCapabilities
 import de.leostumpf.gpstools.data.model.RawStreamStatus
 import de.leostumpf.gpstools.domain.GpsNavState
 import de.leostumpf.gpstools.domain.InterferenceAssessment
@@ -22,4 +23,6 @@ data class ReceiverUiState(
     val currentGpsWeek: Int? = null,
     /** How long the receiver has run without a single navigation frame arriving. */
     val navSilentMs: Long = 0,
+    /** What the platform says the chip supports; static for the device. */
+    val capabilities: AssistanceCapabilities = AssistanceCapabilities(),
 )

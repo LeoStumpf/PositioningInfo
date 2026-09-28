@@ -102,6 +102,7 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
     val analysis = AnalysisSession(
         application = application,
         scope = viewModelScope,
+        capabilities = capabilities,
         speedUnit = { _speedState.value.unit },
         onSkyChanged = { publishSky(SystemClock.elapsedRealtime()) },
     )

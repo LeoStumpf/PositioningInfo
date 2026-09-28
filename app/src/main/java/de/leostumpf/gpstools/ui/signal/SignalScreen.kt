@@ -1,390 +1,206 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package de.leostumpf.gpstools.ui.signal
 
-import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.unit.dp
-import de.leostumpf.gpstools.data.model.AssistanceCapabilities
+import androidx.compose.ui.unit.sp
+import de.leostumpf.gpstools.domain.DopRating
 import de.leostumpf.gpstools.domain.ResolutionClass
 import de.leostumpf.gpstools.domain.SignalBand
-import de.leostumpf.gpstools.ui.common.Glossary
+import de.leostumpf.gpstools.ui.common.DASH
+import de.leostumpf.gpstools.ui.common.HeroValue
+import de.leostumpf.gpstools.ui.common.InfoCard
 import de.leostumpf.gpstools.ui.common.Note
-import de.leostumpf.gpstools.ui.common.Primer
+import de.leostumpf.gpstools.ui.common.Notice
+import de.leostumpf.gpstools.ui.common.Page
+import de.leostumpf.gpstools.ui.common.PageScaffold
+import de.leostumpf.gpstools.ui.common.StatTile
+import de.leostumpf.gpstools.ui.common.StatusBadge
+import de.leostumpf.gpstools.ui.common.Tone
 import de.leostumpf.gpstools.ui.common.ValueRow
 import de.leostumpf.gpstools.ui.common.fmt
-import de.leostumpf.gpstools.ui.theme.DimGrey
-import de.leostumpf.gpstools.ui.theme.OkGreen
-import de.leostumpf.gpstools.ui.theme.StatusLineStyle
-import de.leostumpf.gpstools.ui.theme.WarnAmber
-import java.util.Locale
+import de.leostumpf.gpstools.ui.common.section
+import de.leostumpf.gpstools.ui.theme.CaptionStyle
+import de.leostumpf.gpstools.ui.theme.DataStyle
+import de.leostumpf.gpstools.ui.theme.OverlineStyle
+import de.leostumpf.gpstools.ui.theme.Palette
+import de.leostumpf.gpstools.ui.theme.TitleStyle
 
 /**
- * What the receiver is working with, and what resolution that ought to buy.
- *
- * The measured accuracy is given first and kept visually distinct from the expected range
- * below it: one is a figure the receiver reports for the fix you actually have, the other
- * is what the technique in use typically achieves under an open sky. Conflating the two
- * would be the easiest way to make this screen lie.
+ * How good the position is and why: the measured accuracy against what the technique in
+ * use can deliver, the satellite geometry, the frequency bands, and augmentation.
  */
 @Composable
 fun SignalScreen(state: SignalUiState, modifier: Modifier = Modifier) {
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(top = 24.dp, bottom = 48.dp),
-    ) {
-        item { Primer(Glossary.signal) }
-        item { Spacer(Modifier.height(20.dp)) }
-        item { MeasuredAccuracy(state) }
-        item { Spacer(Modifier.height(24.dp)) }
-        item { ExpectedResolution(state) }
+    PageScaffold(Page.SIGNAL, modifier) {
+        item {
+            Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                HeroValue(
+                    value = state.measuredAccuracyM?.let { "±${it.fmt(1)}" } ?: DASH,
+                    unit = state.measuredAccuracyM?.let { "m" },
+                    caption = if (state.measuredAccuracyM != null) {
+                        "Measured horizontal accuracy · 68 % confidence"
+                    } else {
+                        "No fix, so the receiver reports no accuracy"
+                    },
+                )
+                InfoCard {
+                    Text("EXPECTED FOR THIS TECHNIQUE", style = OverlineStyle, color = Palette.TextTertiary)
+                    Text(
+                        if (state.resolution == ResolutionClass.NO_FIX) state.resolution.label
+                        else "${state.resolution.label} · ${state.resolution.typicalRange}",
+                        style = TitleStyle,
+                        color = Palette.TextPrimary,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                    Text(
+                        if (state.resolution == ResolutionClass.NO_FIX) {
+                            "Nothing is being positioned yet, so there is no technique to judge."
+                        } else {
+                            "Typical under open sky. Buildings, trees and poor geometry make it worse."
+                        },
+                        style = CaptionStyle,
+                        color = Palette.TextTertiary,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
+            }
+        }
 
-        item { Spacer(Modifier.height(28.dp)) }
-        item { SectionLabel("SATELLITE GEOMETRY (DOP)") }
-        item { Spacer(Modifier.height(8.dp)) }
-        item { Geometry(state) }
+        section("Satellite geometry")
+        val dop = state.dop
+        if (dop == null) {
+            item { Note("Needs at least four satellites in the fix.") }
+        } else {
+            item {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    StatusBadge(dop.rating.label, dop.rating.tone())
+                    Text("from ${state.dopSatellites} satellites in the fix", style = CaptionStyle, color = Palette.TextTertiary)
+                }
+            }
+            item {
+                Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StatTile("PDOP", dop.pdop.fmt(2), Modifier.weight(1f), footnote = state.chipPdop?.let { "chip ${it.fmt(1)}" } ?: DASH)
+                    StatTile("HDOP", dop.hdop.fmt(2), Modifier.weight(1f), footnote = state.chipHdop?.let { "chip ${it.fmt(1)}" } ?: DASH)
+                    StatTile("VDOP", dop.vdop.fmt(2), Modifier.weight(1f), footnote = state.chipVdop?.let { "chip ${it.fmt(1)}" } ?: DASH)
+                    StatTile("TDOP", dop.tdop.fmt(2), Modifier.weight(1f), footnote = DASH)
+                }
+            }
+            item {
+                Note(
+                    "Position error ≈ DOP × range error. Satellites spread over the whole sky keep it low; " +
+                        "a street canyon that hides half the sky drives it up.",
+                    modifier = Modifier.padding(top = 10.dp),
+                )
+            }
+        }
 
-        item { Spacer(Modifier.height(28.dp)) }
-        item { SectionLabel("FREQUENCY BANDS IN USE") }
-        item { Spacer(Modifier.height(8.dp)) }
-        item { Bands(state) }
+        section("Frequency bands")
+        when {
+            state.bandsUnavailable -> item { Note("This receiver does not report carrier frequencies, so the bands in use cannot be determined.") }
+            state.bandsInUse.isEmpty() -> item { Note("No satellites are being used for a fix yet.") }
+            else -> {
+                item {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        state.bandsInUse.forEach { BandChip(it, inUse = true) }
+                        if (SignalBand.L5 !in state.bandsInUse) BandChip(SignalBand.L5, inUse = false)
+                    }
+                }
+                item {
+                    Box(Modifier.padding(top = 12.dp)) {
+                        if (state.dualFrequency) {
+                            Notice("Dual frequency: the receiver measures the ionospheric delay directly and removes it.", Tone.GOOD)
+                        } else {
+                            Notice("Single frequency: ionospheric delay is estimated from a broadcast model — the largest remaining error.", Tone.DEGRADED)
+                        }
+                    }
+                }
+            }
+        }
 
-        item { Spacer(Modifier.height(28.dp)) }
-        item { SectionLabel("AUGMENTATION (SBAS)") }
-        item { Spacer(Modifier.height(8.dp)) }
-        item { Augmentation(state) }
-
-        item { Spacer(Modifier.height(28.dp)) }
-        item { SectionLabel("ASSISTANCE SERVICES") }
-        item { Spacer(Modifier.height(8.dp)) }
-        item { Assistance(state.capabilities) }
-
-        if (state.capabilities.hardwareModel != null || state.capabilities.hardwareYear != null) {
-            item { Spacer(Modifier.height(28.dp)) }
-            item { SectionLabel("RECEIVER") }
-            item { Spacer(Modifier.height(8.dp)) }
-            item { Receiver(state.capabilities) }
+        section("Augmentation · SBAS")
+        if (state.sbasInView.isEmpty()) {
+            item {
+                Note(
+                    "No augmentation satellites in view. They are geostationary over the equator, so " +
+                        "whether one is reachable depends on where you are and what blocks that part of the sky.",
+                )
+            }
+        } else {
+            state.sbasInView.forEachIndexed { i, sbas ->
+                item {
+                    ValueRow(
+                        sbas.label,
+                        if (state.sbasUsedInFix) "in use" else "in view",
+                        detail = sbas.region,
+                        valueColor = if (state.sbasUsedInFix) Palette.Good else Palette.Degraded,
+                        divider = i < state.sbasInView.lastIndex,
+                    )
+                }
+            }
+            item {
+                Note(
+                    if (state.sbasUsedInFix) "Corrections are being applied to the current fix."
+                    else "In view but not used in the current fix, so no corrections are being applied.",
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+            }
         }
     }
 }
 
 @Composable
-private fun Geometry(state: SignalUiState) {
-    val dop = state.dop
-    if (dop == null) {
-        Note("Needs at least four satellites in the fix.")
-        return
-    }
-    Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = dop.rating.label,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = when {
-                    dop.pdop <= 2.0 -> OkGreen
-                    dop.pdop <= 5.0 -> MaterialTheme.colorScheme.onBackground
-                    else -> WarnAmber
-                },
-            )
-            Spacer(Modifier.width(10.dp))
-            Text(
-                text = "from ${state.dopSatellites} satellites",
-                style = StatusLineStyle,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Spacer(Modifier.height(6.dp))
-        ValueRow("PDOP (3D position)", dop.pdop.fmt(2), detail = state.chipPdop?.let { "chip reports ${it.fmt(1)}" })
-        ValueRow("HDOP (horizontal)", dop.hdop.fmt(2), detail = state.chipHdop?.let { "chip reports ${it.fmt(1)}" })
-        ValueRow("VDOP (vertical)", dop.vdop.fmt(2), detail = state.chipVdop?.let { "chip reports ${it.fmt(1)}" })
-        ValueRow("TDOP (time)", dop.tdop.fmt(2))
-        Spacer(Modifier.height(4.dp))
-        Note(
-            "Position error ≈ DOP × range error. Many satellites spread over the whole sky " +
-                "give low values; a street canyon that hides half the sky drives them up.",
-        )
-    }
-}
-
-@Composable
-private fun MeasuredAccuracy(state: SignalUiState) {
-    Column {
-        Text(
-            text = state.measuredAccuracyM?.let {
-                String.format(Locale.US, "±%.1f m", it)
-            } ?: "—",
-            style = MaterialTheme.typography.displaySmall,
-            fontWeight = FontWeight.Light,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Text(
-            text = if (state.measuredAccuracyM != null) {
-                "Measured horizontal accuracy of the current fix (68% confidence)."
-            } else {
-                "No fix, so the receiver reports no accuracy."
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun ExpectedResolution(state: SignalUiState) {
+private fun BandChip(band: SignalBand, inUse: Boolean) {
+    val shape = RoundedCornerShape(12.dp)
     Column(
         Modifier
-            .fillMaxWidth()
-            .background(Color(0xFF121212), RoundedCornerShape(10.dp))
-            .padding(14.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = state.resolution.label,
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Spacer(Modifier.width(10.dp))
-            Text(
-                text = state.resolution.typicalRange,
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onBackground,
-            )
-        }
-        Spacer(Modifier.height(4.dp))
-        Text(
-            text = if (state.resolution == ResolutionClass.NO_FIX) {
-                "Nothing is being positioned yet, so there is no technique to judge."
-            } else {
-                "Typical open-sky accuracy for this technique. Not a measurement — " +
-                    "buildings, trees and satellite geometry all make it worse."
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun Bands(state: SignalUiState) {
-    when {
-        state.bandsUnavailable -> Note(
-            "This receiver does not report carrier frequencies, so the bands in use " +
-                "cannot be determined.",
-        )
-
-        state.bandsInUse.isEmpty() -> Note("No satellites are being used for a fix yet.")
-
-        else -> Column {
-            state.bandsInUse.forEach { band -> BandRow(band) }
-            Spacer(Modifier.height(10.dp))
-            Text(
-                text = if (state.dualFrequency) {
-                    "Dual frequency: the receiver hears satellites on two bands at once " +
-                        "and can cancel ionospheric delay by direct measurement."
-                } else {
-                    "Single frequency: ionospheric delay has to be estimated from a " +
-                        "broadcast model, which is the largest remaining source of error."
+            .then(
+                if (inUse) Modifier.border(1.dp, Palette.TextPrimary, shape)
+                else Modifier.drawBehind {
+                    drawRoundRect(
+                        Palette.Outline, cornerRadius = CornerRadius(12.dp.toPx()),
+                        style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f))),
+                    )
                 },
-                style = MaterialTheme.typography.bodySmall,
-                color = if (state.dualFrequency) OkGreen else WarnAmber,
             )
-        }
-    }
-}
-
-@Composable
-private fun BandRow(band: SignalBand) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
-        Text(
-            text = band.label,
-            style = MaterialTheme.typography.bodyMedium,
-            fontWeight = FontWeight.Medium,
-            color = if (band.isHighPrecision) OkGreen else MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.width(110.dp),
-        )
-        Text(
-            text = band.description,
-            style = StatusLineStyle,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f),
-        )
-    }
-}
-
-@Composable
-private fun Augmentation(state: SignalUiState) {
-    if (state.sbasInView.isEmpty()) {
-        Note(
-            "No augmentation satellites in view. These are geostationary, so whether one " +
-                "is reachable depends on where you are and what is blocking the sky " +
-                "towards the equator.",
-        )
-        return
-    }
-
-    Column {
-        state.sbasInView.forEach { sbas ->
-            Row(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
-                Text(
-                    text = sbas.label,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.width(110.dp),
-                )
-                Text(
-                    text = sbas.region,
-                    style = StatusLineStyle,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = if (state.sbasUsedInFix) {
-                "Corrections are being applied to the current fix."
-            } else {
-                "In view but not used in the current fix, so no corrections are being applied."
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = if (state.sbasUsedInFix) OkGreen else WarnAmber,
-        )
-    }
-}
-
-@Composable
-private fun Assistance(capabilities: AssistanceCapabilities) {
-    if (!capabilities.reported) {
-        Note(
-            "Android 12 and later can report which services the receiver supports. " +
-                "This device is older, so the platform provides no way to ask.",
-        )
-        return
-    }
-
-    Column {
-        CapabilityRow("Raw measurements", capabilities.rawMeasurements)
-        CapabilityRow("Navigation messages", capabilities.navigationMessages)
-
-        if (capabilities.assistanceReported) {
-            CapabilityRow("A-GNSS (network computes)", capabilities.assistedMsa)
-            CapabilityRow("A-GNSS (phone computes)", capabilities.assistedMsb)
-            CapabilityRow("Time injection", capabilities.onDemandTime)
-            CapabilityRow("Measurement corrections", capabilities.measurementCorrections)
-            CapabilityRow("Carrier phase tracking", capabilities.carrierPhase)
-        }
-
-        Spacer(Modifier.height(10.dp))
-        Text(
-            text = if (capabilities.assistanceReported) {
-                "Assisted GNSS delivers orbital data over the network instead of waiting " +
-                    "for the satellites to broadcast it, which is what turns a " +
-                    "multi-minute cold start into a few seconds."
-            } else {
-                "Android only began reporting the assistance services — A-GNSS, time " +
-                    "injection, corrections — in version 14. This device runs an earlier " +
-                    "release, so it almost certainly uses assisted GNSS but cannot say so."
-            },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
-private fun CapabilityRow(label: String, available: Boolean) {
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = 5.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
+        Text(band.label, style = DataStyle.copy(fontSize = 13.sp), color = if (inUse) Palette.TextPrimary else Palette.Inactive)
         Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.weight(1f),
-        )
-        Text(
-            text = if (available) "yes" else "no",
-            style = StatusLineStyle,
-            fontWeight = if (available) FontWeight.Bold else FontWeight.Normal,
-            color = if (available) OkGreen else DimGrey,
+            (band.frequencyLabel()?.let { "$it · " } ?: "") + if (inUse) "in use" else "not heard",
+            style = CaptionStyle.copy(fontSize = 12.sp),
+            color = if (inUse) Palette.TextSecondary else Palette.Inactive,
         )
     }
 }
 
-@Composable
-private fun Receiver(capabilities: AssistanceCapabilities) {
-    Column {
-        capabilities.hardwareModel?.let {
-            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                Text(
-                    text = "Chipset",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.width(110.dp),
-                )
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-            }
-        }
-        capabilities.hardwareYear?.let {
-            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-                Text(
-                    text = "Generation",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.width(110.dp),
-                )
-                Text(
-                    text = it.toString(),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
-                )
-            }
-        }
-    }
+private fun SignalBand.frequencyLabel(): String? = when (this) {
+    SignalBand.L1 -> "1575 MHz"
+    SignalBand.L2 -> "1227 MHz"
+    SignalBand.L5 -> "1176 MHz"
+    SignalBand.E5B -> "1207 MHz"
+    SignalBand.S_BAND -> "2492 MHz"
+    SignalBand.UNKNOWN -> null
 }
 
-@Composable
-private fun SectionLabel(text: String) {
-    Text(
-        text = text,
-        style = StatusLineStyle,
-        fontWeight = FontWeight.Medium,
-        color = MaterialTheme.colorScheme.primary,
-    )
-}
-
-@Composable
-private fun Note(text: String) {
-    Text(
-        text = text,
-        style = MaterialTheme.typography.bodySmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+private fun DopRating.tone(): Tone = when (this) {
+    DopRating.IDEAL, DopRating.EXCELLENT -> Tone.GOOD
+    DopRating.GOOD -> Tone.NEUTRAL
+    DopRating.MODERATE -> Tone.DEGRADED
+    DopRating.FAIR, DopRating.POOR -> Tone.BAD
 }

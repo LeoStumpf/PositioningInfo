@@ -28,8 +28,6 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
-import de.leostumpf.gpstools.ui.about.AboutDialog
-import de.leostumpf.gpstools.ui.about.SOURCE_URL
 import de.leostumpf.gpstools.ui.permission.PermissionScreen
 import de.leostumpf.gpstools.ui.permission.PermissionState
 import de.leostumpf.gpstools.ui.GpsToolsApp
@@ -68,24 +66,14 @@ private fun GpsToolsRoot() {
         onPauseOrDispose { }
     }
     var wasDenied by rememberSaveable { mutableStateOf(false) }
-    var showAbout by rememberSaveable { mutableStateOf(false) }
     val launcher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { result ->
         hasFineLocation = result[Manifest.permission.ACCESS_FINE_LOCATION] == true
         if (!hasFineLocation) wasDenied = true
     }
-    if (showAbout) {
-        AboutDialog(
-            onDismiss = { showAbout = false },
-            onOpenSource = {
-                showAbout = false
-                context.startActivity(Intent(Intent.ACTION_VIEW, SOURCE_URL.toUri()))
-            },
-        )
-    }
     if (hasFineLocation) {
-        SpeedRoute(onShowAbout = { showAbout = true })
+        SpeedRoute()
         return
     }
     // Coarse-only counts as denied here: it cannot produce a speed, and the system will not
@@ -117,7 +105,7 @@ private fun GpsToolsRoot() {
     )
 }
 @Composable
-private fun SpeedRoute(onShowAbout: () -> Unit) {
+private fun SpeedRoute() {
     val viewModel: GpsToolsViewModel = viewModel()
     val lifecycleOwner = LocalLifecycleOwner.current
     // Tracking is bound to STARTED, so the receiver is released the moment the app is no
@@ -136,7 +124,7 @@ private fun SpeedRoute(onShowAbout: () -> Unit) {
             viewModel.onUiStop()
         }
     }
-    GpsToolsApp(viewModel = viewModel, onShowAbout = onShowAbout)
+    GpsToolsApp(viewModel = viewModel)
 }
 private fun android.content.Context.hasFineLocation(): Boolean =
     ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==

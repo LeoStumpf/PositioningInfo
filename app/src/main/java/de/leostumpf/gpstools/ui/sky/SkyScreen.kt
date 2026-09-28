@@ -1,23 +1,33 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package de.leostumpf.gpstools.ui.sky
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
@@ -26,22 +36,32 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import de.leostumpf.gpstools.ui.common.Glossary
-import de.leostumpf.gpstools.ui.common.Primer
 import de.leostumpf.gpstools.domain.Constellation
 import de.leostumpf.gpstools.domain.SkyPoint
-import de.leostumpf.gpstools.ui.theme.DimGrey
-import de.leostumpf.gpstools.ui.theme.ErrorRed
-import de.leostumpf.gpstools.ui.theme.OkGreen
-import de.leostumpf.gpstools.ui.theme.WarnAmber
+import de.leostumpf.gpstools.ui.common.AppIcons
+import de.leostumpf.gpstools.ui.common.Note
+import de.leostumpf.gpstools.ui.common.Page
+import de.leostumpf.gpstools.ui.common.PageScaffold
+import de.leostumpf.gpstools.ui.common.SegmentedToggle
+import de.leostumpf.gpstools.ui.common.section
+import de.leostumpf.gpstools.ui.theme.BodyStyle
+import de.leostumpf.gpstools.ui.theme.CaptionStyle
+import de.leostumpf.gpstools.ui.theme.DataStyle
+import de.leostumpf.gpstools.ui.theme.Palette
+import de.leostumpf.gpstools.ui.theme.PlexMono
+import de.leostumpf.gpstools.ui.theme.PlexSans
 import de.leostumpf.gpstools.ui.theme.StatusLineStyle
+import de.leostumpf.gpstools.ui.theme.color
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -61,90 +81,174 @@ fun SkyScreen(
     onToggleMap: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(horizontal = 20.dp),
-        contentPadding = PaddingValues(top = 24.dp, bottom = 48.dp),
-    ) {
-        item { Primer(Glossary.sky) }
-        item { Spacer(Modifier.height(20.dp)) }
-        item { SectionLabel("SKY") }
-        item { Spacer(Modifier.height(10.dp)) }
+    PageScaffold(Page.SKY, modifier) {
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(
-                    selected = state.compassMode,
-                    onClick = onToggleCompass,
-                    label = { Text("Compass") },
+            Row(
+                Modifier.fillMaxWidth().padding(top = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                SegmentedToggle(
+                    options = listOf("Paths", "Signal map"),
+                    selected = if (state.mapMode) 1 else 0,
+                    onSelect = { if ((it == 1) != state.mapMode) onToggleMap() },
                 )
-                FilterChip(
-                    selected = state.mapMode,
-                    onClick = onToggleMap,
-                    label = { Text("Signal map") },
-                )
+                CompassToggle(state.compassMode, onToggleCompass)
             }
         }
         state.headingText?.let { text ->
             item {
                 Text(
-                    text = text + if (state.compassUnreliable) " · compass needs calibrating (figure-eight)" else "",
+                    text = text + if (state.compassUnreliable) " · calibrate: move the phone in a figure-eight" else "",
                     style = StatusLineStyle,
-                    color = if (state.compassUnreliable) WarnAmber else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = if (state.compassUnreliable) Palette.Degraded else Palette.TextSecondary,
+                    modifier = Modifier.padding(top = 12.dp),
                 )
             }
         }
-        item { SkyPlot(state) }
-        item { Spacer(Modifier.height(8.dp)) }
+        item { SkyPlot(state, Modifier.padding(top = 12.dp)) }
+        item { Legend(state.mapMode) }
         item {
-            Text(
-                text = if (state.mapMode) {
-                    "Average signal strength by direction, from ${state.obstructionSamples} " +
-                        "measurements: green strong (35+ dB-Hz), amber 25–35, red weak. Weak or " +
-                        "empty regions near the horizon are buildings and trees. Fills in as " +
-                        "satellites move — give it half an hour."
+            Note(
+                if (state.mapMode) {
+                    "Average signal strength by direction from ${state.obstructionSamples} measurements. " +
+                        "Regions that stay weak or empty near the horizon are buildings and trees — give it half an hour."
                 } else {
-                    "Solid: path so far. Dashed: next 15 minutes, estimated from recent " +
-                        "motion — needs a couple of minutes of history, and cannot show " +
-                        "satellites that have not risen yet."
+                    "Paths build up while the app runs; projections need two minutes of history and " +
+                        "cannot show satellites that have not risen yet."
                 } + if (state.compassMode) " Hold the phone flat; the plot turns with it." else "",
-                style = MaterialTheme.typography.bodySmall,
-                color = DimGrey,
+                modifier = Modifier.padding(top = 10.dp),
             )
         }
 
-        item { Spacer(Modifier.height(28.dp)) }
-        item { SectionLabel("SETTING SOON") }
-        item { Spacer(Modifier.height(6.dp)) }
+        section("Setting soon")
         if (state.upcoming.isEmpty()) {
             item { Note("No satellite expected to set in the next 15 minutes.") }
         } else {
             items(state.upcoming, key = { it.label }) {
-                ListRow(it.label, "in ~${it.minutes.roundToInt().coerceAtLeast(1)} min")
+                EventRow(it.label, null, "in ~${it.minutes.roundToInt().coerceAtLeast(1)} min", dataValue = true)
             }
         }
 
-        item { Spacer(Modifier.height(28.dp)) }
-        item { SectionLabel("EVENTS") }
-        item { Spacer(Modifier.height(6.dp)) }
+        section("Events")
         if (state.events.isEmpty()) {
             item { Note("Satellites appearing and disappearing will be listed here.") }
         } else {
-            items(state.events, key = { it.key }) { ListRow(it.text, it.ago) }
+            items(state.events, key = { it.key }) { EventRow(it.text.substringBefore(' '), it.text.substringAfter(' '), it.ago) }
         }
     }
 }
 
 @Composable
-private fun SkyPlot(state: SkyUiState) {
+private fun CompassToggle(on: Boolean, onToggle: () -> Unit) {
+    OutlinedButton(
+        onClick = onToggle,
+        modifier = Modifier.height(46.dp),
+        shape = RoundedCornerShape(12.dp),
+        contentPadding = PaddingValues(horizontal = 14.dp),
+        border = BorderStroke(1.dp, if (on) Palette.TextPrimary else Palette.Outline),
+        colors = ButtonDefaults.outlinedButtonColors(
+            containerColor = if (on) Palette.TextPrimary else Palette.Background,
+            contentColor = if (on) Palette.Background else Palette.TextSecondary,
+        ),
+    ) {
+        Icon(AppIcons.Compass, contentDescription = null, modifier = Modifier.size(16.dp))
+        Spacer(Modifier.width(8.dp))
+        Text("Compass", style = BodyStyle.copy(fontSize = 14.sp))
+    }
+}
+
+@Composable
+private fun Legend(mapMode: Boolean) {
+    Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+        if (mapMode) {
+            LegendSwatch(Palette.Good, "35+ dB-Hz")
+            LegendSwatch(Palette.Degraded, "25–35")
+            LegendSwatch(Palette.Bad, "weaker")
+        } else {
+            LegendDot(filled = true, "in fix")
+            LegendDot(filled = false, "heard")
+            LegendLine(dashed = false, "path")
+            LegendLine(dashed = true, "next 15 min")
+        }
+    }
+}
+
+@Composable
+private fun LegendDot(filled: Boolean, label: String) = LegendItem(label) {
+    Box(
+        Modifier.size(10.dp).then(
+            if (filled) Modifier.background(Palette.TextPrimary, CircleShape) else Modifier.border(2.dp, Palette.TextPrimary, CircleShape),
+        ),
+    )
+}
+
+@Composable
+private fun LegendSwatch(color: Color, label: String) = LegendItem(label) {
+    Box(Modifier.size(10.dp).background(color.copy(alpha = 0.6f), RoundedCornerShape(2.dp)))
+}
+
+@Composable
+private fun LegendLine(dashed: Boolean, label: String) = LegendItem(label) {
+    Canvas(Modifier.size(18.dp, 2.dp)) {
+        drawLine(
+            Palette.TextSecondary, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), strokeWidth = size.height,
+            pathEffect = if (dashed) PathEffect.dashPathEffect(floatArrayOf(4f, 3f)) else null,
+        )
+    }
+}
+
+@Composable
+private fun LegendItem(label: String, mark: @Composable () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        mark()
+        Text(label, style = CaptionStyle.copy(fontSize = 12.sp), color = Palette.TextSecondary)
+    }
+}
+
+/** "G12 · set below the horizon (4°) · 2 min ago": the code coloured by its constellation. */
+@Composable
+private fun EventRow(code: String, text: String?, trailing: String, dataValue: Boolean = false) {
+    val color = codeColor(code)
+    Column {
+        Row(
+            Modifier.fillMaxWidth().heightIn(min = 48.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                buildAnnotatedString {
+                    withStyle(SpanStyle(fontFamily = PlexMono, fontWeight = FontWeight.Medium, color = color)) { append(code) }
+                    text?.let { withStyle(SpanStyle(color = Palette.TextPrimary)) { append(" $it") } }
+                },
+                style = BodyStyle,
+                modifier = Modifier.weight(1f),
+            )
+            Text(trailing, style = if (dataValue) DataStyle else CaptionStyle, color = if (dataValue) Palette.TextPrimary else Palette.TextTertiary)
+        }
+        HorizontalDivider(color = Palette.Divider)
+    }
+}
+
+private fun codeColor(code: String): Color = when (code.firstOrNull()) {
+    'G' -> Constellation.GPS.color()
+    'R' -> Constellation.GLONASS.color()
+    'E' -> Constellation.GALILEO.color()
+    'C' -> Constellation.BEIDOU.color()
+    'J' -> Constellation.QZSS.color()
+    'I' -> Constellation.IRNSS.color()
+    else -> Constellation.SBAS.color()
+}
+
+@Composable
+private fun SkyPlot(state: SkyUiState, modifier: Modifier = Modifier) {
     val markers = state.markers
     val rotation = if (state.compassMode) state.headingDegrees ?: 0f else 0f
     val measurer = rememberTextMeasurer()
-    val ringColour = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.35f)
-    val labelColour = MaterialTheme.colorScheme.onSurfaceVariant
+    val ringColour = Palette.Hairline
+    val labelColour = Palette.TextTertiary
     Canvas(
-        Modifier
+        modifier
             .fillMaxWidth()
             .aspectRatio(1f),
     ) {
@@ -156,15 +260,20 @@ private fun SkyPlot(state: SkyUiState) {
             return Offset(centre.x + r * sin(az).toFloat(), centre.y - r * cos(az).toFloat())
         }
 
-        // Elevation rings at 0°, 30° and 60°, and the compass cross.
-        for (elevation in listOf(0f, 30f, 60f)) {
+        // The sky disc, elevation rings at 30° and 60°, the horizon, and the compass cross.
+        drawCircle(Color(0xFF060606), radius, centre)
+        drawCircle(Palette.Outline, radius, centre, style = Stroke(1.dp.toPx()))
+        for (elevation in listOf(30f, 60f)) {
             drawCircle(ringColour, radius * (90f - elevation) / 90f, centre, style = Stroke(1.dp.toPx()))
         }
         drawLine(ringColour, Offset(centre.x - radius, centre.y), Offset(centre.x + radius, centre.y))
         drawLine(ringColour, Offset(centre.x, centre.y - radius), Offset(centre.x, centre.y + radius))
-        val compassStyle = TextStyle(color = labelColour, fontSize = 12.sp, fontWeight = FontWeight.Medium)
         listOf("N" to 0f, "E" to 90f, "S" to 180f, "W" to 270f).forEach { (text, az) ->
-            val layout = measurer.measure(text, compassStyle)
+            val style = TextStyle(
+                fontFamily = PlexSans, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                color = if (text == "N") Palette.TextPrimary else labelColour,
+            )
+            val layout = measurer.measure(text, style)
             val edge = at(SkyPoint(az, 0f))
             val outward = Offset(edge.x - centre.x, edge.y - centre.y) / radius * 10.dp.toPx()
             drawText(
@@ -206,7 +315,7 @@ private fun SkyPlot(state: SkyUiState) {
         val stroke = 2.dp.toPx()
         for (marker in markers) {
             if (state.mapMode) break
-            val colour = marker.constellation.colour()
+            val colour = marker.constellation.color()
             val faded = if (marker.current == null) colour.copy(alpha = 0.3f) else colour.copy(alpha = 0.6f)
             marker.trail.filter { it.size > 1 }.forEach { segment ->
                 drawPath(pathOf(segment.map(::at)), faded, style = Stroke(stroke))
@@ -228,7 +337,7 @@ private fun SkyPlot(state: SkyUiState) {
 
 /** Filled when used in the fix, a ring when heard, a faint ring when only known from the almanac. */
 private fun DrawScope.drawSatellite(position: Offset, marker: SkyMarker, measurer: TextMeasurer) {
-    val colour = marker.constellation.colour()
+    val colour = marker.constellation.color()
     val dot = 6.dp.toPx()
     when {
         marker.usedInFix -> drawCircle(colour, dot, position)
@@ -237,7 +346,7 @@ private fun DrawScope.drawSatellite(position: Offset, marker: SkyMarker, measure
     }
     val layout = measurer.measure(
         marker.label,
-        TextStyle(color = colour.copy(alpha = if (marker.tracked) 1f else 0.5f), fontSize = 10.sp),
+        TextStyle(fontFamily = PlexMono, color = colour.copy(alpha = if (marker.tracked) 1f else 0.5f), fontSize = 10.sp),
     )
     drawText(layout, topLeft = position + Offset(dot + 2.dp.toPx(), -layout.size.height / 2f))
 }
@@ -248,45 +357,7 @@ private fun pathOf(points: List<Offset>) = Path().apply {
 }
 
 private fun cn0Colour(cn0: Float): Color = when {
-    cn0 >= 35f -> OkGreen
-    cn0 >= 25f -> WarnAmber
-    else -> ErrorRed
-}
-
-private fun Constellation.colour(): Color = when (this) {
-    Constellation.GPS -> Color(0xFF7FD1FF)
-    Constellation.GLONASS -> Color(0xFFFF8A80)
-    Constellation.GALILEO -> Color(0xFFFFD54F)
-    Constellation.BEIDOU -> Color(0xFFB39DDB)
-    Constellation.QZSS -> Color(0xFF80CBC4)
-    Constellation.IRNSS -> Color(0xFFF48FB1)
-    Constellation.SBAS, Constellation.UNKNOWN -> Color(0xFF9E9E9E)
-}
-
-@Composable
-private fun SectionLabel(text: String) {
-    Text(
-        text = text,
-        style = StatusLineStyle,
-        fontWeight = FontWeight.Medium,
-        color = MaterialTheme.colorScheme.primary,
-    )
-}
-
-@Composable
-private fun ListRow(label: String, value: String) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onBackground,
-            modifier = Modifier.weight(1f),
-        )
-        Text(text = value, style = StatusLineStyle, color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-}
-
-@Composable
-private fun Note(text: String) {
-    Text(text = text, style = MaterialTheme.typography.bodySmall, color = DimGrey)
+    cn0 >= 35f -> Palette.Good
+    cn0 >= 25f -> Palette.Degraded
+    else -> Palette.Bad
 }

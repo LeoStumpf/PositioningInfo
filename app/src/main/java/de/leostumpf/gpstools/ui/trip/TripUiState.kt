@@ -11,4 +11,6 @@ data class TripUiState(
     /** Whether climb is measured with the barometer (smooth) or from GNSS heights (noisy). */
     val climbFromBarometer: Boolean = false,
     val message: String? = null,
+    /** Heights along the track, oldest first, thinned to at most a few hundred points. */
+    val elevationProfile: List<Double> = emptyList(),
 )

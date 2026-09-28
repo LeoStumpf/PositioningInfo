@@ -9,6 +9,7 @@ import android.os.SystemClock
 import de.leostumpf.gpstools.data.GnssRawDataSource
 import de.leostumpf.gpstools.data.SensorDataSource
 import de.leostumpf.gpstools.data.TripStore
+import de.leostumpf.gpstools.data.model.AssistanceCapabilities
 import de.leostumpf.gpstools.data.model.GnssSnapshot
 import de.leostumpf.gpstools.data.model.HeadingReading
 import de.leostumpf.gpstools.data.model.NavigationUpdate
@@ -57,6 +58,7 @@ import kotlin.math.roundToInt
 class AnalysisSession(
     application: Application,
     private val scope: CoroutineScope,
+    private val capabilities: AssistanceCapabilities,
     private val speedUnit: () -> SpeedUnit,
     /** Called when something only the sky view shows has changed (heading, map). */
     private val onSkyChanged: () -> Unit,
@@ -101,6 +103,7 @@ class AnalysisSession(
     private var scatterRunning = false
 
     private var trip = TripAccumulator()
+    private var tripAltitudes = listOf<Double>()
     private var tripRecording = false
     private var tripMessage: String? = null
 
@@ -108,6 +111,7 @@ class AnalysisSession(
         scope.launch {
             val saved = tripStore.load()
             trip = saved.fold(TripAccumulator()) { acc, p -> acc.add(p, p.altitudeM) }
+            tripAltitudes = saved.mapNotNull { it.altitudeM }
             publishTrip()
         }
     }
@@ -194,6 +198,7 @@ class AnalysisSession(
                     accuracyM = fix.horizontalAccuracyM,
                 )
                 trip = trip.add(point, baro.calibratedAltitudeM ?: baro.standardAltitudeM ?: msl?.first)
+                point.altitudeM?.let { tripAltitudes = tripAltitudes + it }
                 scope.launch { tripStore.append(point) }
                 publishTrip()
             }
@@ -233,6 +238,7 @@ class AnalysisSession(
     fun clearTrip() {
         tripRecording = false
         trip = TripAccumulator()
+        tripAltitudes = emptyList()
         tripMessage = "Trip deleted."
         scope.launch { tripStore.clear() }
         publishTrip()
@@ -352,6 +358,7 @@ class AnalysisSession(
             unit = speedUnit(),
             climbFromBarometer = hasBarometer,
             message = tripMessage,
+            elevationProfile = thin(tripAltitudes, PROFILE_POINTS),
         )
     }
 
@@ -367,6 +374,7 @@ class AnalysisSession(
             navFrames = navFrames,
             gps = gpsNav,
             currentGpsWeek = ((System.currentTimeMillis() - GPS_EPOCH_MS) / WEEK_MS).toInt(),
+            capabilities = capabilities,
             navSilentMs = if (navFrames.isEmpty() && tracking) SystemClock.elapsedRealtime() - trackingStartedAtMs else 0L,
         )
     }
@@ -413,11 +421,16 @@ class AnalysisSession(
         }
     }
 
+    /** Every n-th value, so a long trip still draws cheaply. */
+    private fun thin(values: List<Double>, max: Int): List<Double> =
+        if (values.size <= max) values else values.filterIndexed { i, _ -> i % (values.size / max + 1) == 0 }
+
     private fun suggestedDate(): String =
         SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())
 
     private companion object {
         const val GGA_FRESH_MS = 3_000L
+        const val PROFILE_POINTS = 300
         const val GPS_EPOCH_MS = 315_964_800_000L
         const val WEEK_MS = 604_800_000L
     }

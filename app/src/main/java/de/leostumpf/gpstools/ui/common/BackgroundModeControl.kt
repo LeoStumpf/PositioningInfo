@@ -6,99 +6,170 @@ import android.content.pm.PackageManager
 import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
-import de.leostumpf.gpstools.ui.theme.OkGreen
-import de.leostumpf.gpstools.ui.theme.StatusLineStyle
+import de.leostumpf.gpstools.ui.theme.BodyStyle
+import de.leostumpf.gpstools.ui.theme.CaptionStyle
+import de.leostumpf.gpstools.ui.theme.Palette
 
 /**
- * The one switch for background mode. Turning it on first explains what it does and costs;
- * turning it off is immediate.
+ * Background mode: off by default, explained before it is switched on, off immediately.
+ *
+ * [content] receives the toggle to call; the explanation dialog and the notification
+ * permission request live here so every place that offers the switch behaves the same.
  */
 @Composable
-fun BackgroundModeButton(
+fun BackgroundModeGate(
     active: Boolean,
     onSetActive: (Boolean) -> Unit,
-    modifier: Modifier = Modifier,
+    content: @Composable (toggle: () -> Unit) -> Unit,
 ) {
     val context = LocalContext.current
     var explaining by rememberSaveable { mutableStateOf(false) }
     // The notification is how the user sees and stops background mode, so it is asked for
-    // on Android 13+. Declining does not block the mode: the service still runs, and it
-    // stays listed under the system's active-apps panel.
+    // on Android 13+. Declining does not block the mode: the service still runs and is
+    // listed in the system's active-apps panel.
     val notificationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { onSetActive(true) }
 
-    OutlinedButton(
-        onClick = { if (active) onSetActive(false) else explaining = true },
-        modifier = modifier,
-    ) {
-        Text(
-            text = if (active) "● Background: on" else "Background: off",
-            style = StatusLineStyle,
-            color = if (active) OkGreen else MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
+    content { if (active) onSetActive(false) else explaining = true }
 
     if (explaining) {
-        AlertDialog(
-            onDismissRequest = { explaining = false },
-            title = { Text("Keep running in the background?") },
-            text = {
-                Column {
-                    Text(
-                        "Normally GPS Tools releases the GNSS receiver the moment you leave " +
-                            "it: it never tracks you unnoticed and costs no battery while unused.",
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "Background mode keeps everything running while you use other apps " +
-                            "or the screen is off — for recording a trip, running the accuracy " +
-                            "test, or letting the signal map fill in.",
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "• Android shows a permanent notification while it is on, with a Stop button.\n" +
-                            "• The receiver stays on, which costs battery much like navigation " +
-                            "with the screen off.\n" +
-                            "• Nothing leaves the phone — the app still has no internet access.\n" +
-                            "• Swiping GPS Tools away from recent apps also ends it.",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
+        BackgroundModeDialog(
+            onDismiss = { explaining = false },
+            onConfirm = {
+                explaining = false
+                val needsAsk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                    PackageManager.PERMISSION_GRANTED
+                if (needsAsk) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS) else onSetActive(true)
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        explaining = false
-                        val needsAsk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-                            PackageManager.PERMISSION_GRANTED
-                        if (needsAsk) {
-                            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                        } else {
-                            onSetActive(true)
-                        }
-                    },
-                ) { Text("Turn on") }
-            },
-            dismissButton = { TextButton(onClick = { explaining = false }) { Text("Cancel") } },
         )
+    }
+}
+
+/** The compact pill used in the speed page's header. */
+@Composable
+fun BackgroundModeButton(active: Boolean, onSetActive: (Boolean) -> Unit) {
+    BackgroundModeGate(active, onSetActive) { toggle ->
+        OutlinedButton(
+            onClick = toggle,
+            modifier = Modifier.height(44.dp),
+            shape = RoundedCornerShape(22.dp),
+            contentPadding = PaddingValues(horizontal = 14.dp),
+            border = BorderStroke(1.dp, if (active) Palette.Good.copy(alpha = 0.4f) else Palette.Outline),
+            colors = ButtonDefaults.outlinedButtonColors(
+                containerColor = if (active) Palette.Good.copy(alpha = 0.10f) else Palette.Background,
+                contentColor = if (active) Palette.Good else Palette.TextSecondary,
+            ),
+        ) {
+            Box(
+                Modifier.size(8.dp).clip(CircleShape)
+                    .background(if (active) Palette.Good else Palette.Background)
+                    .border(1.5.dp, if (active) Palette.Good else Palette.TextTertiary, CircleShape),
+            )
+            Spacer(Modifier.width(8.dp))
+            Text("Background", style = CaptionStyle)
+        }
+    }
+}
+
+/** The explained switch used where recording matters. */
+@Composable
+fun BackgroundModeSwitch(active: Boolean, onSetActive: (Boolean) -> Unit) {
+    BackgroundModeGate(active, onSetActive) { toggle ->
+        SwitchRow(
+            title = "Background mode",
+            subtitle = if (active) {
+                "On — keeps running in other apps and with the screen off. A notification shows it."
+            } else {
+                "Off — stops when you leave the app."
+            },
+            checked = active,
+            onCheckedChange = { toggle() },
+        )
+    }
+}
+
+@Composable
+private fun BackgroundModeDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(Palette.Sheet)
+                .border(1.dp, Palette.CardBorder, RoundedCornerShape(24.dp))
+                .padding(24.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Icon(AppIcons.Pin, contentDescription = null, tint = Palette.TextPrimary, modifier = Modifier.size(32.dp))
+            Text("Keep running in the background?", style = BodyStyle.copy(fontSize = 22.sp, lineHeight = 28.sp), color = Palette.TextPrimary)
+            Text(
+                "Normally GPS Tools releases the receiver the moment you leave it — it never tracks " +
+                    "you unnoticed and costs no battery while unused.",
+                style = BodyStyle, color = Palette.TextSecondary,
+            )
+            Text(
+                "Background mode keeps it running with the screen off or in other apps: for " +
+                    "recording a trip, the accuracy test, or letting the signal map fill in.",
+                style = BodyStyle, color = Palette.TextSecondary,
+            )
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Palette.Background)
+                    .border(1.dp, Palette.CardBorder, RoundedCornerShape(16.dp)).padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Consequence(AppIcons.Bell, "A permanent notification shows while it's on, with a Stop button.")
+                Consequence(AppIcons.Battery, "Battery use is like navigation with the screen off.")
+                Consequence(AppIcons.Lock, "Nothing leaves the phone — the app has no internet access.")
+                Consequence(AppIcons.Close, "Swiping the app away from recents ends it too.")
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                SecondaryButton("Cancel", onClick = onDismiss, modifier = Modifier.weight(1f))
+                PrimaryButton("Turn on", onClick = onConfirm, modifier = Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+private fun Consequence(icon: ImageVector, text: String) {
+    Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
+        Icon(icon, contentDescription = null, tint = Palette.TextSecondary, modifier = Modifier.padding(top = 1.dp).size(18.dp))
+        Text(text, style = CaptionStyle, color = Palette.TextPrimary)
     }
 }
