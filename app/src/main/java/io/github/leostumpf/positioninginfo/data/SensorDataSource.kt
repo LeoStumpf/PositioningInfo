@@ -10,6 +10,7 @@ import android.hardware.SensorManager
 import androidx.core.content.getSystemService
 import io.github.leostumpf.positioninginfo.data.model.HeadingReading
 import io.github.leostumpf.positioninginfo.data.model.PressureReading
+import io.github.leostumpf.positioninginfo.domain.CompassTrust
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -68,7 +69,30 @@ class SensorDataSource(context: Context) {
         awaitClose { manager.unregisterListener(listener) }
     }.conflate()
 
+    /** Strength of the magnetic field the magnetometer measures, in µT (calibrated values). */
+    fun magneticFieldUt(): Flow<Double> = callbackFlow {
+        val manager = sensorManager
+        val sensor = manager?.getDefaultSensor(Sensor.TYPE_MAGNETIC_FIELD)
+        if (manager == null || sensor == null) {
+            close()
+            return@callbackFlow
+        }
+        val listener = object : SensorEventListener {
+            override fun onSensorChanged(event: SensorEvent) {
+                trySend(CompassTrust.magnitude(event.values[0], event.values[1], event.values[2]))
+            }
+
+            override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) = Unit
+        }
+        manager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_UI)
+        awaitClose { manager.unregisterListener(listener) }
+    }.conflate()
+
     companion object {
+        /** The field strength the World Magnetic Model expects here, in µT. */
+        fun expectedFieldUt(latitude: Double, longitude: Double, altitudeM: Double, timeMs: Long): Double =
+            GeomagneticField(latitude.toFloat(), longitude.toFloat(), altitudeM.toFloat(), timeMs).fieldStrength / 1_000.0
+
         /**
          * Magnetic declination (true minus magnetic north) from the World Magnetic Model the
          * platform ships with, so no download is needed.

@@ -20,6 +20,7 @@ import io.github.leostumpf.positioninginfo.data.model.SpeedFix
 import io.github.leostumpf.positioninginfo.data.model.SignalMeasurement
 import io.github.leostumpf.positioninginfo.domain.AcquisitionStage
 import io.github.leostumpf.positioninginfo.domain.BaroAltimeter
+import io.github.leostumpf.positioninginfo.domain.CompassTrust
 import io.github.leostumpf.positioninginfo.domain.Constellation
 import io.github.leostumpf.positioninginfo.domain.SignalBand
 import io.github.leostumpf.positioninginfo.ui.gnss.GnssUiState
@@ -101,6 +102,8 @@ class AnalysisSession(
 
     private var baro = BaroAltimeter()
     private var heading: HeadingReading? = null
+    /** Smoothed magnetometer field strength, while compass mode runs. */
+    private var magneticUt: Double? = null
     private var headingJob: Job? = null
     private var tracking = false
     private var trackingStartedAtMs = 0L
@@ -301,7 +304,15 @@ class AnalysisSession(
             parts += "declination ${abs(declination).fmt(1)}° ${if (declination >= 0) "E" else "W"}"
         }
         if (moving) parts += "course ${fix!!.bearingDegrees!!.roundToInt()}°"
+        val expectedUt = fix?.let { f ->
+            val lat = f.latitude
+            val lon = f.longitude
+            if (lat == null || lon == null) null
+            else SensorDataSource.expectedFieldUt(lat, lon, f.ellipsoidAltitudeM ?: 0.0, System.currentTimeMillis())
+        }
         return state.copy(
+            magneticUt = if (compassMode) magneticUt else null,
+            compassTrust = if (compassMode) magneticUt?.let { m -> expectedUt?.let { CompassTrust(m, it) } } else null,
             compassMode = compassMode,
             mapMode = mapMode,
             headingDegrees = if (compassMode) trueHeading else null,
@@ -435,14 +446,22 @@ class AnalysisSession(
         val wanted = compassMode && tracking && sensors.hasCompass
         if (wanted && headingJob == null) {
             headingJob = scope.launch {
-                sensors.heading().collect { reading ->
-                    val previous = heading
-                    heading = reading
-                    if (previous == null ||
-                        abs(previous.magneticAzimuthDegrees - reading.magneticAzimuthDegrees) >= 1f ||
-                        previous.accuracy != reading.accuracy
-                    ) {
-                        onSkyChanged()
+                launch {
+                    sensors.heading().collect { reading ->
+                        val previous = heading
+                        heading = reading
+                        if (previous == null ||
+                            abs(previous.magneticAzimuthDegrees - reading.magneticAzimuthDegrees) >= 1f ||
+                            previous.accuracy != reading.accuracy
+                        ) {
+                            onSkyChanged()
+                        }
+                    }
+                }
+                launch {
+                    // Smoothed, because the raw magnitude jitters by a few µT sample to sample.
+                    sensors.magneticFieldUt().collect { ut ->
+                        magneticUt = magneticUt?.let { it + (ut - it) * FIELD_SMOOTHING } ?: ut
                     }
                 }
             }
@@ -450,6 +469,7 @@ class AnalysisSession(
             headingJob?.cancel()
             headingJob = null
             heading = null
+            magneticUt = null
         }
     }
 
@@ -463,6 +483,7 @@ class AnalysisSession(
     private companion object {
         const val GGA_FRESH_MS = 3_000L
         const val PROFILE_POINTS = 300
+        const val FIELD_SMOOTHING = 0.1
         const val L1_HZ = 1_575.42e6
         const val GPS_EPOCH_MS = 315_964_800_000L
         const val WEEK_MS = 604_800_000L

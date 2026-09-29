@@ -160,6 +160,13 @@ object Glossary {
 
     val sky = listOf(
         PrimerEntry(
+            "Compass trust",
+            "The Earth's magnetic field has a known strength everywhere (about 48\u00A0µT in central " +
+                "Europe; Android ships the World Magnetic Model). If the magnetometer measures much " +
+                "more or less, something magnetic nearby — a mount magnet, a laptop, steel — is bending " +
+                "the compass, and the heading cannot be trusted.",
+        ),
+        PrimerEntry(
             "Compass mode",
             "Turns the plot with the phone, using the rotation sensor, so it matches the " +
                 "real sky. The magnetometer points to magnetic north; the app adds the local " +

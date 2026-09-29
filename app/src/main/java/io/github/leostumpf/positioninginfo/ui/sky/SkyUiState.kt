@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.sky
 
+import io.github.leostumpf.positioninginfo.domain.CompassTrust
 import io.github.leostumpf.positioninginfo.domain.Constellation
 import io.github.leostumpf.positioninginfo.domain.ObstructionCell
 import io.github.leostumpf.positioninginfo.domain.SatelliteId
@@ -24,6 +25,9 @@ data class SkyUiState(
     val headingDegrees: Float? = null,
     val headingText: String? = null,
     val compassUnreliable: Boolean = false,
+    /** Measured field strength in compass mode, and how it compares with the model. */
+    val magneticUt: Double? = null,
+    val compassTrust: CompassTrust? = null,
     val obstruction: List<ObstructionCell> = emptyList(),
     val obstructionSamples: Int = 0,
 ) {

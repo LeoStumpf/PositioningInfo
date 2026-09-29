@@ -46,6 +46,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import io.github.leostumpf.positioninginfo.domain.CompassTrust
 import io.github.leostumpf.positioninginfo.domain.Constellation
 import io.github.leostumpf.positioninginfo.domain.SkyPoint
 import io.github.leostumpf.positioninginfo.ui.common.AppIcons
@@ -106,6 +107,9 @@ fun SkyScreen(
                 )
             }
         }
+        if (state.compassMode && state.magneticUt != null) {
+            item { CompassTrustLine(state.magneticUt, state.compassTrust) }
+        }
         item { SkyPlot(state, Modifier.padding(top = 12.dp)) }
         item { Legend(state.mapMode) }
         item {
@@ -137,6 +141,21 @@ fun SkyScreen(
             items(state.events, key = { it.key }) { EventRow(it.text.substringBefore(' '), it.text.substringAfter(' '), it.ago) }
         }
     }
+}
+
+/** Whether the compass can be believed: measured field strength against the model's. */
+@Composable
+private fun CompassTrustLine(measuredUt: Double, trust: CompassTrust?) {
+    val (text, color) = when (trust?.level) {
+        null -> "Magnetic field ${measuredUt.roundToInt()} µT · needs a fix to compare with the model" to Palette.TextSecondary
+        CompassTrust.Level.RELIABLE ->
+            "Magnetic field ${measuredUt.roundToInt()} µT, expected ${trust.expectedUt.roundToInt()} · compass reliable" to Palette.Good
+        CompassTrust.Level.SUSPECT ->
+            "Magnetic field ${measuredUt.roundToInt()} µT, expected ${trust.expectedUt.roundToInt()} · something magnetic nearby, heading may be off" to Palette.Degraded
+        CompassTrust.Level.DISTURBED ->
+            "Magnetic field ${measuredUt.roundToInt()} µT, expected ${trust.expectedUt.roundToInt()} · compass disturbed, heading is wrong" to Palette.Bad
+    }
+    Text(text, style = StatusLineStyle, color = color, modifier = Modifier.padding(top = 6.dp))
 }
 
 @Composable
