@@ -29,6 +29,7 @@ import io.github.leostumpf.gpstools.domain.FixFreshness
 import io.github.leostumpf.gpstools.domain.SessionStats
 import io.github.leostumpf.gpstools.domain.SkyTracker
 import io.github.leostumpf.gpstools.domain.SpeedReading
+import io.github.leostumpf.gpstools.domain.SpeedUnit
 import io.github.leostumpf.gpstools.domain.PositioningQuality
 import io.github.leostumpf.gpstools.domain.SpeedResolver
 import io.github.leostumpf.gpstools.settings.UnitPreference
@@ -216,8 +217,8 @@ class GpsToolsViewModel(application: Application) : AndroidViewModel(application
         skyTracker = skyTracker.onPause()
     }
 
-    fun cycleUnit() {
-        viewModelScope.launch { unitPreference.set(_speedState.value.unit.next()) }
+    fun setUnit(unit: SpeedUnit) {
+        viewModelScope.launch { unitPreference.set(unit) }
     }
 
     fun resetSession() {

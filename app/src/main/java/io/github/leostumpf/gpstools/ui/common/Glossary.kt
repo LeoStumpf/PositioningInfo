@@ -12,6 +12,13 @@ object Glossary {
 
     val gnss = listOf(
         PrimerEntry(
+            "Fixed vs. ready",
+            "Two different questions. The headline says what the receiver is doing now: " +
+                "fixed (computing a position from 4+ satellites) or still searching. The " +
+                "hot / warm / cold badge says how much orbital data it holds, i.e. how fast " +
+                "the next start would be. A receiver can be fixed and hot at the same time.",
+        ),
+        PrimerEntry(
             "Fix",
             "A computed position and time. Each satellite provides one range; the receiver " +
                 "solves for x, y, z and its own clock error, so a 3D fix needs at least four " +
@@ -432,8 +439,8 @@ object Glossary {
             "Speed",
             "Measured by the receiver from the Doppler shift of the satellite signals, not " +
                 "from position changes, so it reacts at once without jitter. Readings inside " +
-                "the receiver's own speed uncertainty show as 0. Tap the number to switch km/h, " +
-                "mph and knots.",
+                "the receiver's own speed uncertainty show as 0. km/h by default; the gear " +
+                "button switches to mph or knots.",
         ),
         PrimerEntry(
             "Max / avg",

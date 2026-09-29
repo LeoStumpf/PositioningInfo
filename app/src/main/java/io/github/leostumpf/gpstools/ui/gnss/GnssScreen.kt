@@ -82,9 +82,15 @@ fun GnssScreen(
 
     PageScaffold(Page.GNSS, modifier) {
         item {
+            val fixed = state.isFixed()
             Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatusBadge(state.readiness.badge(), state.readiness.tone())
-                Text(state.readiness.headline(), style = PageTitleStyle.copy(fontSize = 28.sp, lineHeight = 34.sp), color = Palette.TextPrimary)
+                // Two separate facts: what the receiver is doing now, and how fast its next
+                // start would be. Mixing them made "ready" appear even while it was fixed.
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (fixed) StatusBadge("Fix", Tone.GOOD) else StatusBadge("No fix", Tone.NEUTRAL)
+                    StatusBadge("Next start: ${state.readiness.badge()}", state.readiness.tone())
+                }
+                Text(headline(state), style = PageTitleStyle.copy(fontSize = 28.sp, lineHeight = 34.sp), color = Palette.TextPrimary)
                 Text(explanationFor(state), style = BodyStyle.copy(fontSize = 14.sp, lineHeight = 20.sp), color = Palette.TextSecondary)
             }
         }
@@ -293,11 +299,15 @@ private fun AlmanacReadiness.tone(): Tone = when (this) {
     AlmanacReadiness.UNKNOWN -> Tone.NEUTRAL
 }
 
-private fun AlmanacReadiness.headline(): String = when (this) {
-    AlmanacReadiness.HOT -> "Ready to fix"
-    AlmanacReadiness.WARM -> "Almost ready"
-    AlmanacReadiness.COLD -> "Searching blind"
-    AlmanacReadiness.UNKNOWN -> "Waiting for the receiver"
+/** Fixed means a position is being computed right now: four satellites are the minimum. */
+private fun GnssUiState.isFixed() = gpsEnabled && usedInFix >= AlmanacStatus.SATELLITES_FOR_FIX
+
+private fun headline(state: GnssUiState): String = when {
+    state.isFixed() -> "Fixed on ${state.usedInFix} satellites"
+    state.readiness == AlmanacReadiness.HOT -> "Ready to fix"
+    state.readiness == AlmanacReadiness.WARM -> "Almost ready"
+    state.readiness == AlmanacReadiness.COLD -> "Searching blind"
+    else -> "Waiting for the receiver"
 }
 
 /**
@@ -305,15 +315,28 @@ private fun AlmanacReadiness.headline(): String = when (this) {
  * right now, or holding enough precise orbits to fix shortly — and quoting the ephemeris
  * count for a device that got there by fixing would contradict the figure beside it.
  */
-private fun explanationFor(state: GnssUiState): String = when (state.readiness) {
-    AlmanacReadiness.HOT -> if (state.usedInFix >= AlmanacStatus.SATELLITES_FOR_FIX) {
-        "The receiver is using ${state.usedInFix} satellites for a fix right now."
-    } else {
-        "Precise orbits (ephemeris) are held for at least ${AlmanacStatus.SATELLITES_FOR_FIX} satellites. A fix takes seconds."
+private fun explanationFor(state: GnssUiState): String = when {
+    state.isFixed() -> when {
+        state.ephemerisUnavailable -> "The receiver is computing a position right now."
+        state.readiness == AlmanacReadiness.HOT ->
+            "The receiver is computing a position right now. It also holds precise orbits for " +
+                "${state.withEphemeris} satellites, so after a restart it would fix again within seconds."
+        state.readiness == AlmanacReadiness.WARM ->
+            "The receiver is computing a position right now, but holds precise orbits for only a " +
+                "few satellites; a restart would take about half a minute."
+        else ->
+            "The receiver is computing a position right now."
     }
-    AlmanacReadiness.WARM ->
-        "Coarse orbits (almanac) are held, but not enough precise ones. The receiver knows where to look and needs about half a minute."
-    AlmanacReadiness.COLD ->
-        "Too little orbital data to fix quickly. The receiver must search blindly; a full almanac takes up to 12 minutes."
-    AlmanacReadiness.UNKNOWN -> "No report from the GNSS receiver yet."
+    else -> when (state.readiness) {
+        AlmanacReadiness.HOT ->
+            "Precise orbits (ephemeris) are held for at least ${AlmanacStatus.SATELLITES_FOR_FIX} satellites. " +
+                "A fix should follow within seconds of hearing them."
+        AlmanacReadiness.WARM ->
+            "Coarse orbits (almanac) are held, but not enough precise ones. The receiver knows where to " +
+                "look and needs about half a minute."
+        AlmanacReadiness.COLD ->
+            "Too little orbital data to fix quickly. The receiver must search blindly; a full almanac " +
+                "takes up to 12 minutes."
+        AlmanacReadiness.UNKNOWN -> "No report from the GNSS receiver yet."
+    }
 }

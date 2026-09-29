@@ -44,7 +44,7 @@ Swipe between eight screens. Each detail screen has a collapsible glossary of th
 
 **Speedometer**
 
-- Live speed straight from the GNSS receiver, in km/h, mph or knots (tap the unit to cycle)
+- Live speed straight from the GNSS receiver, in km/h (default), mph or knots — chosen under the gear button, so a stray touch never changes it
 - Session maximum and time-weighted average, with a reset button
 - Background mode button: keep running with the screen off, shown by a notification
 - Honest status line: fix state, horizontal accuracy, satellites used / visible
@@ -67,7 +67,7 @@ Swipe between eight screens. Each detail screen has a collapsible glossary of th
 
 **GNSS status**
 
-- Whether the receiver is ready to fix, and why: hot, warm or cold start
+- Whether the receiver has a fix right now, and separately how fast its next start would be (hot, warm or cold)
 - How many satellites the phone holds almanac and ephemeris data for
 - Per-constellation breakdown across GPS, GLONASS, Galileo, BeiDou, QZSS, NavIC and SBAS
 - Every visible satellite with its signal strength and orbital-data flags

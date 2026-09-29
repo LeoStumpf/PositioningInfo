@@ -57,7 +57,7 @@ fun GpsToolsApp(viewModel: GpsToolsViewModel, modifier: Modifier = Modifier) {
             when (Page.entries[index]) {
                 Page.SPEED -> SpeedScreen(
                     state = speedState,
-                    onCycleUnit = viewModel::cycleUnit,
+                    onSetUnit = viewModel::setUnit,
                     onResetSession = viewModel::resetSession,
                     backgroundActive = backgroundActive,
                     onSetBackground = viewModel::setBackgroundMode,
