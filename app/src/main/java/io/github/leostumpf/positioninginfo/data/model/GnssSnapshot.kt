@@ -42,6 +42,8 @@ data class SpeedFix(
      * Android marks such fixes; showing them as real would be the one lie this app can tell.
      */
     val isMock: Boolean = false,
+    /** 1σ uncertainty of the fix's timestamp in milliseconds, where the receiver reports one. */
+    val timeUncertaintyMs: Double? = null,
     /** Course over ground in degrees, meaningful only while moving. */
     val bearingDegrees: Float? = null,
 )

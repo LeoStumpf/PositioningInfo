@@ -72,13 +72,17 @@ Swipe between eight screens. Each detail screen has a collapsible glossary of th
 - **"Why no fix?"** — walks the chain a fix depends on (location on, real receiver, battery saver, data for
   assistance, satellites heard, usable signals, orbits, geometry, search time) and names the first link that fails
 - Each satellite's acquisition stage (code lock → bit sync → frame sync → time decoded), with a detail sheet
+  that also translates its raw measurement: signal code, strength at the chip and the loss before it,
+  time uncertainty as metres of range, carrier-phase state and inter-signal bias
 - The last 30 minutes as graphs (satellites in fix, signal, accuracy) and a log of recent times to first fix
 - Whether the receiver has a fix right now, and separately how fast its next start would be (hot, warm or cold)
 - How many satellites the phone holds almanac and ephemeris data for
 - Per-constellation breakdown across GPS, GLONASS, Galileo, BeiDou, QZSS, NavIC and SBAS
 - Every visible satellite with its signal strength and orbital-data flags
 - How long this session's first fix actually took, to check the hot / warm / cold verdict
-- How far the phone's clock is from GNSS time
+- How far the phone's clock is from GNSS time and from network time, and how good the network's time is
+- The phone settings around positioning, read-only: precise or approximate access, Wi-Fi and cell
+  positioning, Wi-Fi and Bluetooth scanning, battery saver, automatic time and time zone
 - Cold start (clear aiding data) and A-GNSS download, to watch the difference assistance makes
 
 - Compass trust: measured magnetic field against the World Magnetic Model, to catch a disturbed compass
@@ -90,14 +94,17 @@ Swipe between eight screens. Each detail screen has a collapsible glossary of th
 
 **Signals and accuracy**
 
-- Every accuracy Android reports — horizontal, vertical, speed, direction of travel — and the actual fix rate
+- Every accuracy Android reports — horizontal, vertical, speed, direction of travel, the fix's
+  timestamp — and the actual fix rate
 - Measured horizontal accuracy of the current fix, kept distinct from the estimate below it
 - Expected resolution for the technique actually in use, and why
 - Which frequency bands are in use, and whether the phone is running dual-frequency
 - Which augmentation system (EGNOS, WAAS, MSAS, GAGAN, …) is overhead, and whether its
   corrections are actually being applied
 - Satellite geometry (PDOP, HDOP, VDOP, TDOP), computed and as the chip reports it
-- Which assistance services the receiver reports, plus its chipset and generation
+- Which assistance services and chip features the receiver reports (antenna corrections; from
+  Android 14 also satellite positions, blocklist, low power, geofencing, path corrections, …), plus its
+  chipset and generation
 
 **Receiver internals**
 
@@ -111,6 +118,8 @@ Swipe between eight screens. Each detail screen has a collapsible glossary of th
 
 - GNSS, network and Android's fused position side by side, with each one's distance from the GNSS fix
 - Position from Wi-Fi and cell towers, its claimed accuracy and its real error against GNSS
+- Every location provider the phone offers apps (gps, network, fused, passive, vendor ones) with what
+  each declares: accuracy and power class, what it needs, what it reports
 - The raw inputs: cells (with timing-advance distance) and Wi-Fi access points in range
 
 **About**

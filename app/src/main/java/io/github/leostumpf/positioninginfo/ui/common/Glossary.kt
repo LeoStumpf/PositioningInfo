@@ -76,6 +76,12 @@ object Glossary {
                 "clocks, so this shows how far the phone's own clock has drifted.",
         ),
         PrimerEntry(
+            "Network time",
+            "The time the mobile network (NITZ) or a time server last gave the phone, carried forward " +
+                "on its own clock. “Network time vs GNSS” shows how good that source is; automatic time " +
+                "sets the phone clock from it, never from GNSS.",
+        ),
+        PrimerEntry(
             "A-GNSS",
             "Assisted GNSS: almanac, predicted orbits and time downloaded over the " +
                 "internet (SUPL, PSDS/XTRA, NTP), turning a cold start into a hot one.",
@@ -115,11 +121,24 @@ object Glossary {
                 "while it approaches, negative as it recedes, a few kHz at most.",
         ),
         PrimerEntry(
+            "Raw measurement (sheet)",
+            "Signal code: which part of the broadcast is tracked, e.g. C/A, or pilot vs data channel. " +
+                "Strength at the chip: C/N₀ after antenna and front-end losses. Time uncertainty: how " +
+                "exactly the satellite's time was decoded, as metres of range. Carrier phase: whether the " +
+                "wave cycles themselves are counted, the basis of centimetre work.",
+        ),
+        PrimerEntry(
             "Cold start / Fetch A-GNSS",
             "Cold start deletes the stored orbits, position and time and restarts the " +
                 "receiver, so the next time to first fix shows the worst case. Fetch asks " +
                 "Android to download fresh assistance data — the app itself makes no " +
                 "connection.",
+        ),
+        PrimerEntry(
+            "Phone settings",
+            "Read-only. Approximate access hides the receiver altogether; Wi-Fi and Bluetooth " +
+                "scanning let the network provider find access points and beacons with the radios off; " +
+                "battery saver can switch GNSS off with the screen.",
         ),
     )
 
@@ -142,6 +161,11 @@ object Glossary {
             "The receiver's own estimate: a circle with 68\u00A0% confidence, so about two " +
                 "fixes in three lie within it. It is an estimate, not a measurement against " +
                 "the truth.",
+        ),
+        PrimerEntry(
+            "Fix timestamp",
+            "How exactly the receiver knows when the position was valid. At 100 km/h, 10 ms of timing " +
+                "error is 28 cm of position error along the road.",
         ),
         PrimerEntry(
             "Error sources",
@@ -259,6 +283,12 @@ object Glossary {
             "Android has three: the GNSS receiver alone, the network provider (Wi-Fi and cells), " +
                 "and the fused provider, which blends both with motion sensors and is what most apps " +
                 "receive. The offset is each one's distance from the GNSS fix at the same moment.",
+        ),
+        PrimerEntry(
+            "Location providers",
+            "The sources Android offers apps — gps, network, fused, passive and any the maker added — " +
+                "with what each declares: fine or coarse, power use, what it needs and what it reports. " +
+                "Passive never searches; it passes on fixes other apps requested.",
         ),
         PrimerEntry(
             "Network location",
@@ -486,6 +516,13 @@ object Glossary {
             "Assistance services",
             "Data delivered over the network rather than from the satellites: orbits " +
                 "(A-GNSS), time injection, and on some phones correction data.",
+        ),
+        PrimerEntry(
+            "Chip features",
+            "Antenna corrections: phase-centre and gain per band. Satellite positions: the chip " +
+                "computes orbits itself. Blocklist, low power, geofencing, scheduling, single-shot: work " +
+                "the chip can do without the phone. Correlation vectors, power statistics: diagnostics " +
+                "for developers.",
         ),
     )
 

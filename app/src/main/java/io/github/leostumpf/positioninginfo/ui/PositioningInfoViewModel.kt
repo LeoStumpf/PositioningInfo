@@ -14,6 +14,7 @@ import io.github.leostumpf.positioninginfo.data.AssistanceDataSource
 import io.github.leostumpf.positioninginfo.data.CellInfoDataSource
 import io.github.leostumpf.positioninginfo.data.GnssCapabilityDataSource
 import io.github.leostumpf.positioninginfo.data.GnssStatusDataSource
+import io.github.leostumpf.positioninginfo.data.LocationProviderDataSource
 import io.github.leostumpf.positioninginfo.data.LocationDataSource
 import io.github.leostumpf.positioninginfo.data.NetworkLocationDataSource
 import io.github.leostumpf.positioninginfo.data.SystemStatusDataSource
@@ -32,6 +33,8 @@ import io.github.leostumpf.positioninginfo.data.model.AccessPoint
 import io.github.leostumpf.positioninginfo.data.model.CellTower
 import io.github.leostumpf.positioninginfo.data.model.NetworkFix
 import io.github.leostumpf.positioninginfo.data.model.GnssSnapshot
+import io.github.leostumpf.positioninginfo.data.model.PhoneSettings
+import io.github.leostumpf.positioninginfo.domain.LocationProviderInfo
 import io.github.leostumpf.positioninginfo.data.model.SpeedFix
 import io.github.leostumpf.positioninginfo.domain.AlmanacStatus
 import io.github.leostumpf.positioninginfo.domain.ClockOffset
@@ -88,6 +91,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     private val wifiSource = WifiScanDataSource(application)
     private val systemStatus = SystemStatusDataSource(application)
     private val ttffStore = TtffLogStore(application)
+    private val providerSource = LocationProviderDataSource(application)
 
     /** Static for the life of the device, so it is read once rather than streamed. */
     private val capabilities = capabilitySource.read()
@@ -129,6 +133,11 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     private var sessionStartType: AlmanacReadiness? = null
     private var firstFixTimer: FirstFixTimer? = null
     private var clockOffsetMs: Long? = null
+    private var networkOffsetMs: Long? = null
+    private var systemGnssOffsetMs: Long? = null
+    private var phoneSettings = PhoneSettings()
+    private var providers = listOf<LocationProviderInfo>()
+    private var ticks = 0
     private var assistanceMessage: String? = null
     private val trackingJobs = mutableListOf<Job>()
 
@@ -274,6 +283,8 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         // leave the last number frozen on screen indefinitely.
         trackingJobs += viewModelScope.launch {
             while (true) {
+                // Settings, providers and the system clocks change rarely; a few seconds is fresh enough.
+                if (ticks++ % SLOW_TICKS == 0) readPhoneState()
                 delay(FRESHNESS_TICK_MS)
                 publishSpeed(lastFix)
                 publishTiming()
@@ -286,6 +297,14 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         }
 
         publishSpeed(lastFix)
+    }
+
+    private fun readPhoneState() {
+        phoneSettings = systemStatus.settings()
+        providers = providerSource.read()
+        networkOffsetMs = systemStatus.networkTimeOffsetMs()
+        systemGnssOffsetMs = systemStatus.gnssTimeOffsetMs()
+        _gnssState.update { it.copy(settings = phoneSettings) }
     }
 
     fun stopTracking() {
@@ -386,7 +405,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
             gpsEnabled = enabled,
             timing = currentTiming(),
             assistanceMessage = assistanceMessage,
-        )).copy(history = history.samples, ttffLog = ttffLog)
+        )).copy(history = history.samples, ttffLog = ttffLog, settings = phoneSettings)
         publishSignal()
 
         publishDiagnosis()
@@ -489,7 +508,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
             cells = cells,
             wifiAvailable = wifiSource.canScan,
             accessPoints = accessPoints,
-        ).copy(sources = positionSources())
+        ).copy(sources = positionSources(), providers = providers)
     }
 
     /** Starts the sky paths and the event list afresh, e.g. after fragments from earlier sessions. */
@@ -514,6 +533,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
                 speedAccuracyMps = fix?.speedAccuracyMps,
                 bearingAccuracyDeg = fix?.bearingAccuracyDeg,
                 updateIntervalMs = updateRate.meanIntervalMs,
+                timeUncertaintyMs = fix?.timeUncertaintyMs,
                 isMock = fix?.isMock == true,
             ),
         )
@@ -537,6 +557,8 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
             firstFixMs = timer?.firstFixAfterMs,
             searchingForMs = timer?.searchingForMs(SystemClock.elapsedRealtime()),
             clockOffsetMs = clockOffsetMs,
+            networkOffsetMs = networkOffsetMs,
+            systemGnssOffsetMs = systemGnssOffsetMs,
         )
     }
 
@@ -548,5 +570,6 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
 
     private companion object {
         const val FRESHNESS_TICK_MS = 500L
+        const val SLOW_TICKS = 10
     }
 }

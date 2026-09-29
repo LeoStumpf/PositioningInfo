@@ -182,6 +182,16 @@ private fun GnssMeasurementsEvent.toEpoch(): RawMeasurementEpoch {
                     GnssMeasurement.MULTIPATH_INDICATOR_NOT_DETECTED -> false
                     else -> null
                 },
+                codeType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && it.hasCodeType()) it.codeType else null,
+                basebandCn0DbHz = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && it.hasBasebandCn0DbHz()) it.basebandCn0DbHz else null,
+                snrDb = if (it.hasSnrInDb()) it.snrInDb else null,
+                receivedSvTimeUncertaintyNs = it.receivedSvTimeUncertaintyNanos.takeIf { u -> u > 0 },
+                carrierPhaseState = it.accumulatedDeltaRangeState,
+                interSignalBiasNs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && it.hasFullInterSignalBiasNanos()) {
+                    it.fullInterSignalBiasNanos
+                } else {
+                    null
+                },
             )
         },
     )

@@ -43,6 +43,7 @@ import io.github.leostumpf.positioninginfo.ui.common.HeroValue
 import io.github.leostumpf.positioninginfo.ui.common.InfoCard
 import io.github.leostumpf.positioninginfo.ui.common.LevelBar
 import io.github.leostumpf.positioninginfo.ui.common.Note
+import io.github.leostumpf.positioninginfo.ui.common.ValueRow
 import io.github.leostumpf.positioninginfo.ui.common.Notice
 import io.github.leostumpf.positioninginfo.ui.common.Page
 import io.github.leostumpf.positioninginfo.ui.common.PageScaffold
@@ -108,6 +109,23 @@ fun NetworkScreen(state: NetworkUiState, modifier: Modifier = Modifier) {
             Note(
                 "Apps usually get the fused position, which blends GNSS, Wi-Fi, cells and motion sensors. " +
                     "That is why a maps app can show you a few metres from the raw GNSS fix.",
+                modifier = Modifier.padding(top = 6.dp),
+            )
+        }
+
+        section("Location providers", trailing = state.providers.size.takeIf { it > 0 }?.toString())
+        items(state.providers, key = { "provider-" + it.name }) { p ->
+            ValueRow(
+                p.name, if (p.enabled) "on" else "off",
+                detail = listOfNotNull(p.role, p.quality, p.capabilities).joinToString("\n"),
+                valueColor = if (p.enabled) null else Palette.TextTertiary,
+                divider = p != state.providers.last(),
+            )
+        }
+        item {
+            Note(
+                "What each source Android offers apps declares about itself. \"passive\" never starts a " +
+                    "search — it hands on fixes some other app asked for.",
                 modifier = Modifier.padding(top = 6.dp),
             )
         }

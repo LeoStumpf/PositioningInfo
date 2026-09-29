@@ -28,6 +28,17 @@ data class SignalMeasurement(
     val state: Int,
     val pseudorangeRateMps: Double,
     val multipath: Boolean?,
+    /** RINEX signal-code letter ("C", "Q", "X", …), Android 10+. */
+    val codeType: String? = null,
+    /** Signal strength at the chip's correlators, after the antenna and front end (Android 11+). */
+    val basebandCn0DbHz: Double? = null,
+    val snrDb: Double? = null,
+    /** 1σ uncertainty of the satellite time the chip decoded. */
+    val receivedSvTimeUncertaintyNs: Long? = null,
+    /** GnssMeasurement.ADR_STATE_* bits; see [io.github.leostumpf.positioninginfo.domain.RawSignal.carrierPhase]. */
+    val carrierPhaseState: Int = 0,
+    /** This signal's delay relative to the receiver's reference signal (Android 11+). */
+    val interSignalBiasNs: Double? = null,
 )
 
 sealed interface RawMeasurementUpdate {

@@ -61,6 +61,10 @@ import io.github.leostumpf.positioninginfo.domain.SatelliteId
 import io.github.leostumpf.positioninginfo.domain.SignalBand
 import io.github.leostumpf.positioninginfo.domain.band
 import io.github.leostumpf.positioninginfo.ui.common.LevelBar
+import io.github.leostumpf.positioninginfo.data.model.PhoneSettings
+import io.github.leostumpf.positioninginfo.data.model.SignalMeasurement
+import io.github.leostumpf.positioninginfo.domain.PowerSaveLocation
+import io.github.leostumpf.positioninginfo.domain.RawSignal
 import io.github.leostumpf.positioninginfo.ui.common.Note
 import io.github.leostumpf.positioninginfo.ui.common.Notice
 import io.github.leostumpf.positioninginfo.ui.common.Page
@@ -185,7 +189,10 @@ fun GnssScreen(
 
         section("Timing")
         item { TimingRow("Time to first fix", state.timing.firstFixText(state.gpsEnabled)) }
-        item { TimingRow("Phone clock vs GNSS", state.timing.clockText(), divider = false) }
+        item { TimingRow("Phone clock vs GNSS", state.timing.clockText()) }
+        val networkVsGnss = state.timing.networkVsGnssText()
+        item { TimingRow("Phone clock vs network", state.timing.networkClockText(), divider = networkVsGnss != null) }
+        networkVsGnss?.let { item { TimingRow("Network time vs GNSS", it, divider = false) } }
 
         if (state.history.size > 1) {
             section("Last 30 minutes")
@@ -232,6 +239,9 @@ fun GnssScreen(
                 modifier = Modifier.padding(top = 10.dp),
             )
         }
+
+        section("Phone settings", trailing = "read only")
+        item { PhoneSettingsRows(state.settings) }
 
         if (state.perConstellation.isNotEmpty()) {
             section("Constellations")
@@ -560,6 +570,8 @@ private fun SatelliteSheet(row: SignalRow, detail: SignalDetail?, siblings: List
                 detail = "positive: approaching")
             ValueRow("Multipath", when (detail?.multipath) { true -> "detected"; false -> "none"; null -> "not reported" })
 
+            detail?.raw?.takeIf { heard }?.let { RawMeasurementRows(sat, it) }
+
             SectionHeader("Position and data", modifier = Modifier.padding(top = 16.dp, bottom = 2.dp))
             ValueRow("Elevation", "%.0f°".format(sat.elevationDegrees))
             ValueRow("Azimuth", "%.0f°".format(sat.azimuthDegrees))
@@ -624,5 +636,62 @@ private fun HistoryChart(
                 )
             }
         }
+    }
+}
+
+/** The raw-measurement fields that need a word of translation, for the satellite sheet. */
+@Composable
+private fun RawMeasurementRows(sat: SatelliteInfo, raw: SignalMeasurement) {
+    SectionHeader("Raw measurement", modifier = Modifier.padding(top = 16.dp, bottom = 2.dp))
+    raw.codeType?.let { code ->
+        ValueRow("Signal code", code, detail = RawSignal.codeMeaning(sat.constellation, code) ?: "RINEX code letter")
+    }
+    raw.basebandCn0DbHz?.let { base ->
+        ValueRow(
+            "Strength at the chip", String.format(java.util.Locale.US, "%.1f dB-Hz", base),
+            detail = String.format(java.util.Locale.US, "%.1f dB lost between antenna and correlators", raw.cn0DbHz - base),
+        )
+    }
+    raw.snrDb?.let { ValueRow("Signal-to-noise", String.format(java.util.Locale.US, "%.1f dB", it)) }
+    raw.receivedSvTimeUncertaintyNs?.let { ns ->
+        val metres = RawSignal.timeUncertaintyM(ns)
+        ValueRow(
+            "Time uncertainty", if (ns < 1_000_000) "± $ns ns" else String.format(java.util.Locale.US, "± %.1f ms", ns / 1e6),
+            detail = if (metres < 10_000) String.format(java.util.Locale.US, "≈ %.0f m of range", metres) else String.format(java.util.Locale.US, "≈ %.0f km of range", metres / 1_000),
+        )
+    }
+    ValueRow("Carrier phase", RawSignal.carrierPhase(raw.carrierPhaseState), divider = raw.interSignalBiasNs != null)
+    raw.interSignalBiasNs?.let {
+        ValueRow("Inter-signal bias", String.format(java.util.Locale.US, "%.1f ns", it), detail = "delay against the receiver's reference signal", divider = false)
+    }
+}
+
+/** What the user has switched on or off around positioning; all read-only. */
+@Composable
+private fun PhoneSettingsRows(s: PhoneSettings) {
+    fun onOff(v: Boolean?) = when (v) { true -> "on"; false -> "off"; null -> "not readable" }
+    Column {
+        ValueRow("Location", onOff(s.locationOn), valueColor = if (s.locationOn == false) Palette.Bad else null)
+        ValueRow(
+            "Location access", when (s.preciseLocation) { true -> "precise"; false -> "approximate"; null -> "—" },
+            detail = "approximate access hides the GNSS receiver entirely".takeIf { s.preciseLocation == false },
+            valueColor = if (s.preciseLocation == false) Palette.Degraded else null,
+        )
+        ValueRow("Wi-Fi & cell positioning", onOff(s.networkLocation), detail = "the network provider; faster, rougher fixes")
+        ValueRow("Wi-Fi scanning", onOff(s.wifiScanning), detail = "finds access points for positioning even with Wi-Fi off")
+        ValueRow("Bluetooth scanning", onOff(s.bluetoothScanning), detail = "finds beacons for positioning even with Bluetooth off")
+        ValueRow(
+            "Battery saver", when (s.powerSave) {
+                PowerSaveLocation.UNRESTRICTED -> "no effect"
+                PowerSaveLocation.GNSS_OFF_SCREEN_OFF -> "GNSS off with screen off"
+                PowerSaveLocation.ALL_OFF_SCREEN_OFF -> "location off with screen off"
+                PowerSaveLocation.FOREGROUND_ONLY -> "foreground apps only"
+                PowerSaveLocation.THROTTLED_SCREEN_OFF -> "throttled with screen off"
+            },
+            valueColor = if (s.powerSave != PowerSaveLocation.UNRESTRICTED) Palette.Degraded else null,
+        )
+        ValueRow("Automatic time", onOff(s.autoTime), detail = "set from the network, not from GNSS")
+        ValueRow("Automatic time zone", onOff(s.autoTimeZone), detail = s.timeZone?.let { "now $it" }, divider = false)
+        Note("Change these in Android's settings; the app only reads them.", modifier = Modifier.padding(top = 6.dp))
     }
 }

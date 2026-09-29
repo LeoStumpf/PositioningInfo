@@ -34,6 +34,8 @@ data class SignalUiState(
     val bearingAccuracyDeg: Float? = null,
     /** How often fixes actually arrive. */
     val updateIntervalMs: Long? = null,
+    /** 1σ uncertainty of the fix's timestamp. */
+    val timeUncertaintyMs: Double? = null,
     val isMock: Boolean = false,
 ) {
     companion object {

@@ -34,6 +34,24 @@ data class AssistanceCapabilities(
     val measurementCorrections: Boolean = false,
     /** Accumulated delta range, i.e. usable carrier-phase tracking. */
     val carrierPhase: Boolean = false,
+    /** Antenna phase-centre and gain corrections per band (Android 12+). */
+    val antennaInfo: Boolean = false,
+    /** The chip computes each satellite's position, velocity and clock itself (Android 14+). */
+    val satellitePvt: Boolean = false,
+    /** Satellites can be excluded from the fix by a blocklist. */
+    val satelliteBlocklist: Boolean = false,
+    val lowPowerMode: Boolean = false,
+    /** Geofences evaluated on the chip, without waking the phone. */
+    val geofencing: Boolean = false,
+    /** The chip schedules its own fix interval. */
+    val scheduling: Boolean = false,
+    val singleShotFix: Boolean = false,
+    /** Which kinds of path corrections the chip accepts: line-of-sight, excess path, reflecting planes, driving. */
+    val correctionKinds: List<String> = emptyList(),
+    /** Correlator output around each signal's peak. */
+    val correlationVectors: Boolean = false,
+    /** Power statistics for single- and multi-band tracking. */
+    val powerStats: Boolean = false,
     val hardwareModel: String? = null,
     val hardwareYear: Int? = null,
 )

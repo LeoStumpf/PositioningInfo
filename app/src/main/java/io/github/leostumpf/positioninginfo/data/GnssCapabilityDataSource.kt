@@ -53,13 +53,14 @@ class GnssCapabilityDataSource(context: Context) {
         val capabilities = runCatching { manager.gnssCapabilities }.getOrNull()
             ?: return AssistanceCapabilities(hardwareModel = model, hardwareYear = year)
 
-        // Available since Android 12, the two founding members of the public API.
+        // Available since Android 12: the two founding members of the public API, and antenna info.
         val base = AssistanceCapabilities(
             reported = true,
             rawMeasurements = capabilities.hasMeasurements(),
             navigationMessages = capabilities.hasNavigationMessages(),
             hardwareModel = model,
             hardwareYear = year,
+            antennaInfo = capabilities.hasAntennaInfo(),
         )
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return base
@@ -72,6 +73,21 @@ class GnssCapabilityDataSource(context: Context) {
             measurementCorrections = capabilities.hasMeasurementCorrections(),
             carrierPhase = capabilities.hasAccumulatedDeltaRange() ==
                 GnssCapabilities.CAPABILITY_SUPPORTED,
+            satellitePvt = capabilities.hasSatellitePvt(),
+            satelliteBlocklist = capabilities.hasSatelliteBlocklist(),
+            lowPowerMode = capabilities.hasLowPowerMode(),
+            geofencing = capabilities.hasGeofencing(),
+            scheduling = capabilities.hasScheduling(),
+            singleShotFix = capabilities.hasSingleShotFix(),
+            correctionKinds = listOfNotNull(
+                "line of sight".takeIf { capabilities.hasMeasurementCorrectionsLosSats() },
+                "excess path".takeIf { capabilities.hasMeasurementCorrectionsExcessPathLength() },
+                "reflecting planes".takeIf { capabilities.hasMeasurementCorrectionsReflectingPlane() },
+                "driving".takeIf { capabilities.hasMeasurementCorrectionsForDriving() },
+            ),
+            correlationVectors = capabilities.hasMeasurementCorrelationVectors(),
+            powerStats = capabilities.hasPowerTotal() || capabilities.hasPowerSinglebandTracking() ||
+                capabilities.hasPowerMultibandTracking(),
         )
     }
 }

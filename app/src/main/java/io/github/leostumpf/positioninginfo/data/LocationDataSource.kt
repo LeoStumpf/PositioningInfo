@@ -120,6 +120,11 @@ private fun Location.toSpeedFix(): SpeedFix = SpeedFix(
     bearingDegrees = if (hasBearing()) bearing else null,
     bearingAccuracyDeg = if (hasBearingAccuracy()) bearingAccuracyDegrees else null,
     isMock = isMockCompat(),
+    timeUncertaintyMs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && hasElapsedRealtimeUncertaintyNanos()) {
+        elapsedRealtimeUncertaintyNanos / 1e6
+    } else {
+        null
+    },
 )
 
 /** Android 12 renamed the flag; older releases only have the deprecated spelling. */

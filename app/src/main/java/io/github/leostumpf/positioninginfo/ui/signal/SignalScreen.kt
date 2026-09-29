@@ -106,6 +106,13 @@ fun SignalScreen(state: SignalUiState, modifier: Modifier = Modifier) {
         }
         item {
             ValueRow(
+                "Fix timestamp",
+                state.timeUncertaintyMs?.let { if (it < 1.0) "±${(it * 1_000).fmt(0)} µs" else "±${it.fmt(1)} ms" } ?: DASH,
+                detail = if (state.timeUncertaintyMs == null) "this receiver does not report it" else "when the position was valid",
+            )
+        }
+        item {
+            ValueRow(
                 "Fix interval",
                 state.updateIntervalMs?.let { ms -> if (ms < 1_500) "${ms} ms" else "${(ms / 1_000.0).fmt(1)} s" } ?: DASH,
                 detail = state.updateIntervalMs?.takeIf { it > 0 }?.let { "${(1_000.0 / it).fmt(1)} fixes per second" },

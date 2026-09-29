@@ -370,6 +370,7 @@ class AnalysisSession(
                 dopplerHz = m?.let { AcquisitionStage.dopplerHz(it.pseudorangeRateMps, it.carrierFrequencyHz ?: L1_HZ) },
                 multipath = m?.multipath,
                 firstHeardMs = firstHeardMs[row.satellite.constellation to row.satellite.svid],
+                raw = m,
             )
         },
     )

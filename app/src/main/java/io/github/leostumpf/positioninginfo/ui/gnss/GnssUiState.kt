@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.gnss
 
+import io.github.leostumpf.positioninginfo.data.model.PhoneSettings
 import io.github.leostumpf.positioninginfo.data.model.SatelliteInfo
+import io.github.leostumpf.positioninginfo.data.model.SignalMeasurement
 import io.github.leostumpf.positioninginfo.domain.AcquisitionStage
 import io.github.leostumpf.positioninginfo.domain.AlmanacReadiness
 import io.github.leostumpf.positioninginfo.domain.AlmanacStatus
@@ -34,6 +36,8 @@ data class GnssUiState(
     val history: List<HistorySample> = emptyList(),
     /** Recent times to first fix, oldest first; stored on the phone. */
     val ttffLog: List<TtffEntry> = emptyList(),
+    /** The phone settings around positioning. */
+    val settings: PhoneSettings = PhoneSettings(),
 ) {
 
     companion object {
@@ -75,6 +79,12 @@ data class TimingUiState(
     val searchingForMs: Long? = null,
     /** Phone clock minus GNSS time; positive when the phone is ahead. Null before a fix. */
     val clockOffsetMs: Long? = null,
+    /**
+     * Phone clock minus the time the network last gave it, and minus GNSS time as the
+     * location system last learned it (either may predate this session). Null when unknown.
+     */
+    val networkOffsetMs: Long? = null,
+    val systemGnssOffsetMs: Long? = null,
 )
 
 /**
@@ -111,4 +121,6 @@ data class SignalDetail(
     val multipath: Boolean?,
     /** When the satellite was first heard this session, on the elapsed-realtime clock. */
     val firstHeardMs: Long?,
+    /** The raw measurement itself, null when the chip reports none for this signal. */
+    val raw: SignalMeasurement? = null,
 )

@@ -5,6 +5,7 @@ import io.github.leostumpf.positioninginfo.data.model.AccessPoint
 import io.github.leostumpf.positioninginfo.data.model.CellTower
 import io.github.leostumpf.positioninginfo.data.model.NetworkFix
 import io.github.leostumpf.positioninginfo.data.model.SpeedFix
+import io.github.leostumpf.positioninginfo.domain.LocationProviderInfo
 import io.github.leostumpf.positioninginfo.domain.NetworkComparison
 
 /** Everything the network-location page draws. */
@@ -23,6 +24,8 @@ data class NetworkUiState(
     val accessPoints: List<AccessPoint> = emptyList(),
     /** GNSS, network and fused positions side by side. */
     val sources: List<SourceRow> = emptyList(),
+    /** Every location provider the phone lists, with what it declares about itself. */
+    val providers: List<LocationProviderInfo> = emptyList(),
 ) {
     companion object {
         fun from(
