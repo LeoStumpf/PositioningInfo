@@ -77,7 +77,7 @@ import io.github.leostumpf.positioninginfo.ui.theme.BodyStyle
 import io.github.leostumpf.positioninginfo.ui.theme.DataStyle
 import io.github.leostumpf.positioninginfo.ui.theme.OverlineStyle
 import io.github.leostumpf.positioninginfo.ui.theme.Palette
-import io.github.leostumpf.positioninginfo.ui.theme.PlexMono
+import io.github.leostumpf.positioninginfo.ui.theme.MonoFamily
 import io.github.leostumpf.positioninginfo.ui.theme.color
 import io.github.leostumpf.positioninginfo.ui.theme.PageTitleStyle
 

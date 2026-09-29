@@ -5,28 +5,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.leostumpf.positioninginfo.BuildConfig
 import io.github.leostumpf.positioninginfo.ui.common.AppIcons
 import io.github.leostumpf.positioninginfo.ui.common.InfoCard
-import io.github.leostumpf.positioninginfo.ui.common.QuietButton
 import io.github.leostumpf.positioninginfo.ui.common.SecondaryButton
 import io.github.leostumpf.positioninginfo.ui.common.ValueRow
 import io.github.leostumpf.positioninginfo.ui.theme.BodyStyle
@@ -48,7 +36,6 @@ const val LICENSE_URL = "https://www.gnu.org/licenses/agpl-3.0.html"
 @Composable
 fun AboutSection() {
     val uriHandler = LocalUriHandler.current
-    var showFontLicence by rememberSaveable { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         InfoCard {
             Row(Modifier.fillMaxWidth()) {
@@ -81,33 +68,7 @@ fun AboutSection() {
         Column {
             ValueRow("Source code", SOURCE_URL.removePrefix("https://"))
             ValueRow("Copyright", "© 2026 Leo Stumpf")
-            ValueRow("Typeface", "IBM Plex · SIL OFL 1.1")
             ValueRow("Written by", "Claude (Anthropic)", detail = "under Leo Stumpf's direction — see the README", divider = false)
         }
-        QuietButton("Show the font licence", onClick = { showFontLicence = true })
     }
-    if (showFontLicence) FontLicenceDialog(onDismiss = { showFontLicence = false })
-}
-
-@Composable
-private fun FontLicenceDialog(onDismiss: () -> Unit) {
-    val context = LocalContext.current
-    val text = remember {
-        runCatching { context.assets.open("licenses/OFL-IBM-Plex.txt").bufferedReader().use { it.readText() } }
-            .getOrDefault("SIL Open Font License 1.1")
-    }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        containerColor = Palette.Sheet,
-        title = { Text("IBM Plex font licence") },
-        text = {
-            Text(
-                text,
-                style = CaptionStyle.copy(fontSize = 12.sp),
-                color = Palette.TextSecondary,
-                modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
-            )
-        },
-        confirmButton = { TextButton(onClick = onDismiss) { Text("Close", color = Palette.TextPrimary) } },
-    )
 }

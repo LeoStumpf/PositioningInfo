@@ -59,8 +59,8 @@ import io.github.leostumpf.positioninginfo.ui.theme.BodyStyle
 import io.github.leostumpf.positioninginfo.ui.theme.CaptionStyle
 import io.github.leostumpf.positioninginfo.ui.theme.DataStyle
 import io.github.leostumpf.positioninginfo.ui.theme.Palette
-import io.github.leostumpf.positioninginfo.ui.theme.PlexMono
-import io.github.leostumpf.positioninginfo.ui.theme.PlexSans
+import io.github.leostumpf.positioninginfo.ui.theme.MonoFamily
+import io.github.leostumpf.positioninginfo.ui.theme.SansFamily
 import io.github.leostumpf.positioninginfo.ui.theme.StatusLineStyle
 import io.github.leostumpf.positioninginfo.ui.theme.color
 import kotlin.math.cos
@@ -237,7 +237,7 @@ private fun EventRow(code: String, text: String?, trailing: String, dataValue: B
         ) {
             Text(
                 buildAnnotatedString {
-                    withStyle(SpanStyle(fontFamily = PlexMono, fontWeight = FontWeight.Medium, color = color)) { append(code) }
+                    withStyle(SpanStyle(fontFamily = MonoFamily, fontWeight = FontWeight.Medium, color = color)) { append(code) }
                     text?.let { withStyle(SpanStyle(color = Palette.TextPrimary)) { append(" $it") } }
                 },
                 style = BodyStyle,
@@ -289,7 +289,7 @@ private fun SkyPlot(state: SkyUiState, modifier: Modifier = Modifier) {
         drawLine(ringColour, Offset(centre.x, centre.y - radius), Offset(centre.x, centre.y + radius))
         listOf("N" to 0f, "E" to 90f, "S" to 180f, "W" to 270f).forEach { (text, az) ->
             val style = TextStyle(
-                fontFamily = PlexSans, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                fontFamily = SansFamily, fontSize = 12.sp, fontWeight = FontWeight.Medium,
                 color = if (text == "N") Palette.TextPrimary else labelColour,
             )
             val layout = measurer.measure(text, style)
@@ -365,7 +365,7 @@ private fun DrawScope.drawSatellite(position: Offset, marker: SkyMarker, measure
     }
     val layout = measurer.measure(
         marker.label,
-        TextStyle(fontFamily = PlexMono, color = colour.copy(alpha = if (marker.tracked) 1f else 0.5f), fontSize = 10.sp),
+        TextStyle(fontFamily = MonoFamily, color = colour.copy(alpha = if (marker.tracked) 1f else 0.5f), fontSize = 10.sp),
     )
     drawText(layout, topLeft = position + Offset(dot + 2.dp.toPx(), -layout.size.height / 2f))
 }

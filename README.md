@@ -39,8 +39,6 @@ line-by-line human review, and some paths could not be tried on real hardware â€
 and spoofing indicators have never met a jammer, and that phone does not pass navigation
 messages on. Judge it on the code and on whether the readings hold up.
 
-The IBM Plex typefaces are by IBM, bundled under the SIL Open Font License 1.1.
-
 ## Current features
 
 Swipe between eight screens. Each detail screen has a collapsible glossary of the terms it uses.
@@ -119,7 +117,7 @@ Swipe between eight screens. Each detail screen has a collapsible glossary of th
 - About: what the app is, its licence (AGPL-3.0) and a link to the source
 
 The interface ("Instrument Black") is monochrome on true black, with colour reserved for
-state and constellations, set in IBM Plex (bundled under the SIL Open Font License).
+state and constellations, set in the fonts every Android phone already has.
 
 ## How it works
 

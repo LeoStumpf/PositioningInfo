@@ -57,7 +57,7 @@ import io.github.leostumpf.positioninginfo.ui.theme.CaptionStyle
 import io.github.leostumpf.positioninginfo.ui.theme.DataStyle
 import io.github.leostumpf.positioninginfo.ui.theme.OverlineStyle
 import io.github.leostumpf.positioninginfo.ui.theme.Palette
-import io.github.leostumpf.positioninginfo.ui.theme.PlexCondensed
+import io.github.leostumpf.positioninginfo.ui.theme.CondensedFamily
 import kotlin.math.min
 import kotlin.math.roundToInt
 
@@ -286,7 +286,7 @@ private fun Comparison(state: NetworkUiState) {
                         append(formatDistance(c.distanceM).substringBefore(' '))
                         withStyle(SpanStyle(fontSize = 16.sp, color = Palette.TextSecondary)) { append(" ${formatDistance(c.distanceM).substringAfter(' ')} off") }
                     },
-                    style = BodyStyle.copy(fontFamily = PlexCondensed, fontSize = 32.sp, lineHeight = 36.sp),
+                    style = BodyStyle.copy(fontFamily = CondensedFamily, fontSize = 32.sp, lineHeight = 36.sp),
                     color = Palette.TextPrimary,
                 )
                 c.withinClaimed?.let {

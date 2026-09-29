@@ -53,8 +53,8 @@ import io.github.leostumpf.positioninginfo.ui.common.StatusBadge
 import io.github.leostumpf.positioninginfo.ui.common.Tone
 import io.github.leostumpf.positioninginfo.ui.theme.OverlineStyle
 import io.github.leostumpf.positioninginfo.ui.theme.Palette
-import io.github.leostumpf.positioninginfo.ui.theme.PlexCondensed
-import io.github.leostumpf.positioninginfo.ui.theme.PlexSans
+import io.github.leostumpf.positioninginfo.ui.theme.CondensedFamily
+import io.github.leostumpf.positioninginfo.ui.theme.SansFamily
 import io.github.leostumpf.positioninginfo.ui.theme.ReadoutStyle
 import io.github.leostumpf.positioninginfo.ui.theme.StatusLineStyle
 
@@ -206,7 +206,7 @@ private fun Readout(state: SpeedUiState, size: TextUnit, inline: Boolean = false
             modifier = Modifier.alpha(alpha),
         )
         Column(horizontalAlignment = if (inline) Alignment.Start else Alignment.CenterHorizontally) {
-            Text(state.unit.symbol, style = TextStyle(fontFamily = PlexSans, fontSize = 22.sp), color = Palette.TextSecondary)
+            Text(state.unit.symbol, style = TextStyle(fontFamily = SansFamily, fontSize = 22.sp), color = Palette.TextSecondary)
             // The receiver's own 68 % uncertainty of the speed, so "63.4" is read as a measurement.
             state.speedAccuracyMps?.takeIf { !state.isAcquiring }?.let {
                 Text("± ${formatSpeed(it, state.unit)}", style = StatusLineStyle.copy(fontSize = 15.sp), color = Palette.TextTertiary)
@@ -236,7 +236,7 @@ private fun Readout(state: SpeedUiState, size: TextUnit, inline: Boolean = false
 private fun Stat(label: String, value: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(label, style = OverlineStyle, color = Palette.TextTertiary)
-        Text(value, style = TextStyle(fontFamily = PlexCondensed, fontSize = 28.sp, fontFeatureSettings = "tnum"), color = Palette.TextPrimary)
+        Text(value, style = TextStyle(fontFamily = CondensedFamily, fontSize = 28.sp, fontFeatureSettings = "tnum"), color = Palette.TextPrimary)
     }
 }
 
@@ -244,7 +244,7 @@ private fun Stat(label: String, value: String) {
 private fun StatLine(label: String, value: String) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Text(label, style = OverlineStyle, color = Palette.TextTertiary, modifier = Modifier.weight(1f))
-        Text(value, style = TextStyle(fontFamily = PlexCondensed, fontSize = 34.sp, fontFeatureSettings = "tnum"), color = Palette.TextPrimary)
+        Text(value, style = TextStyle(fontFamily = CondensedFamily, fontSize = 34.sp, fontFeatureSettings = "tnum"), color = Palette.TextPrimary)
     }
 }
 
