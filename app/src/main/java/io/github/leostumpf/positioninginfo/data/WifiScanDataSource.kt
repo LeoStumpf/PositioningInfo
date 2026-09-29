@@ -8,6 +8,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.wifi.ScanResult
 import android.net.wifi.WifiManager
+import android.os.Build
 import androidx.annotation.RequiresPermission
 import androidx.core.content.ContextCompat
 import androidx.core.content.getSystemService
@@ -94,4 +95,37 @@ private fun ScanResult.toAccessPoint() = AccessPoint(
     bssid = BSSID.orEmpty(),
     rssiDbm = level,
     frequencyMhz = frequency,
+    channelWidthMhz = when (channelWidth) {
+        ScanResult.CHANNEL_WIDTH_20MHZ -> 20
+        ScanResult.CHANNEL_WIDTH_40MHZ -> 40
+        ScanResult.CHANNEL_WIDTH_80MHZ -> 80
+        ScanResult.CHANNEL_WIDTH_160MHZ, ScanResult.CHANNEL_WIDTH_80MHZ_PLUS_MHZ -> 160
+        5 -> 320 // CHANNEL_WIDTH_320MHZ, Android 13
+        else -> null
+    },
+    standard = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+        when (wifiStandard) {
+            4 -> "Wi-Fi 4 (802.11n)"
+            5 -> "Wi-Fi 5 (802.11ac)"
+            6 -> "Wi-Fi 6 (802.11ax)"
+            7 -> "WiGig (802.11ad)"
+            8 -> "Wi-Fi 7 (802.11be)"
+            1 -> "802.11a/b/g"
+            else -> null
+        }
+    } else {
+        null
+    },
+    security = capabilities.orEmpty().let { c ->
+        when {
+            "SAE" in c || "WPA3" in c -> "WPA3"
+            "WPA2" in c || "RSN" in c -> "WPA2"
+            "WPA" in c -> "WPA"
+            "WEP" in c -> "WEP"
+            "OWE" in c -> "Enhanced open (OWE)"
+            else -> "open"
+        }
+    },
+    rttResponder = is80211mcResponder,
+    ageMs = (android.os.SystemClock.elapsedRealtime() - timestamp / 1_000L).takeIf { timestamp > 0 && it >= 0 },
 )

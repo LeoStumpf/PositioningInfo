@@ -27,6 +27,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.leostumpf.positioninginfo.domain.ScatterStats
 import io.github.leostumpf.positioninginfo.ui.common.AppIcons
+import io.github.leostumpf.positioninginfo.ui.common.copyText
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import io.github.leostumpf.positioninginfo.ui.common.DASH
 import io.github.leostumpf.positioninginfo.ui.common.HeroValue
 import io.github.leostumpf.positioninginfo.ui.common.InfoCard
@@ -57,6 +60,7 @@ fun PositionScreen(
     modifier: Modifier = Modifier,
 ) {
     val clipboard = LocalClipboardManager.current
+    val context = androidx.compose.ui.platform.LocalContext.current
     PageScaffold(Page.POSITION, modifier) {
         section(
             "Coordinates · WGS84",
@@ -91,6 +95,12 @@ fun PositionScreen(
                                 ) {
                                     Text(if (label == "Degrees, minutes, seconds") "DMS" else label, style = BodyStyle.copy(fontSize = 14.sp), color = Palette.TextSecondary)
                                     Text(value, style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+                                    IconButton(
+                                        onClick = { copyText(clipboard, context, value, "$label copied") },
+                                        modifier = Modifier.size(40.dp),
+                                    ) {
+                                        Icon(AppIcons.Copy, contentDescription = "Copy $label", tint = Palette.TextTertiary, modifier = Modifier.size(18.dp))
+                                    }
                                 }
                                 if (i < state.coordinates.lastIndex) HorizontalDivider(color = Palette.Divider)
                             }
@@ -103,7 +113,7 @@ fun PositionScreen(
                     "Copy all formats",
                     icon = AppIcons.Copy,
                     onClick = {
-                        clipboard.setText(AnnotatedString(state.coordinates.joinToString("\n") { "${it.first}: ${it.second}" }))
+                        copyText(clipboard, context, state.coordinates.joinToString("\n") { "${it.first}: ${it.second}" }, "All formats copied")
                     },
                     modifier = Modifier.padding(top = 10.dp),
                 )

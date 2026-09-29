@@ -36,11 +36,35 @@ data class CellTower(
      * serving cell has one: the phone never transmits to its neighbours.
      */
     val timingAdvanceDistanceM: Double?,
+    /** Operator name as broadcast by the cell, e.g. "Telefonica", when reported. */
+    val operatorName: String? = null,
+    /** Radio channel number: EARFCN, NR-ARFCN, ARFCN or UARFCN. */
+    val channel: Int? = null,
+    val channelLabel: String? = null,
+    /** Frequency bands, e.g. [20] for LTE band 20 (Android 11+). */
+    val bands: List<Int> = emptyList(),
+    /** Technology-specific quality figures (RSRP, RSRQ, SINR, …), as reported. */
+    val quality: List<SignalMeasure> = emptyList(),
+    /** Android's 0–4 bars rating. */
+    val level: Int? = null,
+    val timingAdvanceSteps: Int? = null,
 )
+
+/** One reported signal figure, e.g. RSRP −95 dBm. */
+data class SignalMeasure(val name: String, val value: Int, val unit: String)
 
 data class AccessPoint(
     val ssid: String?,
     val bssid: String,
     val rssiDbm: Int,
     val frequencyMhz: Int,
+    val channelWidthMhz: Int? = null,
+    /** "Wi-Fi 6" etc. (Android 11+). */
+    val standard: String? = null,
+    /** "WPA3", "WPA2", "WEP", "open" — read from the advertised capabilities. */
+    val security: String = "",
+    /** Answers Wi-Fi round-trip-time ranging (IEEE 802.11mc), which can locate to about a metre. */
+    val rttResponder: Boolean = false,
+    /** How long ago this scan result was seen, in ms. */
+    val ageMs: Long? = null,
 )

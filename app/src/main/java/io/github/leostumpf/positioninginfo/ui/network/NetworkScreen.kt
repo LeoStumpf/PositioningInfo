@@ -37,6 +37,9 @@ import io.github.leostumpf.positioninginfo.data.model.AccessPoint
 import io.github.leostumpf.positioninginfo.data.model.CellTower
 import io.github.leostumpf.positioninginfo.ui.about.AboutSection
 import io.github.leostumpf.positioninginfo.ui.common.DASH
+import io.github.leostumpf.positioninginfo.ui.common.DetailRow
+import io.github.leostumpf.positioninginfo.ui.common.DetailSheet
+import androidx.compose.foundation.clickable
 import io.github.leostumpf.positioninginfo.ui.common.DataInventory
 import io.github.leostumpf.positioninginfo.ui.common.DataOnThisPhone
 import io.github.leostumpf.positioninginfo.ui.common.HeroValue
@@ -70,16 +73,31 @@ fun NetworkScreen(
     modifier: Modifier = Modifier,
 ) {
     var showAllAps by rememberSaveable { mutableStateOf(false) }
+    var selectedCell by rememberSaveable { mutableStateOf<String?>(null) }
+    var selectedAp by rememberSaveable { mutableStateOf<String?>(null) }
     PageScaffold(Page.NETWORK, modifier) {
         item {
-            Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text(
+                "Satellites are not the only way a phone finds itself. It also recognises the radio " +
+                    "signals around it — Wi-Fi access points and the towers of the mobile (cellular) " +
+                    "network — and looks up where they are. That works indoors, within a second and with " +
+                    "little battery, but is less precise. This page shows that position, how far off it " +
+                    "really is, and the signals it is built from.",
+                style = BodyStyle.copy(fontSize = 14.sp, lineHeight = 21.sp),
+                color = Palette.TextSecondary,
+                modifier = Modifier.padding(top = 12.dp),
+            )
+        }
+        section("Position from Wi-Fi and cell towers")
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 HeroValue(
                     value = state.accuracyM?.let { "±${formatDistance(it.toDouble()).substringBefore(' ')}" } ?: DASH,
                     unit = state.accuracyM?.let { formatDistance(it.toDouble()).substringAfter(' ') },
                     caption = when {
                         !state.providerEnabled -> null
                         state.ageMs == null -> "Waiting for a network position…"
-                        else -> listOfNotNull("Claimed accuracy", state.source?.let { "from $it" }, formatAge(state.ageMs)).joinToString(" · ")
+                        else -> listOfNotNull("Claimed accuracy", state.source?.let { "based on $it" }, formatAge(state.ageMs)).joinToString(" · ")
                     },
                 )
                 if (!state.providerEnabled) {
@@ -102,7 +120,14 @@ fun NetworkScreen(
             )
         }
 
-        section("Cell towers")
+        section("Mobile network · cell towers", trailing = state.cells.size.takeIf { it > 0 }?.toString())
+        item {
+            Note(
+                "The towers of the mobile network the phone can hear. Their known positions give a rough " +
+                    "location; the serving tower's timing also tells its distance. Tap one for details.",
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
+        }
         when {
             !state.hasTelephony -> item { Notice("This device has no mobile radio.") }
             state.cells.isEmpty() -> item { Notice("No cells reported. Is a SIM inserted and airplane mode off?") }
@@ -114,17 +139,24 @@ fun NetworkScreen(
                         }
                     }
                 }
-                items(state.cells) { CellRow(it) }
+                items(state.cells) { cell -> CellRow(cell) { selectedCell = cell.key() } }
             }
         }
 
         section("Wi-Fi access points", trailing = state.accessPoints.size.takeIf { it > 0 }?.toString())
+        item {
+            Note(
+                "Wi-Fi networks in range, strongest first. The phone does not need to connect: their " +
+                    "addresses alone, looked up in a database, place it within tens of metres. Tap one for details.",
+                modifier = Modifier.padding(bottom = 6.dp),
+            )
+        }
         when {
             !state.wifiAvailable -> item { Notice("Wi-Fi is off and background Wi-Fi scanning is disabled, so no access points are visible.") }
             state.accessPoints.isEmpty() -> item { Notice("No access points found yet.") }
             else -> {
                 val shown = if (showAllAps) state.accessPoints else state.accessPoints.take(AP_PREVIEW)
-                items(shown, key = { it.bssid }) { AccessPointRow(it) }
+                items(shown, key = { it.bssid }) { ap -> AccessPointRow(ap) { selectedAp = ap.bssid } }
                 if (state.accessPoints.size > AP_PREVIEW) {
                     item {
                         QuietButton(
@@ -142,6 +174,83 @@ fun NetworkScreen(
         section("About")
         item { AboutSection() }
     }
+
+    selectedCell?.let { key ->
+        val cell = state.cells.firstOrNull { it.key() == key }
+        if (cell == null) selectedCell = null else CellSheet(cell) { selectedCell = null }
+    }
+    selectedAp?.let { bssid ->
+        val ap = state.accessPoints.firstOrNull { it.bssid == bssid }
+        if (ap == null) selectedAp = null else AccessPointSheet(ap) { selectedAp = null }
+    }
+}
+
+/** Stable enough to keep a sheet open across the 5-second cell refresh. */
+private fun CellTower.key() = "$technology|$network|$identity|$physicalId|$channel"
+
+@Composable
+private fun CellSheet(cell: CellTower, onDismiss: () -> Unit) {
+    val rows = buildList {
+        add(DetailRow("Role", if (cell.registered) "serving" else "neighbour",
+            if (cell.registered) "The cell the phone is attached to." else "A cell the phone measures for handover but is not attached to."))
+        add(DetailRow("Technology", cell.technology))
+        add(DetailRow("Operator", cell.operatorName ?: "not broadcast"))
+        cell.network?.let { add(DetailRow("Network code (MCC-MNC)", it, "Country code, then operator code — 262 is Germany.")) }
+        cell.identity?.let { add(DetailRow("Area and cell identity", it, "Tracking/location area code and the cell's unique number: what position databases look up.")) }
+        cell.physicalId?.let { add(DetailRow(cell.physicalIdLabel, it.toString(), "Short physical code that tells neighbouring cells apart on the air.")) }
+        cell.channel?.let { add(DetailRow(cell.channelLabel ?: "Channel", it.toString() + if (cell.bands.isNotEmpty()) " · band ${cell.bands.joinToString()}" else "", "The radio channel number; the band says which frequency range.")) }
+        add(DetailRow("Signal", (cell.signalDbm?.let { "$it dBm" } ?: DASH) + (cell.level?.let { " · $it of 4 bars" } ?: "")))
+        cell.quality.forEach { q -> add(DetailRow(q.name, "${q.value}${if (q.unit.isNotEmpty()) " ${q.unit}" else ""}", qualityMeaning(q.name))) }
+        if (cell.timingAdvanceSteps != null || cell.timingAdvanceDistanceM != null) {
+            add(DetailRow(
+                "Timing advance",
+                listOfNotNull(cell.timingAdvanceSteps?.let { "$it steps" }, cell.timingAdvanceDistanceM?.let { "≈ ${formatDistance(it)}" }).joinToString(" · "),
+                "How early the phone transmits so its signal arrives on time — the round trip, so the distance to the tower.",
+            ))
+        }
+    }
+    DetailSheet(
+        title = listOfNotNull(cell.operatorName, cell.technology).joinToString(" · "),
+        subtitle = if (cell.registered) "Serving cell tower" else "Neighbouring cell tower",
+        rows = rows,
+        onDismiss = onDismiss,
+    )
+}
+
+private fun qualityMeaning(name: String): String? = when (name) {
+    "RSRP", "SS-RSRP" -> "Received power of the reference signal. Above −80 excellent, below −110 the cell edge."
+    "RSRQ", "SS-RSRQ" -> "Signal quality relative to everything received. Above −10 good, below −15 poor."
+    "SINR", "SS-SINR" -> "Signal against interference and noise. Above 13 good, below 0 poor."
+    "RSSI" -> "Total received power in the channel, noise and other cells included."
+    "Ec/No" -> "UMTS signal quality. Above −6 good, below −14 poor."
+    "Bit error rate class" -> "0 is clean, 7 is barely usable."
+    else -> null
+}
+
+@Composable
+private fun AccessPointSheet(ap: AccessPoint, onDismiss: () -> Unit) {
+    val rows = buildList {
+        add(DetailRow("Name (SSID)", ap.ssid ?: "hidden", if (ap.ssid == null) "The network does not broadcast its name." else null))
+        add(DetailRow("Address (BSSID)", ap.bssid, "The access point's hardware address — what position databases look up."))
+        add(DetailRow("Signal", "${ap.rssiDbm} dBm", "Above −60 strong, below −85 barely usable. Stronger usually means closer."))
+        add(DetailRow("Band and channel", "${band(ap.frequencyMhz)} · channel ${wifiChannel(ap.frequencyMhz) ?: "?"} · ${ap.frequencyMhz} MHz"))
+        ap.channelWidthMhz?.let { add(DetailRow("Channel width", "$it MHz")) }
+        ap.standard?.let { add(DetailRow("Standard", it)) }
+        add(DetailRow("Security", ap.security))
+        add(DetailRow("Round-trip-time ranging", if (ap.rttResponder) "supported" else "no",
+            "802.11mc access points let a phone measure its distance to them to about a metre."))
+        ap.ageMs?.let { add(DetailRow("Last seen", formatAge(it))) }
+    }
+    DetailSheet(title = ap.ssid ?: "Hidden network", subtitle = "Wi-Fi access point", rows = rows, onDismiss = onDismiss)
+}
+
+/** 2.4 GHz channels start at 2412 MHz, 5 GHz at 5000, 6 GHz at 5950 — all in 5 MHz steps. */
+private fun wifiChannel(mhz: Int): Int? = when (mhz) {
+    2484 -> 14
+    in 2412..2472 -> (mhz - 2407) / 5
+    in 5160..5885 -> (mhz - 5000) / 5
+    in 5955..7115 -> (mhz - 5950) / 5
+    else -> null
 }
 
 /** Where the network position lies relative to GNSS, drawn to scale inside its claimed circle. */
@@ -231,8 +340,8 @@ private fun SourceRowView(source: SourceRow) {
 }
 
 @Composable
-private fun CellRow(cell: CellTower) {
-    Column {
+private fun CellRow(cell: CellTower, onClick: () -> Unit) {
+    Column(Modifier.clickable(onClickLabel = "Show cell details", onClick = onClick)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
                 cell.technology.replace("5G NR", "NR"),
@@ -243,7 +352,7 @@ private fun CellRow(cell: CellTower) {
             )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    listOfNotNull(cell.network, cell.identity?.substringAfterLast(" · ")).joinToString(" · ").ifEmpty { cell.technology },
+                    listOfNotNull(cell.operatorName ?: cell.network, cell.identity?.substringAfterLast(" · ")).joinToString(" · ").ifEmpty { cell.technology },
                     style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary,
                 )
                 Text(
@@ -269,8 +378,8 @@ private fun CellRow(cell: CellTower) {
 }
 
 @Composable
-private fun AccessPointRow(ap: AccessPoint) {
-    Column {
+private fun AccessPointRow(ap: AccessPoint, onClick: () -> Unit) {
+    Column(Modifier.clickable(onClickLabel = "Show access point details", onClick = onClick)) {
         Row(Modifier.fillMaxWidth().heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
                 ap.ssid ?: "hidden · ${ap.bssid}",
