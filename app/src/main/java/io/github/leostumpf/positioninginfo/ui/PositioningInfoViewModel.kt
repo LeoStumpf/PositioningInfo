@@ -40,6 +40,7 @@ import io.github.leostumpf.positioninginfo.domain.FixFreshness
 import io.github.leostumpf.positioninginfo.domain.SessionStats
 import io.github.leostumpf.positioninginfo.domain.SkyTracker
 import io.github.leostumpf.positioninginfo.domain.SpeedReading
+import io.github.leostumpf.positioninginfo.domain.SpeedHistory
 import io.github.leostumpf.positioninginfo.domain.SpeedUnit
 import io.github.leostumpf.positioninginfo.domain.UpdateRate
 import io.github.leostumpf.positioninginfo.domain.PositioningQuality
@@ -119,6 +120,8 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     private var stats = SessionStats()
     private var lastFix: SpeedFix? = null
     private var updateRate = UpdateRate()
+    /** Speed since the last reset, for the plot on the speed page; memory only. */
+    private var speedHistory = SpeedHistory()
     /** Held in memory only; see [History]. */
     private var history = History()
     private var ttffLog = listOf<TtffEntry>()
@@ -297,7 +300,8 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
 
     fun resetSession() {
         stats = SessionStats()
-        _speedState.update { it.copy(maxMps = null, averageMps = null) }
+        speedHistory = SpeedHistory()
+        _speedState.update { it.copy(maxMps = null, averageMps = null, speedHistory = emptyList()) }
     }
 
     /**
@@ -335,6 +339,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
 
         if (reading.countsTowardsStats && fix != null) {
             stats = stats.accept(reading.speedMps!!.toDouble(), fix.elapsedRealtimeMs)
+            speedHistory = speedHistory.add(fix.elapsedRealtimeMs, reading.speedMps)
         }
 
         _speedState.update {
@@ -355,6 +360,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
                 gpsEnabled = locationSource.isGpsEnabled,
                 speedAccuracyMps = if (reading.freshness == FixFreshness.EXPIRED) null else fix?.speedAccuracyMps,
                 isMock = fix?.isMock == true,
+                speedHistory = speedHistory.samples,
             )
         }
 

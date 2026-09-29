@@ -503,6 +503,11 @@ object Glossary {
                 "tapped. Stale readings are not counted.",
         ),
         PrimerEntry(
+            "Speed plot",
+            "Speed since the last reset, the dashed line marking the maximum. Gaps are times the " +
+                "app was not running. Kept in memory only; the reset button clears it with max and avg.",
+        ),
+        PrimerEntry(
             "± under the unit",
             "The receiver's own 68\u00A0% uncertainty of the speed shown. Standing still, a " +
                 "speed smaller than this is indistinguishable from zero.",

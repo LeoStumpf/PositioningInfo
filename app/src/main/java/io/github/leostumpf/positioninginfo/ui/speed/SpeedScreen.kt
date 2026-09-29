@@ -2,6 +2,13 @@
 package io.github.leostumpf.positioninginfo.ui.speed
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.Stroke
+import io.github.leostumpf.positioninginfo.domain.SpeedHistory
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -142,6 +149,9 @@ private fun Portrait(
         Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
             Readout(state, readoutSize)
         }
+        if (state.speedHistory.size > 1) {
+            SpeedChart(state, Modifier.fillMaxWidth().padding(bottom = 20.dp))
+        }
         Row(
             Modifier.fillMaxWidth().padding(bottom = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(28.dp, Alignment.CenterHorizontally),
@@ -167,8 +177,13 @@ private fun Landscape(
     onSettings: () -> Unit,
 ) {
     Row(Modifier.fillMaxSize().padding(horizontal = 32.dp, vertical = 16.dp)) {
-        BoxWithConstraints(Modifier.weight(1f).fillMaxHeight(), contentAlignment = Alignment.Center) {
-            Readout(state, (maxHeight.value * 0.62f).coerceIn(72f, 220f).sp, inline = true)
+        Column(Modifier.weight(1f).fillMaxHeight()) {
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Readout(state, (maxHeight.value * 0.62f).coerceIn(72f, 220f).sp, inline = true)
+            }
+            if (state.speedHistory.size > 1) {
+                SpeedChart(state, Modifier.fillMaxWidth().padding(end = 28.dp, bottom = 8.dp), height = 52.dp)
+            }
         }
         Box(Modifier.width(1.dp).fillMaxHeight().padding(vertical = 24.dp).background(Palette.CardBorder))
         Column(
@@ -271,5 +286,66 @@ private fun StatusLine(state: SpeedUiState, modifier: Modifier = Modifier, stack
             StatusBadge(label, tone)
             details.forEach { Text(it, style = StatusLineStyle, color = Palette.TextSecondary) }
         }
+    }
+}
+
+/**
+ * Speed since the last reset: a line on a time axis from the reset to now, broken where the
+ * app was not running, with the maximum marked. Deliberately quiet — the number stays the
+ * thing to read at a glance.
+ */
+@Composable
+private fun SpeedChart(state: SpeedUiState, modifier: Modifier = Modifier, height: androidx.compose.ui.unit.Dp = 72.dp) {
+    val samples = state.speedHistory
+    val start = samples.first().atMs
+    val end = samples.last().atMs
+    val max = samples.maxOf { it.mps }
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Canvas(Modifier.fillMaxWidth().height(height)) {
+            val span = (end - start).coerceAtLeast(1L).toFloat()
+            val top = (max * 1.15f).coerceAtLeast(1f)
+            fun x(t: Long) = (t - start) / span * size.width
+            fun y(v: Float) = size.height - v / top * size.height
+            drawLine(Palette.Hairline, Offset(0f, size.height), Offset(size.width, size.height))
+            // The maximum, dashed, so the line can be read against it.
+            drawLine(
+                Palette.Outline, Offset(0f, y(max)), Offset(size.width, y(max)),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f)),
+            )
+            val line = Path()
+            val fill = Path()
+            var previous: Long? = null
+            var segmentStartX = 0f
+            samples.forEach { s ->
+                val px = x(s.atMs)
+                val py = y(s.mps)
+                if (previous == null || s.atMs - previous!! > SpeedHistory.GAP_MS) {
+                    if (previous != null) { fill.lineTo(x(previous!!), size.height); fill.lineTo(segmentStartX, size.height); fill.close() }
+                    line.moveTo(px, py); fill.moveTo(px, size.height); fill.lineTo(px, py); segmentStartX = px
+                } else {
+                    line.lineTo(px, py); fill.lineTo(px, py)
+                }
+                previous = s.atMs
+            }
+            fill.lineTo(x(end), size.height); fill.lineTo(segmentStartX, size.height); fill.close()
+            drawPath(fill, Palette.TextPrimary.copy(alpha = 0.07f))
+            drawPath(line, Palette.TextSecondary, style = Stroke(1.5.dp.toPx(), join = StrokeJoin.Round))
+        }
+        Row(Modifier.fillMaxWidth()) {
+            Text(
+                "since reset · ${elapsedLabel(end - start)}",
+                style = StatusLineStyle.copy(fontSize = 11.sp), color = Palette.TextTertiary, modifier = Modifier.weight(1f),
+            )
+            Text("max ${formatSpeed(max, state.unit)} ${state.unit.symbol}", style = StatusLineStyle.copy(fontSize = 11.sp), color = Palette.TextTertiary)
+        }
+    }
+}
+
+private fun elapsedLabel(ms: Long): String {
+    val min = ms / 60_000
+    return when {
+        min < 1 -> "${ms / 1_000} s"
+        min < 60 -> "$min min"
+        else -> "${min / 60} h ${min % 60} min"
     }
 }
