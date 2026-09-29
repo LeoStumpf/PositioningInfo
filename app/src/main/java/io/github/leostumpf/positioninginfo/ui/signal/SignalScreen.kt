@@ -81,6 +81,38 @@ fun SignalScreen(state: SignalUiState, modifier: Modifier = Modifier) {
             }
         }
 
+        if (state.isMock) {
+            item {
+                Box(Modifier.padding(top = 12.dp)) {
+                    Notice("Simulated position: these accuracies come from a mock-location app, not the receiver.", Tone.BAD)
+                }
+            }
+        }
+
+        section("Reported accuracies", trailing = "68 %")
+        item { ValueRow("Horizontal", state.measuredAccuracyM?.let { "±${it.fmt(1)} m" } ?: DASH) }
+        item { ValueRow("Vertical", state.verticalAccuracyM?.let { "±${it.fmt(1)} m" } ?: DASH) }
+        item {
+            ValueRow(
+                "Speed", state.speedAccuracyMps?.let { "±${it.fmt(2)} m/s" } ?: DASH,
+                detail = state.speedAccuracyMps?.let { "±${(it * 3.6f).fmt(1)} km/h" },
+            )
+        }
+        item {
+            ValueRow(
+                "Direction of travel", state.bearingAccuracyDeg?.let { "±${it.fmt(1)}°" } ?: DASH,
+                detail = if (state.bearingAccuracyDeg == null) "reported only while moving" else null,
+            )
+        }
+        item {
+            ValueRow(
+                "Fix interval",
+                state.updateIntervalMs?.let { ms -> if (ms < 1_500) "${ms} ms" else "${(ms / 1_000.0).fmt(1)} s" } ?: DASH,
+                detail = state.updateIntervalMs?.takeIf { it > 0 }?.let { "${(1_000.0 / it).fmt(1)} fixes per second" },
+                divider = false,
+            )
+        }
+
         section("Satellite geometry")
         val dop = state.dop
         if (dop == null) {

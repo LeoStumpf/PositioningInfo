@@ -193,7 +193,13 @@ private fun Readout(state: SpeedUiState, size: TextUnit, inline: Boolean = false
             color = Palette.TextPrimary,
             modifier = Modifier.alpha(alpha),
         )
-        Text(state.unit.symbol, style = TextStyle(fontFamily = PlexSans, fontSize = 22.sp), color = Palette.TextSecondary)
+        Column(horizontalAlignment = if (inline) Alignment.Start else Alignment.CenterHorizontally) {
+            Text(state.unit.symbol, style = TextStyle(fontFamily = PlexSans, fontSize = 22.sp), color = Palette.TextSecondary)
+            // The receiver's own 68 % uncertainty of the speed, so "63.4" is read as a measurement.
+            state.speedAccuracyMps?.takeIf { !state.isAcquiring }?.let {
+                Text("± ${formatSpeed(it, state.unit)}", style = StatusLineStyle.copy(fontSize = 15.sp), color = Palette.TextTertiary)
+            }
+        }
     }
     // Deliberately not tappable: in a car mount a stray touch must never change the unit.
     val readoutSemantics = Modifier.semantics(mergeDescendants = true) { contentDescription = "Speed $speedText ${state.unit.symbol}" }
@@ -234,6 +240,7 @@ private fun StatLine(label: String, value: String) {
 private fun StatusLine(state: SpeedUiState, modifier: Modifier = Modifier, stacked: Boolean = false) {
     val (label, tone) = when {
         !state.gpsEnabled -> "Location off" to Tone.BAD
+        state.isMock -> "Simulated" to Tone.BAD
         state.freshness == FixFreshness.FRESH -> "Fix" to Tone.GOOD
         state.freshness == FixFreshness.STALE -> "Stale" to Tone.DEGRADED
         else -> "No fix" to Tone.NEUTRAL

@@ -320,6 +320,7 @@ class AnalysisSession(
         val msl = fix?.let(::seaLevelAltitude)
         _positionState.value = PositionUiState(
             hasFix = lat != null && lon != null,
+            isMock = fix?.isMock == true,
             fixAgeMs = fix?.let { SystemClock.elapsedRealtime() - it.elapsedRealtimeMs },
             horizontalAccuracyM = fix?.horizontalAccuracyM,
             coordinates = if (lat != null && lon != null) {

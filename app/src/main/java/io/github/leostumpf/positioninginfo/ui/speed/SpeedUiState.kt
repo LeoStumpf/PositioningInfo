@@ -17,6 +17,10 @@ data class SpeedUiState(
     val freshness: FixFreshness = FixFreshness.EXPIRED,
     val hasEverHadFix: Boolean = false,
     val gpsEnabled: Boolean = true,
+    /** 68 % uncertainty of the current speed, in m/s, when the receiver reports one. */
+    val speedAccuracyMps: Float? = null,
+    /** The position comes from a mock-location app, not from the receiver. */
+    val isMock: Boolean = false,
 ) {
     /** True while the receiver is still searching and there is genuinely nothing to report. */
     val isAcquiring: Boolean

@@ -95,4 +95,5 @@ private fun Location.toNetworkFix(): NetworkFix = NetworkFix(
     accuracyM = if (hasAccuracy()) accuracy else null,
     elapsedRealtimeMs = elapsedRealtimeNanos / 1_000_000L,
     source = runCatching { extras?.getString("networkLocationType") }.getOrNull(),
+    isMock = isMockCompat(),
 )

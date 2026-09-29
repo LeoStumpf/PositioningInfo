@@ -35,6 +35,13 @@ data class SpeedFix(
     /** Height above mean sea level, where the platform computes it (Android 14+). */
     val mslAltitudeM: Double? = null,
     val verticalAccuracyM: Float? = null,
+    /** 68 % uncertainty of [bearingDegrees], where the receiver reports one. */
+    val bearingAccuracyDeg: Float? = null,
+    /**
+     * True when the position was injected by a mock-location app rather than measured.
+     * Android marks such fixes; showing them as real would be the one lie this app can tell.
+     */
+    val isMock: Boolean = false,
     /** Course over ground in degrees, meaningful only while moving. */
     val bearingDegrees: Float? = null,
 )

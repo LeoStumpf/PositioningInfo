@@ -14,6 +14,7 @@ data class NetworkFix(
      */
     val source: String?,
     val isCached: Boolean = false,
+    val isMock: Boolean = false,
 )
 
 /** One cell the modem reports, serving or neighbour. */

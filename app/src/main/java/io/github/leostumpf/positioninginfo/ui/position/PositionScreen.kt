@@ -33,6 +33,8 @@ import io.github.leostumpf.positioninginfo.ui.common.InfoCard
 import io.github.leostumpf.positioninginfo.ui.common.Note
 import io.github.leostumpf.positioninginfo.ui.common.Notice
 import io.github.leostumpf.positioninginfo.ui.common.Page
+import io.github.leostumpf.positioninginfo.ui.common.Tone
+import androidx.compose.foundation.layout.Box
 import io.github.leostumpf.positioninginfo.ui.common.PageScaffold
 import io.github.leostumpf.positioninginfo.ui.common.PrimaryButton
 import io.github.leostumpf.positioninginfo.ui.common.SecondaryButton
@@ -63,6 +65,17 @@ fun PositionScreen(
             },
             trailingColor = if ((state.fixAgeMs ?: Long.MAX_VALUE) < 2_000) Palette.Good else Palette.Degraded,
         )
+        if (state.isMock) {
+            item {
+                Box(Modifier.padding(bottom = 10.dp)) {
+                    Notice(
+                        "Simulated position: a mock-location app is supplying these coordinates, not the " +
+                            "receiver. Everything below describes the fake, not where the phone is.",
+                        Tone.BAD,
+                    )
+                }
+            }
+        }
         if (!state.hasFix) {
             item { Notice("No GNSS fix yet. Coordinates appear with the first fix.") }
         } else {

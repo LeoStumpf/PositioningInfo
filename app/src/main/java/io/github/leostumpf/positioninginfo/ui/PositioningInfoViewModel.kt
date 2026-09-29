@@ -30,6 +30,7 @@ import io.github.leostumpf.positioninginfo.domain.SessionStats
 import io.github.leostumpf.positioninginfo.domain.SkyTracker
 import io.github.leostumpf.positioninginfo.domain.SpeedReading
 import io.github.leostumpf.positioninginfo.domain.SpeedUnit
+import io.github.leostumpf.positioninginfo.domain.UpdateRate
 import io.github.leostumpf.positioninginfo.domain.PositioningQuality
 import io.github.leostumpf.positioninginfo.domain.SpeedResolver
 import io.github.leostumpf.positioninginfo.settings.UnitPreference
@@ -94,6 +95,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
 
     private var stats = SessionStats()
     private var lastFix: SpeedFix? = null
+    private var updateRate = UpdateRate()
     private var firstFixTimer: FirstFixTimer? = null
     private var clockOffsetMs: Long? = null
     private var assistanceMessage: String? = null
@@ -169,6 +171,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         trackingJobs += viewModelScope.launch {
             locationSource.fixes().collect { fix ->
                 lastFix = fix
+                if (!fix.isCached) updateRate = updateRate.onFix(fix.elapsedRealtimeMs)
                 firstFixTimer = firstFixTimer?.onFix(fix)
                 ClockOffset.of(fix, System.currentTimeMillis(), SystemClock.elapsedRealtime())
                     ?.let { clockOffsetMs = it }
@@ -279,6 +282,8 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
                 },
                 hasEverHadFix = it.hasEverHadFix || reading.speedMps != null,
                 gpsEnabled = locationSource.isGpsEnabled,
+                speedAccuracyMps = if (reading.freshness == FixFreshness.EXPIRED) null else fix?.speedAccuracyMps,
+                isMock = fix?.isMock == true,
             )
         }
 
@@ -330,11 +335,18 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     }
 
     private fun publishSignal() {
+        val fix = lastFix?.takeIf { _speedState.value.freshness != FixFreshness.EXPIRED }
         _signalState.value = analysis.decorateSignal(
             SignalUiState.from(
                 quality = PositioningQuality.from(lastSnapshot),
                 measuredAccuracyM = _speedState.value.horizontalAccuracyM,
                 capabilities = capabilities,
+            ).copy(
+                verticalAccuracyM = fix?.verticalAccuracyM,
+                speedAccuracyMps = fix?.speedAccuracyMps,
+                bearingAccuracyDeg = fix?.bearingAccuracyDeg,
+                updateIntervalMs = updateRate.meanIntervalMs,
+                isMock = fix?.isMock == true,
             ),
         )
     }

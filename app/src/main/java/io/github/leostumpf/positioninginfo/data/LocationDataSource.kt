@@ -118,4 +118,10 @@ private fun Location.toSpeedFix(): SpeedFix = SpeedFix(
     },
     verticalAccuracyM = if (hasVerticalAccuracy()) verticalAccuracyMeters else null,
     bearingDegrees = if (hasBearing()) bearing else null,
+    bearingAccuracyDeg = if (hasBearingAccuracy()) bearingAccuracyDegrees else null,
+    isMock = isMockCompat(),
 )
+
+/** Android 12 renamed the flag; older releases only have the deprecated spelling. */
+internal fun Location.isMockCompat(): Boolean =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) isMock else @Suppress("DEPRECATION") isFromMockProvider

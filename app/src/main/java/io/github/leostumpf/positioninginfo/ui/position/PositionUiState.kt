@@ -6,6 +6,8 @@ import io.github.leostumpf.positioninginfo.domain.ScatterStats
 /** Everything the position page draws. */
 data class PositionUiState(
     val hasFix: Boolean = false,
+    /** The position comes from a mock-location app. */
+    val isMock: Boolean = false,
     val fixAgeMs: Long? = null,
     val horizontalAccuracyM: Float? = null,
     val coordinates: List<Pair<String, String>> = emptyList(),

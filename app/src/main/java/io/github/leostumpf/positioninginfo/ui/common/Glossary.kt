@@ -95,6 +95,12 @@ object Glossary {
 
     val signal = listOf(
         PrimerEntry(
+            "Reported accuracies",
+            "Android reports a 68\u00A0% uncertainty for more than the position: height, speed and " +
+                "direction of travel (only while moving). The fix interval is how often fixes " +
+                "actually arrive — slower than requested means the receiver is struggling or saving power.",
+        ),
+        PrimerEntry(
             "DOP (dilution of precision)",
             "How much the satellite geometry magnifies range errors into position errors. " +
                 "Error ≈ DOP × range error. Below 2 is excellent, above 5 noticeably poor. " +
@@ -446,6 +452,16 @@ object Glossary {
             "Max / avg",
             "Highest and time-weighted average speed since the app was opened or RESET was " +
                 "tapped. Stale readings are not counted.",
+        ),
+        PrimerEntry(
+            "± under the unit",
+            "The receiver's own 68\u00A0% uncertainty of the speed shown. Standing still, a " +
+                "speed smaller than this is indistinguishable from zero.",
+        ),
+        PrimerEntry(
+            "Simulated",
+            "Shown instead of FIX when a mock-location app is supplying the position. Android " +
+                "marks such positions; everything the app shows then describes the fake.",
         ),
         PrimerEntry(
             "Status line",

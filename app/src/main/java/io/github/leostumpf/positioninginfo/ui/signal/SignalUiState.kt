@@ -28,6 +28,13 @@ data class SignalUiState(
     val chipPdop: Double? = null,
     val chipHdop: Double? = null,
     val chipVdop: Double? = null,
+    /** The other uncertainties Android reports with each fix, all 68 % figures. */
+    val verticalAccuracyM: Float? = null,
+    val speedAccuracyMps: Float? = null,
+    val bearingAccuracyDeg: Float? = null,
+    /** How often fixes actually arrive. */
+    val updateIntervalMs: Long? = null,
+    val isMock: Boolean = false,
 ) {
     companion object {
         fun from(
