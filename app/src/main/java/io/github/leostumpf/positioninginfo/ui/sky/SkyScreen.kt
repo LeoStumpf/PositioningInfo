@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,8 +57,6 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.ui.semantics.Role
-import io.github.leostumpf.positioninginfo.ui.common.Page
-import io.github.leostumpf.positioninginfo.ui.common.PageScaffold
 import io.github.leostumpf.positioninginfo.ui.common.SegmentedToggle
 import io.github.leostumpf.positioninginfo.ui.common.section
 import io.github.leostumpf.positioninginfo.ui.theme.BodyStyle
@@ -80,100 +79,105 @@ import kotlin.math.sin
  * is not rotated with the phone, so hold the top of the phone to the north to compare it
  * with the real sky.
  */
-@Composable
-fun SkyScreen(
+/**
+ * The sky as the receiver sees it: where each satellite is, where it has been, and where it
+ * seems to be heading. North is up and the centre is straight overhead; compass mode turns
+ * it with the phone. Shown on the GNSS page, right above the satellite list.
+ */
+fun LazyListScope.skyPlotItems(
     state: SkyUiState,
     onToggleCompass: () -> Unit,
     onToggleMap: () -> Unit,
     onToggleShowPaths: () -> Unit,
     onClearPaths: () -> Unit,
-    modifier: Modifier = Modifier,
 ) {
-    PageScaffold(Page.SKY, modifier) {
+    section("Sky")
+    item {
+        Row(
+            Modifier.fillMaxWidth().padding(top = 12.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            SegmentedToggle(
+                options = listOf("Paths", "Signal map"),
+                selected = if (state.mapMode) 1 else 0,
+                onSelect = { if ((it == 1) != state.mapMode) onToggleMap() },
+            )
+            CompassToggle(state.compassMode, onToggleCompass)
+        }
+    }
+    state.headingText?.let { text ->
         item {
-            Row(
-                Modifier.fillMaxWidth().padding(top = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                SegmentedToggle(
-                    options = listOf("Paths", "Signal map"),
-                    selected = if (state.mapMode) 1 else 0,
-                    onSelect = { if ((it == 1) != state.mapMode) onToggleMap() },
-                )
-                CompassToggle(state.compassMode, onToggleCompass)
-            }
-        }
-        state.headingText?.let { text ->
-            item {
-                Text(
-                    text = text + if (state.compassUnreliable) " · calibrate: move the phone in a figure-eight" else "",
-                    style = StatusLineStyle,
-                    color = if (state.compassUnreliable) Palette.Degraded else Palette.TextSecondary,
-                    modifier = Modifier.padding(top = 12.dp),
-                )
-            }
-        }
-        if (state.compassMode && state.magneticUt != null) {
-            item { CompassTrustLine(state.magneticUt, state.compassTrust) }
-        }
-        item { SkyPlot(state, Modifier.padding(top = 12.dp)) }
-        item { Legend(state.mapMode) }
-        if (!state.mapMode) {
-            item {
-                Row(
-                    Modifier.fillMaxWidth().padding(top = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Row(
-                        Modifier.weight(1f).toggleable(value = state.showPaths, role = Role.Switch, onValueChange = { onToggleShowPaths() }),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Switch(
-                            checked = state.showPaths,
-                            onCheckedChange = null,
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Palette.Background, checkedTrackColor = Palette.TextPrimary,
-                                uncheckedThumbColor = Palette.TextTertiary, uncheckedTrackColor = Palette.SurfaceRaised,
-                                uncheckedBorderColor = Palette.Outline,
-                            ),
-                        )
-                        Text("Show paths", style = BodyStyle.copy(fontSize = 14.sp), color = Palette.TextSecondary)
-                    }
-                    QuietButton("Clear paths", onClick = onClearPaths)
-                }
-            }
-        }
-        item {
-            Note(
-                if (state.mapMode) {
-                    "Average signal strength by direction from ${state.obstructionSamples} measurements. " +
-                        "Regions that stay weak or empty near the horizon are buildings and trees — give it half an hour."
-                } else {
-                    "Paths build up while the app runs; projections need two minutes of history and " +
-                        "cannot show satellites that have not risen yet."
-                } + if (state.compassMode) " Hold the phone flat; the plot turns with it." else "",
-                modifier = Modifier.padding(top = 10.dp),
+            Text(
+                text = text + if (state.compassUnreliable) " · calibrate: move the phone in a figure-eight" else "",
+                style = StatusLineStyle,
+                color = if (state.compassUnreliable) Palette.Degraded else Palette.TextSecondary,
+                modifier = Modifier.padding(top = 12.dp),
             )
         }
-
-        section("Setting soon")
-        if (state.upcoming.isEmpty()) {
-            item { Note("No satellite expected to set in the next 15 minutes.") }
-        } else {
-            items(state.upcoming, key = { it.label }) {
-                EventRow(it.label, null, "in ~${it.minutes.roundToInt().coerceAtLeast(1)} min", dataValue = true)
+    }
+    if (state.compassMode && state.magneticUt != null) {
+        item { CompassTrustLine(state.magneticUt, state.compassTrust) }
+    }
+    item { SkyPlot(state, Modifier.padding(top = 12.dp)) }
+    item { Legend(state.mapMode) }
+    if (!state.mapMode) {
+        item {
+            Row(
+                Modifier.fillMaxWidth().padding(top = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Row(
+                    Modifier.weight(1f).toggleable(value = state.showPaths, role = Role.Switch, onValueChange = { onToggleShowPaths() }),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Switch(
+                        checked = state.showPaths,
+                        onCheckedChange = null,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Palette.Background, checkedTrackColor = Palette.TextPrimary,
+                            uncheckedThumbColor = Palette.TextTertiary, uncheckedTrackColor = Palette.SurfaceRaised,
+                            uncheckedBorderColor = Palette.Outline,
+                        ),
+                    )
+                    Text("Show paths", style = BodyStyle.copy(fontSize = 14.sp), color = Palette.TextSecondary)
+                }
+                QuietButton("Clear paths", onClick = onClearPaths)
             }
         }
+    }
+    item {
+        Note(
+            if (state.mapMode) {
+                "Average signal strength by direction from ${state.obstructionSamples} measurements. " +
+                    "Regions that stay weak or empty near the horizon are buildings and trees — give it half an hour."
+            } else {
+                "Paths build up while the app runs; projections need two minutes of history and " +
+                    "cannot show satellites that have not risen yet."
+            } + if (state.compassMode) " Hold the phone flat; the plot turns with it." else "",
+            modifier = Modifier.padding(top = 10.dp),
+        )
+    }
+}
 
-        section("Events")
-        if (state.events.isEmpty()) {
-            item { Note("Satellites appearing and disappearing will be listed here.") }
-        } else {
-            items(state.events, key = { it.key }) { EventRow(it.text.substringBefore(' '), it.text.substringAfter(' '), it.ago) }
+/** Satellites about to set, and which ones came and went. */
+fun LazyListScope.skyEventItems(state: SkyUiState) {
+    section("Setting soon")
+    if (state.upcoming.isEmpty()) {
+        item { Note("No satellite expected to set in the next 15 minutes.") }
+    } else {
+        items(state.upcoming, key = { it.label }) {
+            EventRow(it.label, null, "in ~${it.minutes.roundToInt().coerceAtLeast(1)} min", dataValue = true)
         }
+    }
+
+    section("Events")
+    if (state.events.isEmpty()) {
+        item { Note("Satellites appearing and disappearing will be listed here.") }
+    } else {
+        items(state.events, key = { it.key }) { EventRow(it.text.substringBefore(' '), it.text.substringAfter(' '), it.ago) }
     }
 }
 

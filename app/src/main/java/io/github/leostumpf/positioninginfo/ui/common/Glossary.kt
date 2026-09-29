@@ -531,9 +531,27 @@ object Glossary {
         ),
         PrimerEntry(
             "More tools",
-            "Swipe left: trip, position, GNSS status, sky, signal, receiver internals and " +
-                "network location. Each has a glossary like this one; the last page also " +
-                "says what the app is, its licence and where the source lives.",
+            "Swipe left: trip, position, GNSS status and sky, signal, receiver internals and " +
+                "network location. Each has a glossary like this one; the last page, About, " +
+                "says what the app is, its licence, where the source lives and what it keeps.",
+        ),
+    )
+
+    val about = listOf(
+        PrimerEntry(
+            "AGPL",
+            "The GNU Affero General Public License: you may use, study, share and change the app, " +
+                "and anyone distributing a changed version must publish its source under the same terms.",
+        ),
+        PrimerEntry(
+            "Open-source licences",
+            "The libraries the app is built on, each under a permissive licence (Apache 2.0, BSD-3) " +
+                "that allows this. Their full texts ship inside the app.",
+        ),
+        PrimerEntry(
+            "Data on this phone",
+            "What the app keeps and where: a recorded trip, recent first fixes and the unit setting on " +
+                "the phone, everything else only in memory. Nothing is backed up or sent anywhere.",
         ),
     )
 }

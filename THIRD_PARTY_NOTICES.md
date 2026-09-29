@@ -5,8 +5,8 @@ or later (see [`LICENSE`](LICENSE)); that licence covers Positioning Info's code
 is built on third-party open-source libraries, all of them permissive and compatible with the
 AGPL. This file collects their attributions.
 
-The same list, with the full licence texts, is inside the app: **Wi-Fi & mobile network page →
-About → Open-source licences**. The licence texts ship in the APK under
+The same list, with the full licence texts, is inside the app: **About page (the last one) →
+Open-source licences**. The licence texts ship in the APK under
 `app/src/main/assets/licenses/`.
 
 No proprietary library is included — no Google Play Services, Firebase, analytics, crash

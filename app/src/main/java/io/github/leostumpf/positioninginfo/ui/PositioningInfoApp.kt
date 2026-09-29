@@ -21,7 +21,7 @@ import io.github.leostumpf.positioninginfo.ui.network.NetworkScreen
 import io.github.leostumpf.positioninginfo.ui.position.PositionScreen
 import io.github.leostumpf.positioninginfo.ui.receiver.ReceiverScreen
 import io.github.leostumpf.positioninginfo.ui.signal.SignalScreen
-import io.github.leostumpf.positioninginfo.ui.sky.SkyScreen
+import io.github.leostumpf.positioninginfo.ui.about.AboutScreen
 import io.github.leostumpf.positioninginfo.ui.speed.SpeedScreen
 import io.github.leostumpf.positioninginfo.ui.theme.Palette
 import io.github.leostumpf.positioninginfo.ui.trip.TripScreen
@@ -85,10 +85,7 @@ fun PositioningInfoApp(viewModel: PositioningInfoViewModel, modifier: Modifier =
                     state = gnssState,
                     onColdStart = viewModel::coldStart,
                     onFetchAssistance = viewModel::fetchAssistance,
-                )
-
-                Page.SKY -> SkyScreen(
-                    state = skyState,
+                    sky = skyState,
                     onToggleCompass = viewModel.analysis::toggleCompass,
                     onToggleMap = viewModel.analysis::toggleMap,
                     onToggleShowPaths = viewModel.analysis::toggleShowPaths,
@@ -97,11 +94,8 @@ fun PositioningInfoApp(viewModel: PositioningInfoViewModel, modifier: Modifier =
 
                 Page.SIGNAL -> SignalScreen(state = signalState)
                 Page.RECEIVER -> ReceiverScreen(state = receiverState)
-                Page.NETWORK -> NetworkScreen(
-                    state = networkState,
-                    dataInventory = dataInventory,
-                    onClearAllData = viewModel::clearAllData,
-                )
+                Page.NETWORK -> NetworkScreen(state = networkState)
+                Page.ABOUT -> AboutScreen(dataInventory = dataInventory, onClearAllData = viewModel::clearAllData)
             }
         }
 

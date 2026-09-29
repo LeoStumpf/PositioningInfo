@@ -4,7 +4,7 @@
 
 Everything your phone's GNSS receiver knows, on eight pages: a glanceable speedometer, trip
 recording, coordinates and altitude, satellite status and a sky plot, accuracy and geometry,
-receiver internals (interference, clock, NMEA), and network location. No ads, no tracking,
+receiver internals (interference, clock, NMEA), network location, and an About page. No ads, no tracking,
 no account, and no network access at all — every figure is measured or computed on the phone.
 
 Started as a speedometer called "GPS Tools", because every speedometer on the Play Store had
@@ -67,7 +67,7 @@ Swipe between eight screens. Each detail screen has a collapsible glossary of th
 - Accuracy test: leave the phone still and see the real spread (CEP50, CEP95, 2DRMS) against
   the accuracy the receiver claims
 
-**GNSS status**
+**GNSS & sky**
 
 - **"Why no fix?"** — walks the chain a fix depends on (location on, real receiver, battery saver, data for
   assistance, satellites heard, usable signals, orbits, geometry, search time) and names the first link that fails
@@ -81,10 +81,8 @@ Swipe between eight screens. Each detail screen has a collapsible glossary of th
 - How far the phone's clock is from GNSS time
 - Cold start (clear aiding data) and A-GNSS download, to watch the difference assistance makes
 
-**Sky**
-
 - Compass trust: measured magnetic field against the World Magnetic Model, to catch a disturbed compass
-- Sky plot of every satellite with its path so far and a 15-minute projection, estimated
+- Sky plot of every satellite, right above the satellite list, with its path so far and a 15-minute projection, estimated
   offline from its recent motion
 - Satellites about to set, and which appeared or were lost
 - Compass mode that turns the plot with the phone, corrected for magnetic declination
@@ -114,7 +112,11 @@ Swipe between eight screens. Each detail screen has a collapsible glossary of th
 - GNSS, network and Android's fused position side by side, with each one's distance from the GNSS fix
 - Position from Wi-Fi and cell towers, its claimed accuracy and its real error against GNSS
 - The raw inputs: cells (with timing-advance distance) and Wi-Fi access points in range
-- About: what the app is, its licence (AGPL-3.0) and a link to the source
+
+**About**
+
+- What the app is, its licence (AGPL-3.0), a link to the source and the open-source licences
+- Data on this phone: everything the app keeps, cleared with one button
 
 The interface ("Instrument Black") is monochrome on true black, with colour reserved for
 state and constellations, set in the fonts every Android phone already has.
@@ -184,7 +186,7 @@ The app never asks for "allow all the time" location access.
 Everything stays on the phone — Android's cloud backup and device-to-device transfer are
 switched off for this app. Stored there: a recorded trip, the last 20 times to first fix, and the
 speed unit. Everything else — history, sky paths, signal map, accuracy test, calibrations — lives in
-memory only. **Settings › Data on this phone** (gear on the speed page, and on the last page) lists
+memory only. **Settings › Data on this phone** (gear on the speed page, and on the About page) lists
 it all and clears it with one button.
 
 Permissions beyond location: `ACCESS_WIFI_STATE` (list access points), `ACCESS_NETWORK_STATE`

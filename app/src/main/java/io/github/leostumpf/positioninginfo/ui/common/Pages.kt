@@ -6,11 +6,11 @@ enum class Page(val title: String, val shortName: String, val glossary: List<Pri
     SPEED("Speed", "Speed", Glossary.speed),
     TRIP("Trip", "Trip", Glossary.trip),
     POSITION("Position", "Position", Glossary.position),
-    GNSS("GNSS status", "GNSS", Glossary.gnss),
-    SKY("Sky", "Sky", Glossary.sky),
+    GNSS("GNSS & sky", "GNSS", Glossary.gnss + Glossary.sky),
     SIGNAL("Signal & accuracy", "Signal", Glossary.signal),
     RECEIVER("Receiver internals", "Receiver", Glossary.receiver),
     NETWORK("Wi-Fi & mobile network", "Wi-Fi & cell", Glossary.network),
+    ABOUT("About", "About", Glossary.about),
     ;
 
     /** "03 / 08". */

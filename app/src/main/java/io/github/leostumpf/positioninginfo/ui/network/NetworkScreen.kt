@@ -35,13 +35,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.leostumpf.positioninginfo.data.model.AccessPoint
 import io.github.leostumpf.positioninginfo.data.model.CellTower
-import io.github.leostumpf.positioninginfo.ui.about.AboutSection
 import io.github.leostumpf.positioninginfo.ui.common.DASH
 import io.github.leostumpf.positioninginfo.ui.common.DetailRow
 import io.github.leostumpf.positioninginfo.ui.common.DetailSheet
 import androidx.compose.foundation.clickable
-import io.github.leostumpf.positioninginfo.ui.common.DataInventory
-import io.github.leostumpf.positioninginfo.ui.common.DataOnThisPhone
 import io.github.leostumpf.positioninginfo.ui.common.HeroValue
 import io.github.leostumpf.positioninginfo.ui.common.InfoCard
 import io.github.leostumpf.positioninginfo.ui.common.LevelBar
@@ -63,15 +60,10 @@ import kotlin.math.roundToInt
 
 /**
  * Positioning without satellites — what the network provider reports, how good it really
- * is, and the Wi-Fi and cell data it is built from — followed by the app's About notice.
+ * is, and the Wi-Fi and cell data it is built from.
  */
 @Composable
-fun NetworkScreen(
-    state: NetworkUiState,
-    dataInventory: DataInventory,
-    onClearAllData: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
+fun NetworkScreen(state: NetworkUiState, modifier: Modifier = Modifier) {
     var showAllAps by rememberSaveable { mutableStateOf(false) }
     var selectedCell by rememberSaveable { mutableStateOf<String?>(null) }
     var selectedAp by rememberSaveable { mutableStateOf<String?>(null) }
@@ -168,11 +160,6 @@ fun NetworkScreen(
             }
         }
 
-        section("Data on this phone")
-        item { DataOnThisPhone(dataInventory, onClearAllData) }
-
-        section("About")
-        item { AboutSection() }
     }
 
     selectedCell?.let { key ->

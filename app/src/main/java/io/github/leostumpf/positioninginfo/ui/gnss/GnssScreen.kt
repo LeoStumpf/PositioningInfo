@@ -72,7 +72,10 @@ import io.github.leostumpf.positioninginfo.ui.common.StatusBadge
 import io.github.leostumpf.positioninginfo.ui.common.Tone
 import io.github.leostumpf.positioninginfo.ui.common.ValueRow
 import io.github.leostumpf.positioninginfo.ui.common.section
+import io.github.leostumpf.positioninginfo.ui.sky.SkyUiState
 import io.github.leostumpf.positioninginfo.ui.sky.label
+import io.github.leostumpf.positioninginfo.ui.sky.skyEventItems
+import io.github.leostumpf.positioninginfo.ui.sky.skyPlotItems
 import io.github.leostumpf.positioninginfo.ui.theme.BodyStyle
 import io.github.leostumpf.positioninginfo.ui.theme.DataStyle
 import io.github.leostumpf.positioninginfo.ui.theme.OverlineStyle
@@ -92,6 +95,11 @@ fun GnssScreen(
     state: GnssUiState,
     onColdStart: () -> Unit,
     onFetchAssistance: () -> Unit,
+    sky: SkyUiState,
+    onToggleCompass: () -> Unit,
+    onToggleMap: () -> Unit,
+    onToggleShowPaths: () -> Unit,
+    onClearPaths: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var confirmColdStart by rememberSaveable { mutableStateOf(false) }
@@ -134,6 +142,46 @@ fun GnssScreen(
                 }
             }
         }
+
+        if (state.visible == 0) {
+            item {
+                Box(Modifier.padding(top = 32.dp)) {
+                    Notice(
+                        if (!state.gpsEnabled) {
+                            "Location is switched off, so the receiver is not running."
+                        } else {
+                            "No satellites reported yet. Indoors this is normal — GNSS signals need a clear view of the sky."
+                        },
+                    )
+                }
+            }
+        }
+
+        skyPlotItems(sky, onToggleCompass, onToggleMap, onToggleShowPaths, onClearPaths)
+
+        if (state.signals.isNotEmpty()) {
+            section("Satellites · ${state.visible}", trailing = "C/N₀ · A E")
+            items(heard, key = { it.key }) { SatelliteRow(it.satellite, state.details[it.baseKey]) { selectedKey = it.baseKey } }
+            if (unheard.isNotEmpty()) {
+                if (showUnheard) items(unheard, key = { it.key }) { SatelliteRow(it.satellite, state.details[it.baseKey]) { selectedKey = it.baseKey } }
+                item {
+                    QuietButton(
+                        if (showUnheard) "Hide the ${unheard.size} not heard" else "Show ${unheard.size} not heard (almanac only)",
+                        onClick = { showUnheard = !showUnheard },
+                    )
+                }
+            }
+            item {
+                Note(
+                    "Filled dot: used in the fix. Ring: heard. Faint: known only from the almanac. The four " +
+                        "ticks are the acquisition steps — code lock, bit sync, frame sync, time decoded; a " +
+                        "satellite is usable once all four are done. Tap a row for details.",
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+        }
+
+        skyEventItems(sky)
 
         section("Timing")
         item { TimingRow("Time to first fix", state.timing.firstFixText(state.gpsEnabled)) }
@@ -190,42 +238,6 @@ fun GnssScreen(
             item { ConstellationHeader() }
             items(state.perConstellation, key = { it.constellation.name }) {
                 ConstellationRow(it, last = it == state.perConstellation.last())
-            }
-        }
-
-        if (state.signals.isNotEmpty()) {
-            section("Satellites · ${state.visible}", trailing = "C/N₀ · A E")
-            items(heard, key = { it.key }) { SatelliteRow(it.satellite, state.details[it.baseKey]) { selectedKey = it.baseKey } }
-            if (unheard.isNotEmpty()) {
-                if (showUnheard) items(unheard, key = { it.key }) { SatelliteRow(it.satellite, state.details[it.baseKey]) { selectedKey = it.baseKey } }
-                item {
-                    QuietButton(
-                        if (showUnheard) "Hide the ${unheard.size} not heard" else "Show ${unheard.size} not heard (almanac only)",
-                        onClick = { showUnheard = !showUnheard },
-                    )
-                }
-            }
-            item {
-                Note(
-                    "Filled dot: used in the fix. Ring: heard. Faint: known only from the almanac. The four " +
-                        "ticks are the acquisition steps — code lock, bit sync, frame sync, time decoded; a " +
-                        "satellite is usable once all four are done. Tap a row for details.",
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-            }
-        }
-
-        if (state.visible == 0) {
-            item {
-                Box(Modifier.padding(top = 32.dp)) {
-                    Notice(
-                        if (!state.gpsEnabled) {
-                            "Location is switched off, so the receiver is not running."
-                        } else {
-                            "No satellites reported yet. Indoors this is normal — GNSS signals need a clear view of the sky."
-                        },
-                    )
-                }
             }
         }
     }
