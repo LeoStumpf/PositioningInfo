@@ -17,6 +17,11 @@ import io.github.leostumpf.positioninginfo.data.GnssStatusDataSource
 import io.github.leostumpf.positioninginfo.data.LocationDataSource
 import io.github.leostumpf.positioninginfo.data.NetworkLocationDataSource
 import io.github.leostumpf.positioninginfo.data.SystemStatusDataSource
+import io.github.leostumpf.positioninginfo.data.TtffLogStore
+import io.github.leostumpf.positioninginfo.domain.AlmanacReadiness
+import io.github.leostumpf.positioninginfo.domain.History
+import io.github.leostumpf.positioninginfo.domain.HistorySample
+import io.github.leostumpf.positioninginfo.domain.TtffEntry
 import io.github.leostumpf.positioninginfo.data.WifiScanDataSource
 import io.github.leostumpf.positioninginfo.data.model.countSatellites
 import io.github.leostumpf.positioninginfo.domain.DiagnosisInput
@@ -77,6 +82,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     private val cellSource = CellInfoDataSource(application)
     private val wifiSource = WifiScanDataSource(application)
     private val systemStatus = SystemStatusDataSource(application)
+    private val ttffStore = TtffLogStore(application)
 
     /** Static for the life of the device, so it is read once rather than streamed. */
     private val capabilities = capabilitySource.read()
@@ -109,6 +115,11 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     private var stats = SessionStats()
     private var lastFix: SpeedFix? = null
     private var updateRate = UpdateRate()
+    /** Held in memory only; see [History]. */
+    private var history = History()
+    private var ttffLog = listOf<TtffEntry>()
+    /** What the receiver held when this session started: hot, warm or cold. */
+    private var sessionStartType: AlmanacReadiness? = null
     private var firstFixTimer: FirstFixTimer? = null
     private var clockOffsetMs: Long? = null
     private var assistanceMessage: String? = null
@@ -129,6 +140,10 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     private var uiVisible = false
 
     init {
+        viewModelScope.launch {
+            ttffLog = ttffStore.load()
+            _gnssState.update { it.copy(ttffLog = ttffLog) }
+        }
         viewModelScope.launch {
             unitPreference.unit.collect { unit -> _speedState.update { it.copy(unit = unit) } }
         }
@@ -180,12 +195,16 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
 
         // Each start is a new receiver session, so it gets its own time to first fix.
         firstFixTimer = FirstFixTimer(startedAtMs = SystemClock.elapsedRealtime())
+        sessionStartType = null
 
         trackingJobs += viewModelScope.launch {
             locationSource.fixes().collect { fix ->
                 lastFix = fix
                 if (!fix.isCached) updateRate = updateRate.onFix(fix.elapsedRealtimeMs)
+                val hadFirstFix = firstFixTimer?.hasFix == true
                 firstFixTimer = firstFixTimer?.onFix(fix)
+                val ttff = firstFixTimer?.firstFixAfterMs
+                if (!hadFirstFix && ttff != null) logFirstFix(ttff)
                 ClockOffset.of(fix, System.currentTimeMillis(), SystemClock.elapsedRealtime())
                     ?.let { clockOffsetMs = it }
                 publishSpeed(fix)
@@ -313,6 +332,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     private fun publishGnss(snapshot: GnssSnapshot) {
         val enabled = locationSource.isGpsEnabled
         lastSnapshot = snapshot
+        recordHistory(snapshot)
 
         _speedState.update {
             it.copy(
@@ -326,7 +346,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
             gpsEnabled = enabled,
             timing = currentTiming(),
             assistanceMessage = assistanceMessage,
-        ))
+        )).copy(history = history.samples, ttffLog = ttffLog)
         publishSignal()
 
         publishDiagnosis()
@@ -364,6 +384,32 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
             row("Network", "Wi-Fi and cell towers", networkLocationSource, networkFix),
             row("Fused", "Android's blend of all sources — what most apps show", fusedLocationSource, fusedFix),
         )
+    }
+
+    private fun recordHistory(snapshot: GnssSnapshot) {
+        if (!snapshot.hasReported) return
+        if (sessionStartType == null) sessionStartType = AlmanacStatus.from(snapshot).readiness
+        // One value per physical satellite: its strongest band.
+        val heardCn0 = snapshot.satellites.filter { it.cn0DbHz > 0f }
+            .groupBy { it.constellation to it.svid }.values.map { sigs -> sigs.maxOf { it.cn0DbHz } }
+        val fresh = lastFix?.takeIf { !it.isCached && SystemClock.elapsedRealtime() - it.elapsedRealtimeMs < 5_000L }
+        history = history.add(
+            HistorySample(
+                atMs = SystemClock.elapsedRealtime(),
+                usedInFix = snapshot.usedInFixCount,
+                heard = heardCn0.size,
+                meanCn0 = heardCn0.takeIf { it.isNotEmpty() }?.average()?.toFloat(),
+                accuracyM = fresh?.horizontalAccuracyM,
+            ),
+        )
+    }
+
+    private fun logFirstFix(ttffMs: Long) {
+        val entry = TtffEntry(System.currentTimeMillis(), ttffMs, sessionStartType ?: AlmanacReadiness.UNKNOWN)
+        viewModelScope.launch {
+            ttffLog = ttffStore.add(entry)
+            _gnssState.update { it.copy(ttffLog = ttffLog) }
+        }
     }
 
     /** Re-run on every sweep and tick, so "searching for" and the settings stay current. */

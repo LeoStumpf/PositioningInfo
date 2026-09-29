@@ -60,6 +60,17 @@ object Glossary {
                 "of hot, warm and cold.",
         ),
         PrimerEntry(
+            "Last 30 minutes",
+            "Satellites in fix, mean signal strength and accuracy, sampled every 5\u00A0s while the " +
+                "app runs — to see whether it was worse a moment ago. Kept in memory only; gaps are " +
+                "times the app was not running.",
+        ),
+        PrimerEntry(
+            "Recent first fixes",
+            "The last 20 times to first fix with their start type, stored on the phone so you can " +
+                "compare sessions. Green: within what that start type normally takes.",
+        ),
+        PrimerEntry(
             "Phone clock",
             "Phone time minus GNSS time. GNSS time comes from the satellites' atomic " +
                 "clocks, so this shows how far the phone's own clock has drifted.",

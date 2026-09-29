@@ -7,6 +7,8 @@ import io.github.leostumpf.positioninginfo.domain.AlmanacReadiness
 import io.github.leostumpf.positioninginfo.domain.AlmanacStatus
 import io.github.leostumpf.positioninginfo.domain.ConstellationSummary
 import io.github.leostumpf.positioninginfo.domain.Diagnosis
+import io.github.leostumpf.positioninginfo.domain.HistorySample
+import io.github.leostumpf.positioninginfo.domain.TtffEntry
 import io.github.leostumpf.positioninginfo.domain.band
 
 /** Everything the GNSS status screen draws. */
@@ -28,6 +30,10 @@ data class GnssUiState(
     val diagnosis: Diagnosis? = null,
     /** Raw-measurement detail per signal, keyed like [SignalRow.baseKey]. */
     val details: Map<String, SignalDetail> = emptyMap(),
+    /** The last half hour, sampled every few seconds; in memory only. */
+    val history: List<HistorySample> = emptyList(),
+    /** Recent times to first fix, oldest first; stored on the phone. */
+    val ttffLog: List<TtffEntry> = emptyList(),
 ) {
 
     companion object {

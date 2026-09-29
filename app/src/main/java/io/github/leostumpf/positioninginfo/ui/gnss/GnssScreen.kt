@@ -2,6 +2,9 @@
 package io.github.leostumpf.positioninginfo.ui.gnss
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
+import io.github.leostumpf.positioninginfo.domain.History
+import io.github.leostumpf.positioninginfo.domain.HistorySample
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import io.github.leostumpf.positioninginfo.domain.AcquisitionStage
@@ -135,6 +138,36 @@ fun GnssScreen(
         section("Timing")
         item { TimingRow("Time to first fix", state.timing.firstFixText(state.gpsEnabled)) }
         item { TimingRow("Phone clock vs GNSS", state.timing.clockText(), divider = false) }
+
+        if (state.history.size > 1) {
+            section("Last 30 minutes")
+            item {
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    HistoryChart("Satellites in fix", state.history, { it.usedInFix.toFloat() }, "", decimals = 0)
+                    HistoryChart("Mean signal, C/N₀", state.history, { it.meanCn0 }, " dB-Hz", decimals = 0)
+                    HistoryChart("Accuracy", state.history, { it.accuracyM }, " m", decimals = 1, lowerIsBetter = true)
+                }
+            }
+        }
+        if (state.ttffLog.isNotEmpty()) {
+            section("Recent first fixes", trailing = "stored on this phone")
+            state.ttffLog.takeLast(5).reversed().forEachIndexed { i, e ->
+                item {
+                    ValueRow(
+                        java.text.SimpleDateFormat("EEE d MMM, HH:mm", java.util.Locale.getDefault()).format(java.util.Date(e.utcMs)),
+                        FixDiagnosis.formatDuration(e.ttffMs),
+                        detail = when (e.startType) {
+                            AlmanacReadiness.HOT -> "hot start"
+                            AlmanacReadiness.WARM -> "warm start"
+                            AlmanacReadiness.COLD -> "cold start"
+                            AlmanacReadiness.UNKNOWN -> "start type unknown"
+                        },
+                        valueColor = if (e.ttffMs <= FixDiagnosis.expectedMs(e.startType)) Palette.Good else Palette.Degraded,
+                        divider = i < minOf(5, state.ttffLog.size) - 1,
+                    )
+                }
+            }
+        }
 
         section("Assistance")
         item {
@@ -525,6 +558,59 @@ private fun SatelliteSheet(row: SignalRow, detail: SignalDetail?, siblings: List
                 detail?.firstHeardMs?.let { FixDiagnosis.formatDuration(android.os.SystemClock.elapsedRealtime() - it) + " ago" } ?: "—",
                 divider = false,
             )
+        }
+    }
+}
+
+/**
+ * One quantity over the last half hour: a line on a fixed time axis ending now, broken
+ * where the app was in the background, with the current value and the range beside it.
+ */
+@Composable
+private fun HistoryChart(
+    label: String,
+    samples: List<HistorySample>,
+    value: (HistorySample) -> Float?,
+    unit: String,
+    decimals: Int,
+    lowerIsBetter: Boolean = false,
+) {
+    val points = samples.mapNotNull { s -> value(s)?.let { s.atMs to it } }
+    val fmt = { v: Float -> String.format(java.util.Locale.US, "%.${decimals}f", v) }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row {
+            Text(label, style = BodyStyle.copy(fontSize = 14.sp), color = Palette.TextSecondary, modifier = Modifier.weight(1f))
+            Text(points.lastOrNull()?.let { fmt(it.second) + unit } ?: "—", style = DataStyle, color = Palette.TextPrimary)
+        }
+        Canvas(Modifier.fillMaxWidth().height(44.dp)) {
+            drawLine(Palette.Hairline, androidx.compose.ui.geometry.Offset(0f, size.height), androidx.compose.ui.geometry.Offset(size.width, size.height))
+            if (points.size < 2) return@Canvas
+            val end = samples.last().atMs
+            val start = end - History.WINDOW_MS
+            val min = points.minOf { it.second }
+            val max = points.maxOf { it.second }
+            val span = (max - min).takeIf { it > 0f } ?: 1f
+            fun x(t: Long) = ((t - start).toFloat() / History.WINDOW_MS) * size.width
+            fun y(v: Float) = size.height - 3.dp.toPx() - ((v - min) / span) * (size.height - 6.dp.toPx())
+            var path = androidx.compose.ui.graphics.Path()
+            var previous: Long? = null
+            points.forEach { (t, v) ->
+                if (previous == null || t - previous!! > History.GAP_MS) path.moveTo(x(t), y(v)) else path.lineTo(x(t), y(v))
+                previous = t
+            }
+            drawPath(path, Palette.TextPrimary, style = androidx.compose.ui.graphics.drawscope.Stroke(1.5.dp.toPx()))
+            drawCircle(Palette.TextPrimary, 2.5.dp.toPx(), androidx.compose.ui.geometry.Offset(x(points.last().first), y(points.last().second)))
+        }
+        Row {
+            Text("30 min ago", style = CaptionStyle.copy(fontSize = 11.sp), color = Palette.TextTertiary, modifier = Modifier.weight(1f))
+            if (points.isNotEmpty()) {
+                val lo = points.minOf { it.second }
+                val hi = points.maxOf { it.second }
+                Text(
+                    (if (lowerIsBetter) "best ${fmt(lo)} · worst ${fmt(hi)}" else "range ${fmt(lo)}–${fmt(hi)}") + unit,
+                    style = CaptionStyle.copy(fontSize = 11.sp), color = Palette.TextTertiary,
+                )
+            }
         }
     }
 }
