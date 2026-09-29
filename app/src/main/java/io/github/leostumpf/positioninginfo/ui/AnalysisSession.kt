@@ -109,6 +109,7 @@ class AnalysisSession(
     private var trackingStartedAtMs = 0L
     private var compassMode = false
     private var mapMode = false
+    private var showPaths = true
     private var obstruction = ObstructionMap()
 
     private var scatter = PositionScatter()
@@ -278,6 +279,11 @@ class AnalysisSession(
         onSkyChanged()
     }
 
+    fun toggleShowPaths() {
+        showPaths = !showPaths
+        onSkyChanged()
+    }
+
     fun toggleMap() {
         mapMode = !mapMode
         onSkyChanged()
@@ -343,6 +349,7 @@ class AnalysisSession(
             compassTrust = if (compassMode) magneticUt?.let { m -> expectedUt?.let { CompassTrust(m, it) } } else null,
             compassMode = compassMode,
             mapMode = mapMode,
+            showPaths = showPaths,
             headingDegrees = if (compassMode) trueHeading else null,
             headingText = parts.joinToString(" · ").ifEmpty { null },
             compassUnreliable = compassMode && h != null && h.accuracy < SensorManager.SENSOR_STATUS_ACCURACY_MEDIUM,

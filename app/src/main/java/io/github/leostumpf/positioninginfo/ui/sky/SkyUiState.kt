@@ -21,6 +21,8 @@ data class SkyUiState(
     val compassMode: Boolean = false,
     /** Show where signals are weak (the obstruction map) instead of the satellite paths. */
     val mapMode: Boolean = false,
+    /** Draw each satellite's path and projection, or only where it is now. */
+    val showPaths: Boolean = true,
     /** True heading of the phone's top edge, when the compass is running. */
     val headingDegrees: Float? = null,
     val headingText: String? = null,

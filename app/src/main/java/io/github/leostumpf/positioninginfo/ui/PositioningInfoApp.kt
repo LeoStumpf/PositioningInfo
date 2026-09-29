@@ -91,6 +91,8 @@ fun PositioningInfoApp(viewModel: PositioningInfoViewModel, modifier: Modifier =
                     state = skyState,
                     onToggleCompass = viewModel.analysis::toggleCompass,
                     onToggleMap = viewModel.analysis::toggleMap,
+                    onToggleShowPaths = viewModel.analysis::toggleShowPaths,
+                    onClearPaths = viewModel::clearSkyPaths,
                 )
 
                 Page.SIGNAL -> SignalScreen(state = signalState)

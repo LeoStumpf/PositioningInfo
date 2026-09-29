@@ -234,6 +234,12 @@ object Glossary {
             "Satellites whose projection reaches the horizon within 15\u00A0min.",
         ),
         PrimerEntry(
+            "Show / clear paths",
+            "Paths are recorded only while the app runs, so after closing and reopening it they " +
+                "break into pieces. Hide them to see only where the satellites are now, or clear " +
+                "them to start afresh; the satellites themselves stay.",
+        ),
+        PrimerEntry(
             "Events",
             "Satellites entering or leaving the receiver's list. Below 15° this is rising " +
                 "or setting; higher up it means acquired or lost — usually something blocking " +

@@ -486,6 +486,12 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         ).copy(sources = positionSources())
     }
 
+    /** Starts the sky paths and the event list afresh, e.g. after fragments from earlier sessions. */
+    fun clearSkyPaths() {
+        skyTracker = SkyTracker()
+        publishSky(SystemClock.elapsedRealtime())
+    }
+
     private fun publishSky(nowMs: Long) {
         _skyState.value = analysis.decorateSky(SkyUiState.from(skyTracker, nowMs))
     }

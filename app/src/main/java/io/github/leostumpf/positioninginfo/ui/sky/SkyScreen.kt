@@ -51,6 +51,11 @@ import io.github.leostumpf.positioninginfo.domain.Constellation
 import io.github.leostumpf.positioninginfo.domain.SkyPoint
 import io.github.leostumpf.positioninginfo.ui.common.AppIcons
 import io.github.leostumpf.positioninginfo.ui.common.Note
+import io.github.leostumpf.positioninginfo.ui.common.QuietButton
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.ui.semantics.Role
 import io.github.leostumpf.positioninginfo.ui.common.Page
 import io.github.leostumpf.positioninginfo.ui.common.PageScaffold
 import io.github.leostumpf.positioninginfo.ui.common.SegmentedToggle
@@ -80,6 +85,8 @@ fun SkyScreen(
     state: SkyUiState,
     onToggleCompass: () -> Unit,
     onToggleMap: () -> Unit,
+    onToggleShowPaths: () -> Unit,
+    onClearPaths: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     PageScaffold(Page.SKY, modifier) {
@@ -112,6 +119,33 @@ fun SkyScreen(
         }
         item { SkyPlot(state, Modifier.padding(top = 12.dp)) }
         item { Legend(state.mapMode) }
+        if (!state.mapMode) {
+            item {
+                Row(
+                    Modifier.fillMaxWidth().padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Row(
+                        Modifier.weight(1f).toggleable(value = state.showPaths, role = Role.Switch, onValueChange = { onToggleShowPaths() }),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Switch(
+                            checked = state.showPaths,
+                            onCheckedChange = null,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Palette.Background, checkedTrackColor = Palette.TextPrimary,
+                                uncheckedThumbColor = Palette.TextTertiary, uncheckedTrackColor = Palette.SurfaceRaised,
+                                uncheckedBorderColor = Palette.Outline,
+                            ),
+                        )
+                        Text("Show paths", style = BodyStyle.copy(fontSize = 14.sp), color = Palette.TextSecondary)
+                    }
+                    QuietButton("Clear paths", onClick = onClearPaths)
+                }
+            }
+        }
         item {
             Note(
                 if (state.mapMode) {
@@ -333,7 +367,7 @@ private fun SkyPlot(state: SkyUiState, modifier: Modifier = Modifier) {
 
         val stroke = 2.dp.toPx()
         for (marker in markers) {
-            if (state.mapMode) break
+            if (state.mapMode || !state.showPaths) break
             val colour = marker.constellation.color()
             val faded = if (marker.current == null) colour.copy(alpha = 0.3f) else colour.copy(alpha = 0.6f)
             marker.trail.filter { it.size > 1 }.forEach { segment ->
