@@ -181,7 +181,8 @@ a permanent notification and a Stop button, so trips and measurements continue w
 off. It is off by default, explained before it is enabled, and ends when the app is swiped away.
 The app never asks for "allow all the time" location access.
 
-Everything stays on the phone. Stored there: a recorded trip, the last 20 times to first fix, and the
+Everything stays on the phone — Android's cloud backup and device-to-device transfer are
+switched off for this app. Stored there: a recorded trip, the last 20 times to first fix, and the
 speed unit. Everything else — history, sky paths, signal map, accuracy test, calibrations — lives in
 memory only. **Settings › Data on this phone** (gear on the speed page, and on the last page) lists
 it all and clears it with one button.
@@ -232,4 +233,9 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 See the [GNU Affero General Public License](LICENSE) for more details.
 
-The name "Positioning Info" and the app icon are not covered by the AGPL.
+The code, the app icon and the store graphics are all covered by the AGPL. Only the name
+"Positioning Info" is reserved: forks are welcome, but please give them a different name.
+
+The app bundles third-party open-source libraries, all under permissive licences (Apache-2.0,
+BSD-3-Clause) compatible with the AGPL; see [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md).
+The same list, with the full licence texts, is in the app under **About → Open-source licences**.

@@ -1,3 +1,4 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
 # Builds, tests and signs Positioning Info on every push to main, every pull request and on
 # demand (Run workflow). Mirrors the ZoneCraft pipeline.
 #
@@ -9,6 +10,9 @@
 #                                         without the key, so a missing or debug signature
 #                                         fails the run
 #   4. keep the signed APK              — artifact positioning-info-<sha>, 30 days
+#   5. tag the commit v1.0.<n>          — on main only, the same number as the APK's
+#                                         version, so every distributed APK maps to its exact
+#                                         source (the AGPL's corresponding-source requirement)
 #
 # Three repository secrets make the release build the installable one. They mirror files
 # that live outside version control, so rotating either side means rotating both:
@@ -40,6 +44,10 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    # Write access only to push the release tag; a fork's pull request still gets a
+    # read-only token whatever this says.
+    permissions:
+      contents: write
 
     # The `secrets` context cannot be read in a step's `if:`; an env var can.
     env:
@@ -110,6 +118,19 @@ jobs:
           path: dist/*.apk
           if-no-files-found: error
           retention-days: 30
+
+      # Only for signed builds of main: those are the APKs that get installed.
+      - name: Tag the release
+        if: env.HAVE_KEYSTORE != '' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          tag="v1.0.$(git rev-list --count HEAD)"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
+            echo "$tag already exists"
+          else
+            git tag "$tag" "$GITHUB_SHA"
+            git push origin "refs/tags/$tag"
+            echo "tagged $tag"
+          fi
 
       # The runner is discarded afterwards, but the key should not outlive the step that
       # needed it even there.

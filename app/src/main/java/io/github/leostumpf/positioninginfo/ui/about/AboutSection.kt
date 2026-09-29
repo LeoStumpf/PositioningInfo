@@ -8,6 +8,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import io.github.leostumpf.positioninginfo.ui.common.QuietButton
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
@@ -36,6 +41,7 @@ const val LICENSE_URL = "https://www.gnu.org/licenses/agpl-3.0.html"
 @Composable
 fun AboutSection() {
     val uriHandler = LocalUriHandler.current
+    var showLicences by rememberSaveable { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
         InfoCard {
             Row(Modifier.fillMaxWidth()) {
@@ -70,5 +76,7 @@ fun AboutSection() {
             ValueRow("Copyright", "© 2026 Leo Stumpf")
             ValueRow("Written by", "Claude (Anthropic)", detail = "under Leo Stumpf's direction — see the README", divider = false)
         }
+        QuietButton("Open-source licences", onClick = { showLicences = true })
     }
+    if (showLicences) OpenSourceLicencesSheet(onDismiss = { showLicences = false })
 }
