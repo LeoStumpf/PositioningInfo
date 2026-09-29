@@ -19,11 +19,11 @@ fun signingValue(key: String, env: String): String? =
     keystoreProperties.getProperty(key) ?: System.getenv(env)
 
 android {
-    namespace = "io.github.leostumpf.gpstools"
+    namespace = "io.github.leostumpf.positioninginfo"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "io.github.leostumpf.gpstools"
+        applicationId = "io.github.leostumpf.positioninginfo"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
@@ -31,14 +31,14 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
-    val storeFilePath = signingValue("storeFile", "GPSTOOLS_STORE_FILE")
+    val storeFilePath = signingValue("storeFile", "POSITIONINGINFO_STORE_FILE")
     if (storeFilePath != null) {
         signingConfigs {
             create("release") {
                 storeFile = file(storeFilePath)
-                storePassword = signingValue("storePassword", "GPSTOOLS_STORE_PASSWORD")
-                keyAlias = signingValue("keyAlias", "GPSTOOLS_KEY_ALIAS")
-                keyPassword = signingValue("keyPassword", "GPSTOOLS_KEY_PASSWORD")
+                storePassword = signingValue("storePassword", "POSITIONINGINFO_STORE_PASSWORD")
+                keyAlias = signingValue("keyAlias", "POSITIONINGINFO_KEY_ALIAS")
+                keyPassword = signingValue("keyPassword", "POSITIONINGINFO_KEY_PASSWORD")
             }
         }
     }

@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "GpsTools"
+rootProject.name = "PositioningInfo"
 include(":app")

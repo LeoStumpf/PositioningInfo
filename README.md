@@ -1,17 +1,20 @@
-# GPS Tools
+# Positioning Info
+
+**What your phone's GNSS receiver and sensors know — and what they don't.** Ad-free, open source.
 
 Everything your phone's GNSS receiver knows, on eight pages: a glanceable speedometer, trip
 recording, coordinates and altitude, satellite status and a sky plot, accuracy and geometry,
 receiver internals (interference, clock, NMEA), and network location. No ads, no tracking,
 no account, and no network access at all — every figure is measured or computed on the phone.
 
-Started as a speedometer, because every speedometer on the Play Store had been buried under
-advertising.
+Started as a speedometer called "GPS Tools", because every speedometer on the Play Store had
+been buried under advertising. It was renamed once it had become more than that — and because
+"GPS Tools" was already taken, including as a registered mark.
 
-> **Transparency:** GPS Tools was "vibe-coded" with Claude (Anthropic's AI model), which wrote
+> **Transparency:** Positioning Info was "vibe-coded" with Claude (Anthropic's AI model), which wrote
 > the code under human direction. See [Who wrote this](#who-wrote-this).
 
-App ID: `io.github.leostumpf.gpstools`
+App ID: `io.github.leostumpf.positioninginfo`
 
 ## Who wrote this
 
@@ -182,12 +185,12 @@ Requires JDK 17+ and the Android SDK (compileSdk 36).
 ./gradlew :app:installDebug      # install to a connected device
 ```
 
-The release app ID is `io.github.leostumpf.gpstools`; debug builds add `.debug`, so both can
+The release app ID is `io.github.leostumpf.positioninginfo`; debug builds add `.debug`, so both can
 be installed side by side.
 
 Release builds read signing credentials from a `keystore.properties` at the repo root
-(gitignored) or from the `GPSTOOLS_STORE_FILE`, `GPSTOOLS_STORE_PASSWORD`,
-`GPSTOOLS_KEY_ALIAS` and `GPSTOOLS_KEY_PASSWORD` environment variables.
+(gitignored) or from the `POSITIONINGINFO_STORE_FILE`, `POSITIONINGINFO_STORE_PASSWORD`,
+`POSITIONINGINFO_KEY_ALIAS` and `POSITIONINGINFO_KEY_PASSWORD` environment variables.
 
 ## Licence
 
@@ -201,4 +204,4 @@ This program is distributed in the hope that it will be useful, but WITHOUT ANY 
 without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 See the [GNU Affero General Public License](LICENSE) for more details.
 
-The name "GPS Tools" and the app icon are not covered by the AGPL.
+The name "Positioning Info" and the app icon are not covered by the AGPL.
