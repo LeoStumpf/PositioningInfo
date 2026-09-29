@@ -12,6 +12,13 @@ object Glossary {
 
     val gnss = listOf(
         PrimerEntry(
+            "Why no fix?",
+            "Walks the chain a fix depends on — location on, a real receiver, battery saver, data " +
+                "for assistance, satellites heard, signals strong enough to decode, orbits known, " +
+                "geometry, time spent — and names the first link that fails. The receiver never says " +
+                "why it has no fix, so this is inference from what it does report.",
+        ),
+        PrimerEntry(
             "Fixed vs. ready",
             "Two different questions. The headline says what the receiver is doing now: " +
                 "fixed (computing a position from 4+ satellites) or still searching. The " +

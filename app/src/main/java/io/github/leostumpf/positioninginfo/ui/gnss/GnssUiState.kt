@@ -5,6 +5,7 @@ import io.github.leostumpf.positioninginfo.data.model.SatelliteInfo
 import io.github.leostumpf.positioninginfo.domain.AlmanacReadiness
 import io.github.leostumpf.positioninginfo.domain.AlmanacStatus
 import io.github.leostumpf.positioninginfo.domain.ConstellationSummary
+import io.github.leostumpf.positioninginfo.domain.Diagnosis
 import io.github.leostumpf.positioninginfo.domain.band
 
 /** Everything the GNSS status screen draws. */
@@ -22,6 +23,8 @@ data class GnssUiState(
     val timing: TimingUiState = TimingUiState(),
     /** Outcome of the last cold start or assistance download, or null if none was requested. */
     val assistanceMessage: String? = null,
+    /** Why there is (or is not) a fix; see [io.github.leostumpf.positioninginfo.domain.FixDiagnosis]. */
+    val diagnosis: Diagnosis? = null,
 ) {
 
     companion object {

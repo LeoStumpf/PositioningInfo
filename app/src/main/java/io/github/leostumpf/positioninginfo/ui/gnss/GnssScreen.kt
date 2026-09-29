@@ -2,6 +2,12 @@
 package io.github.leostumpf.positioninginfo.ui.gnss
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import io.github.leostumpf.positioninginfo.domain.CheckStatus
+import io.github.leostumpf.positioninginfo.domain.Diagnosis
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -94,6 +100,7 @@ fun GnssScreen(
                 Text(explanationFor(state), style = BodyStyle.copy(fontSize = 14.sp, lineHeight = 20.sp), color = Palette.TextSecondary)
             }
         }
+        state.diagnosis?.let { d -> item { DiagnosisCard(d, Modifier.padding(top = 16.dp)) } }
         item {
             Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 StatTile("visible", state.visible.toString(), Modifier.weight(1f))
@@ -339,4 +346,57 @@ private fun explanationFor(state: GnssUiState): String = when {
                 "takes up to 12 minutes."
         AlmanacReadiness.UNKNOWN -> "No report from the GNSS receiver yet."
     }
+}
+
+/**
+ * "Why no fix?": the verdict first, then every link of the chain with its status. Open while
+ * there is no fix; folded to one line once everything passes.
+ */
+@Composable
+private fun DiagnosisCard(d: Diagnosis, modifier: Modifier = Modifier) {
+    var expanded by rememberSaveable(d.fixed) { mutableStateOf(!d.fixed || d.verdictStatus != CheckStatus.OK) }
+    val tone = d.verdictStatus.tone()
+    val shape = RoundedCornerShape(16.dp)
+    Column(
+        modifier.fillMaxWidth().clip(shape)
+            .background(if (tone == Tone.NEUTRAL) Palette.Surface else tone.color.copy(alpha = 0.07f))
+            .border(1.dp, if (tone == Tone.NEUTRAL) Palette.CardBorder else tone.color.copy(alpha = 0.3f), shape)
+            .clickable(onClickLabel = if (expanded) "Hide the checks" else "Show all checks") { expanded = !expanded }
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("WHY NO FIX?", style = OverlineStyle, color = Palette.TextTertiary, modifier = Modifier.weight(1f))
+            Text(if (expanded) "▾" else "▸", style = OverlineStyle, color = Palette.TextTertiary)
+        }
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.size(8.dp).background(tone.color, CircleShape))
+            Text(d.verdict, style = BodyStyle.copy(fontWeight = FontWeight.Medium, fontSize = 17.sp), color = Palette.TextPrimary)
+        }
+        Text(d.detail, style = BodyStyle.copy(fontSize = 13.sp, lineHeight = 19.sp), color = Palette.TextSecondary)
+        if (expanded) {
+            Column(Modifier.padding(top = 6.dp)) {
+                d.checks.forEachIndexed { i, check ->
+                    Row(Modifier.fillMaxWidth().padding(vertical = 7.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Box(Modifier.padding(top = 7.dp).size(6.dp).background(check.status.tone().color, CircleShape))
+                        Column(Modifier.weight(1f)) {
+                            Text(check.label, style = BodyStyle.copy(fontSize = 14.sp), color = Palette.TextSecondary)
+                            if (check.status != CheckStatus.OK) {
+                                check.hint?.let { Text(it, style = BodyStyle.copy(fontSize = 12.sp, lineHeight = 17.sp), color = Palette.TextTertiary) }
+                            }
+                        }
+                        Text(check.value, style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary, textAlign = TextAlign.End, modifier = Modifier.widthIn(max = 180.dp))
+                    }
+                    if (i < d.checks.lastIndex) HorizontalDivider(color = Palette.Divider)
+                }
+            }
+        }
+    }
+}
+
+private fun CheckStatus.tone(): Tone = when (this) {
+    CheckStatus.OK -> Tone.GOOD
+    CheckStatus.WARN -> Tone.DEGRADED
+    CheckStatus.FAIL -> Tone.BAD
+    CheckStatus.INFO -> Tone.NEUTRAL
 }

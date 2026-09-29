@@ -12,6 +12,11 @@
     <uses-permission android:name="android.permission.ACCESS_LOCATION_EXTRA_COMMANDS" />
     <!-- Install-time permission for listing nearby Wi-Fi access points on the network page. -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!--
+      Read-only: lets the diagnosis tell whether a data connection exists for the system's
+      A-GNSS download. It grants no network access — the app has no INTERNET permission.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- Background mode: a location foreground service and its notification. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />

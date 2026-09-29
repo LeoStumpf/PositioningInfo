@@ -16,7 +16,13 @@ import io.github.leostumpf.positioninginfo.data.GnssCapabilityDataSource
 import io.github.leostumpf.positioninginfo.data.GnssStatusDataSource
 import io.github.leostumpf.positioninginfo.data.LocationDataSource
 import io.github.leostumpf.positioninginfo.data.NetworkLocationDataSource
+import io.github.leostumpf.positioninginfo.data.SystemStatusDataSource
 import io.github.leostumpf.positioninginfo.data.WifiScanDataSource
+import io.github.leostumpf.positioninginfo.data.model.countSatellites
+import io.github.leostumpf.positioninginfo.domain.DiagnosisInput
+import io.github.leostumpf.positioninginfo.domain.DopCalculator
+import io.github.leostumpf.positioninginfo.domain.FixDiagnosis
+import io.github.leostumpf.positioninginfo.domain.SkyPoint
 import io.github.leostumpf.positioninginfo.data.model.AccessPoint
 import io.github.leostumpf.positioninginfo.data.model.CellTower
 import io.github.leostumpf.positioninginfo.data.model.NetworkFix
@@ -65,6 +71,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     private val networkLocationSource = NetworkLocationDataSource(application)
     private val cellSource = CellInfoDataSource(application)
     private val wifiSource = WifiScanDataSource(application)
+    private val systemStatus = SystemStatusDataSource(application)
 
     /** Static for the life of the device, so it is read once rather than streamed. */
     private val capabilities = capabilitySource.read()
@@ -311,10 +318,38 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         )
         publishSignal()
 
+        publishDiagnosis()
         analysis.onSnapshot(snapshot)
         val now = SystemClock.elapsedRealtime()
         skyTracker = skyTracker.onSnapshot(snapshot.satellites, now)
         publishSky(now)
+    }
+
+    /** Re-run on every sweep and tick, so "searching for" and the settings stay current. */
+    private fun publishDiagnosis() {
+        val sats = lastSnapshot.satellites
+        val status = AlmanacStatus.from(lastSnapshot)
+        val used = sats.filter { it.usedInFix && !(it.azimuthDegrees == 0f && it.elevationDegrees == 0f) }
+            .distinctBy { it.constellation to it.svid }
+        val timing = currentTiming()
+        val diagnosis = FixDiagnosis.evaluate(
+            DiagnosisInput(
+                gpsEnabled = locationSource.isGpsEnabled,
+                isMock = lastFix?.isMock == true,
+                powerSave = systemStatus.powerSaveLocation,
+                airplaneMode = systemStatus.airplaneMode,
+                dataConnection = systemStatus.dataConnection,
+                satellitesHeard = sats.countSatellites { it.cn0DbHz > 0f },
+                satellitesStrong = sats.countSatellites { it.cn0DbHz >= DiagnosisInput.STRONG_CN0 },
+                usedInFix = lastSnapshot.usedInFixCount,
+                readiness = status.readiness,
+                withEphemeris = status.withEphemeris,
+                pdop = DopCalculator.of(used.map { SkyPoint(it.azimuthDegrees, it.elevationDegrees) })?.pdop,
+                searchingMs = timing.searchingForMs,
+                firstFixMs = timing.firstFixMs,
+            ),
+        )
+        _gnssState.update { it.copy(diagnosis = diagnosis) }
     }
 
     private fun publishNetwork() {
@@ -360,6 +395,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         )
         // No satellite sweeps arrive while location is off, so the switch is picked up here.
         _gnssState.update { it.copy(timing = currentTiming(), gpsEnabled = enabled) }
+        publishDiagnosis()
     }
 
     private fun currentTiming(): TimingUiState {
