@@ -37,6 +37,8 @@ import io.github.leostumpf.positioninginfo.data.model.AccessPoint
 import io.github.leostumpf.positioninginfo.data.model.CellTower
 import io.github.leostumpf.positioninginfo.ui.about.AboutSection
 import io.github.leostumpf.positioninginfo.ui.common.DASH
+import io.github.leostumpf.positioninginfo.ui.common.DataInventory
+import io.github.leostumpf.positioninginfo.ui.common.DataOnThisPhone
 import io.github.leostumpf.positioninginfo.ui.common.HeroValue
 import io.github.leostumpf.positioninginfo.ui.common.InfoCard
 import io.github.leostumpf.positioninginfo.ui.common.LevelBar
@@ -61,7 +63,12 @@ import kotlin.math.roundToInt
  * is, and the Wi-Fi and cell data it is built from — followed by the app's About notice.
  */
 @Composable
-fun NetworkScreen(state: NetworkUiState, modifier: Modifier = Modifier) {
+fun NetworkScreen(
+    state: NetworkUiState,
+    dataInventory: DataInventory,
+    onClearAllData: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     var showAllAps by rememberSaveable { mutableStateOf(false) }
     PageScaffold(Page.NETWORK, modifier) {
         item {
@@ -128,6 +135,9 @@ fun NetworkScreen(state: NetworkUiState, modifier: Modifier = Modifier) {
                 }
             }
         }
+
+        section("Data on this phone")
+        item { DataOnThisPhone(dataInventory, onClearAllData) }
 
         section("About")
         item { AboutSection() }

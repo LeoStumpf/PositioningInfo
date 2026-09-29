@@ -57,7 +57,11 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
+import io.github.leostumpf.positioninginfo.ui.common.DataInventory
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -138,6 +142,36 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     val backgroundActive: StateFlow<Boolean> = BackgroundMode.active
 
     private var uiVisible = false
+
+    /** What the app keeps right now, for the "Data on this phone" section. */
+    val dataInventory: StateFlow<DataInventory> by lazy {
+        combine(analysis.tripState, _gnssState, _speedState) { trip, gnss, speed ->
+            DataInventory(
+                tripPoints = trip.stats?.points ?: 0,
+                firstFixEntries = gnss.ttffLog.size,
+                unitChanged = speed.unit != SpeedUnit.DEFAULT,
+                historySamples = gnss.history.size,
+            )
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, DataInventory())
+    }
+
+    /**
+     * Deletes everything stored and resets everything collected. The live readings carry
+     * on, so the pages fill again from scratch.
+     */
+    fun clearAllData() {
+        resetSession()
+        history = History()
+        ttffLog = emptyList()
+        skyTracker = SkyTracker()
+        analysis.clearAll()
+        viewModelScope.launch {
+            ttffStore.clear()
+            unitPreference.clear()
+        }
+        _gnssState.update { it.copy(history = emptyList(), ttffLog = emptyList()) }
+        publishSky(SystemClock.elapsedRealtime())
+    }
 
     init {
         viewModelScope.launch {

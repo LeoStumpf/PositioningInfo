@@ -47,6 +47,7 @@ Swipe between eight screens. Each detail screen has a collapsible glossary of th
 
 **Speedometer**
 
+- The receiver's own speed uncertainty under the reading, and SIMULATED when a mock-location app is at work
 - Live speed straight from the GNSS receiver, in km/h (default), mph or knots — chosen under the gear button, so a stray touch never changes it
 - Session maximum and time-weighted average, with a reset button
 - Background mode button: keep running with the screen off, shown by a notification
@@ -70,6 +71,10 @@ Swipe between eight screens. Each detail screen has a collapsible glossary of th
 
 **GNSS status**
 
+- **"Why no fix?"** — walks the chain a fix depends on (location on, real receiver, battery saver, data for
+  assistance, satellites heard, usable signals, orbits, geometry, search time) and names the first link that fails
+- Each satellite's acquisition stage (code lock → bit sync → frame sync → time decoded), with a detail sheet
+- The last 30 minutes as graphs (satellites in fix, signal, accuracy) and a log of recent times to first fix
 - Whether the receiver has a fix right now, and separately how fast its next start would be (hot, warm or cold)
 - How many satellites the phone holds almanac and ephemeris data for
 - Per-constellation breakdown across GPS, GLONASS, Galileo, BeiDou, QZSS, NavIC and SBAS
@@ -80,6 +85,7 @@ Swipe between eight screens. Each detail screen has a collapsible glossary of th
 
 **Sky**
 
+- Compass trust: measured magnetic field against the World Magnetic Model, to catch a disturbed compass
 - Sky plot of every satellite with its path so far and a 15-minute projection, estimated
   offline from its recent motion
 - Satellites about to set, and which appeared or were lost
@@ -88,6 +94,7 @@ Swipe between eight screens. Each detail screen has a collapsible glossary of th
 
 **Signals and accuracy**
 
+- Every accuracy Android reports — horizontal, vertical, speed, direction of travel — and the actual fix rate
 - Measured horizontal accuracy of the current fix, kept distinct from the estimate below it
 - Expected resolution for the technique actually in use, and why
 - Which frequency bands are in use, and whether the phone is running dual-frequency
@@ -106,6 +113,7 @@ Swipe between eight screens. Each detail screen has a collapsible glossary of th
 
 **Network location**
 
+- GNSS, network and Android's fused position side by side, with each one's distance from the GNSS fix
 - Position from Wi-Fi and cell towers, its claimed accuracy and its real error against GNSS
 - The raw inputs: cells (with timing-advance distance) and Wi-Fi access points in range
 - About: what the app is, its licence (AGPL-3.0) and a link to the source
@@ -174,6 +182,16 @@ leave — unless you switch **background mode** on. That runs a location foregro
 a permanent notification and a Stop button, so trips and measurements continue with the screen
 off. It is off by default, explained before it is enabled, and ends when the app is swiped away.
 The app never asks for "allow all the time" location access.
+
+Everything stays on the phone. Stored there: a recorded trip, the last 20 times to first fix, and the
+speed unit. Everything else — history, sky paths, signal map, accuracy test, calibrations — lives in
+memory only. **Settings › Data on this phone** (gear on the speed page, and on the last page) lists
+it all and clears it with one button.
+
+Permissions beyond location: `ACCESS_WIFI_STATE` (list access points), `ACCESS_NETWORK_STATE`
+(tell whether a data connection exists for the system's A-GNSS download — read-only, no network
+use), `ACCESS_LOCATION_EXTRA_COMMANDS` (cold start / A-GNSS request), and the foreground-service and
+notification permissions for opt-in background mode. There is no `INTERNET` permission.
 
 ## Building
 

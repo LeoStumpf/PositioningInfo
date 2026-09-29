@@ -32,6 +32,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.leostumpf.positioninginfo.domain.FixFreshness
 import io.github.leostumpf.positioninginfo.domain.SpeedUnit
+import io.github.leostumpf.positioninginfo.ui.common.DataInventory
+import io.github.leostumpf.positioninginfo.ui.common.DataOnThisPhone
 import io.github.leostumpf.positioninginfo.ui.common.Note
 import io.github.leostumpf.positioninginfo.ui.common.SectionHeader
 import io.github.leostumpf.positioninginfo.ui.common.SegmentedToggle
@@ -69,6 +71,8 @@ fun SpeedScreen(
     onResetSession: () -> Unit,
     backgroundActive: Boolean,
     onSetBackground: (Boolean) -> Unit,
+    dataInventory: DataInventory,
+    onClearAllData: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var glossaryOpen by rememberSaveable { mutableStateOf(false) }
@@ -83,13 +87,19 @@ fun SpeedScreen(
         }
     }
     if (glossaryOpen) GlossarySheet(Page.SPEED, onDismiss = { glossaryOpen = false })
-    if (settingsOpen) SettingsSheet(state.unit, onSetUnit, onDismiss = { settingsOpen = false })
+    if (settingsOpen) SettingsSheet(state.unit, onSetUnit, dataInventory, onClearAllData, onDismiss = { settingsOpen = false })
 }
 
 /** The few settings there are, out of the way until wanted. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SettingsSheet(unit: SpeedUnit, onSetUnit: (SpeedUnit) -> Unit, onDismiss: () -> Unit) {
+private fun SettingsSheet(
+    unit: SpeedUnit,
+    onSetUnit: (SpeedUnit) -> Unit,
+    dataInventory: DataInventory,
+    onClearAllData: () -> Unit,
+    onDismiss: () -> Unit,
+) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -108,6 +118,8 @@ private fun SettingsSheet(unit: SpeedUnit, onSetUnit: (SpeedUnit) -> Unit, onDis
                 onSelect = { onSetUnit(SpeedUnit.entries[it]) },
             )
             Note("Used for the speedometer and the trip statistics. Kilometres per hour by default.")
+            SectionHeader("Data on this phone", modifier = Modifier.padding(top = 16.dp))
+            DataOnThisPhone(dataInventory, onClearAll = { onClearAllData(); onDismiss() })
         }
     }
 }

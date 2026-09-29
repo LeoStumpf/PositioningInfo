@@ -283,6 +283,34 @@ class AnalysisSession(
         onSkyChanged()
     }
 
+    /**
+     * Forgets everything this session has collected or stored: the trip on disk, and in
+     * memory the accuracy test, signal map, barometer calibration, interference baselines,
+     * decoded NMEA and navigation messages. The live streams keep running.
+     */
+    fun clearAll() {
+        tripRecording = false
+        trip = TripAccumulator()
+        tripAltitudes = emptyList()
+        tripMessage = null
+        scope.launch { tripStore.clear() }
+        scatter = PositionScatter()
+        scatterRunning = false
+        obstruction = ObstructionMap()
+        baro = BaroAltimeter()
+        interference = InterferenceMonitor()
+        nmea = NmeaState()
+        gpsNav = GpsNavState()
+        navFrames = emptyMap()
+        rawEpochs = 0
+        signalDetails = emptyMap()
+        firstHeardMs.clear()
+        publishTrip()
+        publishPosition()
+        publishReceiver()
+        onSkyChanged()
+    }
+
     // --- decoration of the pages the main ViewModel builds ------------------------------
 
     fun decorateSky(state: SkyUiState): SkyUiState {

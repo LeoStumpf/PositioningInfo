@@ -43,6 +43,7 @@ fun PositioningInfoApp(viewModel: PositioningInfoViewModel, modifier: Modifier =
     val tripState by viewModel.analysis.tripState.collectAsStateWithLifecycle()
     val receiverState by viewModel.analysis.receiverState.collectAsStateWithLifecycle()
     val backgroundActive by viewModel.backgroundActive.collectAsStateWithLifecycle()
+    val dataInventory by viewModel.dataInventory.collectAsStateWithLifecycle()
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/gpx+xml"),
@@ -61,6 +62,8 @@ fun PositioningInfoApp(viewModel: PositioningInfoViewModel, modifier: Modifier =
                     onResetSession = viewModel::resetSession,
                     backgroundActive = backgroundActive,
                     onSetBackground = viewModel::setBackgroundMode,
+                    dataInventory = dataInventory,
+                    onClearAllData = viewModel::clearAllData,
                 )
 
                 Page.TRIP -> TripScreen(
@@ -92,7 +95,11 @@ fun PositioningInfoApp(viewModel: PositioningInfoViewModel, modifier: Modifier =
 
                 Page.SIGNAL -> SignalScreen(state = signalState)
                 Page.RECEIVER -> ReceiverScreen(state = receiverState)
-                Page.NETWORK -> NetworkScreen(state = networkState)
+                Page.NETWORK -> NetworkScreen(
+                    state = networkState,
+                    dataInventory = dataInventory,
+                    onClearAllData = viewModel::clearAllData,
+                )
             }
         }
 

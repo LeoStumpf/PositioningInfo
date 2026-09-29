@@ -26,6 +26,11 @@ class UnitPreference(context: Context) {
         store.edit { it[KEY_UNIT] = unit.name }
     }
 
+    /** Back to the default unit, with nothing stored. */
+    suspend fun clear() {
+        store.edit { it.clear() }
+    }
+
     private companion object {
         val KEY_UNIT = stringPreferencesKey("speed_unit")
     }
