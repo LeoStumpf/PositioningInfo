@@ -2,6 +2,7 @@
 package io.github.leostumpf.positioninginfo.ui.gnss
 
 import io.github.leostumpf.positioninginfo.data.model.SatelliteInfo
+import io.github.leostumpf.positioninginfo.domain.AcquisitionStage
 import io.github.leostumpf.positioninginfo.domain.AlmanacReadiness
 import io.github.leostumpf.positioninginfo.domain.AlmanacStatus
 import io.github.leostumpf.positioninginfo.domain.ConstellationSummary
@@ -25,6 +26,8 @@ data class GnssUiState(
     val assistanceMessage: String? = null,
     /** Why there is (or is not) a fix; see [io.github.leostumpf.positioninginfo.domain.FixDiagnosis]. */
     val diagnosis: Diagnosis? = null,
+    /** Raw-measurement detail per signal, keyed like [SignalRow.baseKey]. */
+    val details: Map<String, SignalDetail> = emptyMap(),
 ) {
 
     companion object {
@@ -77,6 +80,9 @@ data class TimingUiState(
  * would otherwise crash the list.
  */
 data class SignalRow(val key: String, val satellite: SatelliteInfo) {
+    /** The key without the duplicate counter: constellation, number and band. */
+    val baseKey: String get() = key.substringBefore('#')
+
     companion object {
         fun keyed(signals: List<SatelliteInfo>): List<SignalRow> {
             val seen = mutableMapOf<String, Int>()
@@ -88,3 +94,15 @@ data class SignalRow(val key: String, val satellite: SatelliteInfo) {
         }
     }
 }
+
+/** What the raw measurements add to one signal: how far acquisition got, and its Doppler. */
+data class SignalDetail(
+    /** Null when the chip reports no raw measurement for this signal. */
+    val stage: AcquisitionStage?,
+    /** True when the stage is deduced from the signal being in the fix, not reported. */
+    val stageInferred: Boolean = false,
+    val dopplerHz: Double?,
+    val multipath: Boolean?,
+    /** When the satellite was first heard this session, on the elapsed-realtime clock. */
+    val firstHeardMs: Long?,
+)

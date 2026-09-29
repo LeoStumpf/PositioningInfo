@@ -309,13 +309,13 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
                 satellitesVisible = snapshot.visibleCount,
             )
         }
-        _gnssState.value = GnssUiState.from(
+        _gnssState.value = analysis.decorateGnss(GnssUiState.from(
             status = AlmanacStatus.from(snapshot),
             satellites = snapshot.satellites,
             gpsEnabled = enabled,
             timing = currentTiming(),
             assistanceMessage = assistanceMessage,
-        )
+        ))
         publishSignal()
 
         publishDiagnosis()

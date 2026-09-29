@@ -19,6 +19,7 @@ import io.github.leostumpf.positioninginfo.data.model.NavigationUpdate
 import io.github.leostumpf.positioninginfo.data.model.RawMeasurementEpoch
 import io.github.leostumpf.positioninginfo.data.model.RawMeasurementUpdate
 import io.github.leostumpf.positioninginfo.data.model.RawStreamStatus
+import io.github.leostumpf.positioninginfo.data.model.SignalMeasurement
 import io.github.leostumpf.positioninginfo.domain.AgcReading
 import io.github.leostumpf.positioninginfo.domain.Constellation
 import io.github.leostumpf.positioninginfo.domain.RawEpoch
@@ -168,6 +169,21 @@ private fun GnssMeasurementsEvent.toEpoch(): RawMeasurementEpoch {
             it.accumulatedDeltaRangeState and GnssMeasurement.ADR_STATE_VALID != 0
         },
         hasFullBias = clock.hasFullBiasNanos(),
+        measurements = measurements.map {
+            SignalMeasurement(
+                constellation = Constellation.fromAndroidType(it.constellationType),
+                svid = it.svid,
+                carrierFrequencyHz = if (it.hasCarrierFrequencyHz()) it.carrierFrequencyHz.toDouble() else null,
+                cn0DbHz = it.cn0DbHz,
+                state = it.state,
+                pseudorangeRateMps = it.pseudorangeRateMetersPerSecond,
+                multipath = when (it.multipathIndicator) {
+                    GnssMeasurement.MULTIPATH_INDICATOR_DETECTED -> true
+                    GnssMeasurement.MULTIPATH_INDICATOR_NOT_DETECTED -> false
+                    else -> null
+                },
+            )
+        },
     )
 }
 

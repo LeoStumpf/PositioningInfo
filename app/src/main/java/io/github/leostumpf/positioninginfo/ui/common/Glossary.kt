@@ -92,6 +92,18 @@ object Glossary {
                 "…) when the chip reports it, C/N₀ with a bar, and the A/E flags.",
         ),
         PrimerEntry(
+            "Acquisition steps",
+            "Hearing a satellite is not enough. The receiver locks onto its ranging code, finds " +
+                "the data bits, finds the message frame, and decodes the time it was sent — only " +
+                "then can it measure the distance. The four ticks per row show how far it got. Many " +
+                "chips report this for only some satellites; one in the fix has passed all four.",
+        ),
+        PrimerEntry(
+            "Doppler shift",
+            "The change in frequency caused by the satellite's motion relative to you: positive " +
+                "while it approaches, negative as it recedes, a few kHz at most.",
+        ),
+        PrimerEntry(
             "Cold start / Fetch A-GNSS",
             "Cold start deletes the stored orbits, position and time and restarts the " +
                 "receiver, so the next time to first fix shows the worst case. Fetch asks " +

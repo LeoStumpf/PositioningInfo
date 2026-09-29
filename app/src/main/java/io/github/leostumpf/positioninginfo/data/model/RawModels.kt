@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.data.model
 
+import io.github.leostumpf.positioninginfo.domain.Constellation
 import io.github.leostumpf.positioninginfo.domain.RawEpoch
 
 /** Whether the chip delivers a raw data stream, as the platform reports it. */
@@ -13,6 +14,20 @@ data class RawMeasurementEpoch(
     val carrierPhaseValid: Int,
     /** True once the receiver knows GNSS time absolutely (full bias), not just relative. */
     val hasFullBias: Boolean,
+    /** Every signal's raw values, for the per-satellite detail. */
+    val measurements: List<SignalMeasurement> = emptyList(),
+)
+
+/** One signal as the raw-measurement API reports it. */
+data class SignalMeasurement(
+    val constellation: Constellation,
+    val svid: Int,
+    val carrierFrequencyHz: Double?,
+    val cn0DbHz: Double,
+    /** GnssMeasurement.state bit flags; see [io.github.leostumpf.positioninginfo.domain.AcquisitionStage]. */
+    val state: Int,
+    val pseudorangeRateMps: Double,
+    val multipath: Boolean?,
 )
 
 sealed interface RawMeasurementUpdate {

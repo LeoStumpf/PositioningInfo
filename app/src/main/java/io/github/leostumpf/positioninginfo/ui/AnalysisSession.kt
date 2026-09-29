@@ -17,7 +17,13 @@ import io.github.leostumpf.positioninginfo.data.model.RawMeasurementEpoch
 import io.github.leostumpf.positioninginfo.data.model.RawMeasurementUpdate
 import io.github.leostumpf.positioninginfo.data.model.RawStreamStatus
 import io.github.leostumpf.positioninginfo.data.model.SpeedFix
+import io.github.leostumpf.positioninginfo.data.model.SignalMeasurement
+import io.github.leostumpf.positioninginfo.domain.AcquisitionStage
 import io.github.leostumpf.positioninginfo.domain.BaroAltimeter
+import io.github.leostumpf.positioninginfo.domain.Constellation
+import io.github.leostumpf.positioninginfo.domain.SignalBand
+import io.github.leostumpf.positioninginfo.ui.gnss.GnssUiState
+import io.github.leostumpf.positioninginfo.ui.gnss.SignalDetail
 import io.github.leostumpf.positioninginfo.domain.CoordinateFormats
 import io.github.leostumpf.positioninginfo.domain.DopCalculator
 import io.github.leostumpf.positioninginfo.domain.GpsNavState
@@ -86,6 +92,9 @@ class AnalysisSession(
     private var rawEpochs = 0
     private var lastRaw: RawMeasurementEpoch? = null
     private var interference = InterferenceMonitor()
+    /** Latest raw values per signal, and when each satellite was first heard this session. */
+    private var signalDetails = mapOf<String, SignalMeasurement>()
+    private val firstHeardMs = mutableMapOf<Pair<Constellation, Int>, Long>()
     private var navStatus = RawStreamStatus.UNKNOWN
     private var navFrames = mapOf<String, Int>()
     private var gpsNav = GpsNavState()
@@ -138,6 +147,10 @@ class AnalysisSession(
                         rawEpochs++
                         lastRaw = update.value
                         interference = interference.onEpoch(update.value.epoch)
+                        signalDetails = update.value.measurements.associateBy { m ->
+                            val band = m.carrierFrequencyHz?.let { SignalBand.fromCarrierFrequencyHz(it.toFloat()) }
+                            "${m.constellation.name}-${m.svid}-${band?.name ?: "?"}"
+                        }
                     }
                 }
             }
@@ -208,6 +221,8 @@ class AnalysisSession(
 
     fun onSnapshot(snapshot: GnssSnapshot) {
         lastSnapshot = snapshot
+        val now = SystemClock.elapsedRealtime()
+        snapshot.satellites.filter { it.cn0DbHz > 0f }.forEach { firstHeardMs.putIfAbsent(it.constellation to it.svid, now) }
         obstruction = obstruction.onSnapshot(snapshot.satellites)
     }
 
@@ -296,6 +311,22 @@ class AnalysisSession(
             obstructionSamples = obstruction.totalSamples,
         )
     }
+
+    fun decorateGnss(state: GnssUiState): GnssUiState = state.copy(
+        details = state.signals.associate { row ->
+            val m = signalDetails[row.baseKey]
+            // The chip reports raw measurements for only some of the signals it tracks. One in
+            // the fix has necessarily completed every step; for the rest the stage is unknown.
+            row.baseKey to SignalDetail(
+                stage = m?.let { AcquisitionStage.from(it.state) }
+                    ?: AcquisitionStage.TIME_DECODED.takeIf { row.satellite.usedInFix },
+                stageInferred = m == null && row.satellite.usedInFix,
+                dopplerHz = m?.let { AcquisitionStage.dopplerHz(it.pseudorangeRateMps, it.carrierFrequencyHz ?: L1_HZ) },
+                multipath = m?.multipath,
+                firstHeardMs = firstHeardMs[row.satellite.constellation to row.satellite.svid],
+            )
+        },
+    )
 
     fun decorateSignal(state: SignalUiState): SignalUiState {
         val used = lastSnapshot.satellites
@@ -432,6 +463,7 @@ class AnalysisSession(
     private companion object {
         const val GGA_FRESH_MS = 3_000L
         const val PROFILE_POINTS = 300
+        const val L1_HZ = 1_575.42e6
         const val GPS_EPOCH_MS = 315_964_800_000L
         const val WEEK_MS = 604_800_000L
     }

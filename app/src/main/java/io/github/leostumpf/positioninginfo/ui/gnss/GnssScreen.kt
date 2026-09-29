@@ -2,6 +2,16 @@
 package io.github.leostumpf.positioninginfo.ui.gnss
 
 import androidx.compose.foundation.background
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import io.github.leostumpf.positioninginfo.domain.AcquisitionStage
+import io.github.leostumpf.positioninginfo.domain.FixDiagnosis
+import io.github.leostumpf.positioninginfo.ui.common.AppIcons
+import io.github.leostumpf.positioninginfo.ui.common.CircleIconButton
+import io.github.leostumpf.positioninginfo.ui.common.Gutter
+import io.github.leostumpf.positioninginfo.ui.common.SectionHeader
+import io.github.leostumpf.positioninginfo.ui.theme.CaptionStyle
+import io.github.leostumpf.positioninginfo.ui.theme.TitleStyle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -83,6 +93,7 @@ fun GnssScreen(
 ) {
     var confirmColdStart by rememberSaveable { mutableStateOf(false) }
     var showUnheard by rememberSaveable { mutableStateOf(false) }
+    var selectedKey by rememberSaveable { mutableStateOf<String?>(null) }
     val heard = state.signals.filter { it.satellite.cn0DbHz > 0f }
     val unheard = state.signals.filter { it.satellite.cn0DbHz <= 0f }
 
@@ -151,9 +162,9 @@ fun GnssScreen(
 
         if (state.signals.isNotEmpty()) {
             section("Satellites · ${state.visible}", trailing = "C/N₀ · A E")
-            items(heard, key = { it.key }) { SatelliteRow(it.satellite) }
+            items(heard, key = { it.key }) { SatelliteRow(it.satellite, state.details[it.baseKey]) { selectedKey = it.baseKey } }
             if (unheard.isNotEmpty()) {
-                if (showUnheard) items(unheard, key = { it.key }) { SatelliteRow(it.satellite) }
+                if (showUnheard) items(unheard, key = { it.key }) { SatelliteRow(it.satellite, state.details[it.baseKey]) { selectedKey = it.baseKey } }
                 item {
                     QuietButton(
                         if (showUnheard) "Hide the ${unheard.size} not heard" else "Show ${unheard.size} not heard (almanac only)",
@@ -161,7 +172,14 @@ fun GnssScreen(
                     )
                 }
             }
-            item { Note("Filled dot: used in the fix. Ring: heard. Faint: known only from the almanac.", modifier = Modifier.padding(top = 4.dp)) }
+            item {
+                Note(
+                    "Filled dot: used in the fix. Ring: heard. Faint: known only from the almanac. The four " +
+                        "ticks are the acquisition steps — code lock, bit sync, frame sync, time decoded; a " +
+                        "satellite is usable once all four are done. Tap a row for details.",
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
         }
 
         if (state.visible == 0) {
@@ -177,6 +195,14 @@ fun GnssScreen(
                 }
             }
         }
+    }
+
+    selectedKey?.let { key ->
+        val row = state.signals.firstOrNull { it.baseKey == key }
+        if (row == null) selectedKey = null
+        else SatelliteSheet(row, state.details[key], siblings = state.signals.filter {
+            it.satellite.constellation == row.satellite.constellation && it.satellite.svid == row.satellite.svid
+        }, onDismiss = { selectedKey = null })
     }
 
     if (confirmColdStart) {
@@ -249,10 +275,10 @@ private fun ConstellationRow(summary: ConstellationSummary, last: Boolean) {
 }
 
 @Composable
-private fun SatelliteRow(satellite: SatelliteInfo) {
+private fun SatelliteRow(satellite: SatelliteInfo, detail: SignalDetail?, onClick: () -> Unit) {
     val color = satellite.constellation.color()
     val heard = satellite.cn0DbHz > 0f
-    Column(Modifier.alpha(if (heard) 1f else 0.55f)) {
+    Column(Modifier.alpha(if (heard) 1f else 0.55f).clickable(onClickLabel = "Show satellite details", onClick = onClick)) {
         Row(Modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(
                 Modifier.size(8.dp).then(
@@ -262,6 +288,7 @@ private fun SatelliteRow(satellite: SatelliteInfo) {
             )
             Text(satellite.code(), style = DataStyle.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium), color = color, modifier = Modifier.width(40.dp))
             Text(satellite.band?.shortLabel() ?: "—", style = DataStyle.copy(fontSize = 11.sp), color = Palette.TextTertiary, modifier = Modifier.width(24.dp))
+            StageGauge(if (heard) detail?.stage else null)
             LevelBar((satellite.cn0DbHz / GOOD_SIGNAL_DB_HZ), signalColour(satellite.cn0DbHz), Modifier.weight(1f))
             Text(if (heard) "%.0f".format(satellite.cn0DbHz) else "—", style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary, textAlign = TextAlign.End, modifier = Modifier.width(24.dp))
             Text(
@@ -399,4 +426,105 @@ private fun CheckStatus.tone(): Tone = when (this) {
     CheckStatus.WARN -> Tone.DEGRADED
     CheckStatus.FAIL -> Tone.BAD
     CheckStatus.INFO -> Tone.NEUTRAL
+}
+
+/** Four ticks, one per acquisition step; filled up to the step reached. */
+@Composable
+private fun StageGauge(stage: AcquisitionStage?) {
+    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+        repeat(AcquisitionStage.STEPS) { i ->
+            val done = stage != null && i < stage.step
+            Box(
+                Modifier.size(width = 4.dp, height = 10.dp).background(
+                    when {
+                        stage == null -> Palette.Divider
+                        !done -> Palette.Hairline
+                        stage == AcquisitionStage.TIME_DECODED -> Palette.Good
+                        else -> Palette.TextSecondary
+                    },
+                    RoundedCornerShape(1.dp),
+                ),
+            )
+        }
+    }
+}
+
+/** Everything known about one satellite, updated live while open. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SatelliteSheet(row: SignalRow, detail: SignalDetail?, siblings: List<SignalRow>, onDismiss: () -> Unit) {
+    val sat = row.satellite
+    val color = sat.constellation.color()
+    val heard = sat.cn0DbHz > 0f
+    val stage = detail?.stage?.takeIf { heard }
+    val inferred = detail?.stageInferred == true
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = Palette.Sheet,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+    ) {
+        Column(Modifier.padding(start = Gutter, end = Gutter, bottom = 32.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "${SatelliteId(sat.constellation, sat.svid).label()} · ${sat.constellation.label} ${sat.svid}",
+                        style = TitleStyle.copy(fontSize = 20.sp), color = color,
+                    )
+                    Text(
+                        when {
+                            sat.usedInFix -> "Used in the fix"
+                            heard -> "Heard, not used in the fix"
+                            else -> "Not heard — position known from the almanac"
+                        },
+                        style = CaptionStyle, color = Palette.TextSecondary,
+                    )
+                }
+                CircleIconButton(AppIcons.Close, contentDescription = "Close", onClick = onDismiss)
+            }
+
+            SectionHeader("Acquisition", modifier = Modifier.padding(top = 16.dp, bottom = 6.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                AcquisitionStage.entries.drop(1).forEach { s ->
+                    val done = stage != null && s.step <= stage.step
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Box(Modifier.fillMaxWidth().height(4.dp).background(if (done) (if (stage == AcquisitionStage.TIME_DECODED) Palette.Good else Palette.TextPrimary) else Palette.Hairline, RoundedCornerShape(2.dp)))
+                        Text(s.label, style = CaptionStyle.copy(fontSize = 11.sp), color = if (done) Palette.TextPrimary else Palette.TextTertiary)
+                    }
+                }
+            }
+            Note(
+                when {
+                    !heard -> "No signal from this satellite. The receiver only knows from the almanac that it should be up there."
+                    stage == null -> "The chip reports no raw measurement for this signal right now, so how far " +
+                        "acquisition has got is unknown."
+                    inferred -> "In the fix, so every step is complete — the chip just reports no raw " +
+                        "measurement for it right now."
+                    else -> stage.meaning
+                },
+                modifier = Modifier.padding(top = 6.dp),
+            )
+
+            SectionHeader("Signal", modifier = Modifier.padding(top = 16.dp, bottom = 2.dp))
+            siblings.forEach { sib ->
+                ValueRow(
+                    "Strength" + (sib.satellite.band?.shortLabel()?.let { " · $it" } ?: ""),
+                    if (sib.satellite.cn0DbHz > 0f) "%.0f dB-Hz".format(sib.satellite.cn0DbHz) else "—",
+                )
+            }
+            ValueRow("Doppler shift", detail?.dopplerHz?.takeIf { heard }?.let { (if (it >= 0) "+" else "−") + String.format(java.util.Locale.US, "%.2f kHz", kotlin.math.abs(it) / 1_000) } ?: "—",
+                detail = "positive: approaching")
+            ValueRow("Multipath", when (detail?.multipath) { true -> "detected"; false -> "none"; null -> "not reported" })
+
+            SectionHeader("Position and data", modifier = Modifier.padding(top = 16.dp, bottom = 2.dp))
+            ValueRow("Elevation", "%.0f°".format(sat.elevationDegrees))
+            ValueRow("Azimuth", "%.0f°".format(sat.azimuthDegrees))
+            ValueRow("Almanac", if (sat.hasAlmanac) "held" else "missing")
+            ValueRow("Ephemeris", if (sat.hasEphemeris) "held" else "missing")
+            ValueRow(
+                "First heard",
+                detail?.firstHeardMs?.let { FixDiagnosis.formatDuration(android.os.SystemClock.elapsedRealtime() - it) + " ago" } ?: "—",
+                divider = false,
+            )
+        }
+    }
 }
