@@ -206,6 +206,18 @@ Requires JDK 17+ and the Android SDK (compileSdk 36).
 The release app ID is `io.github.leostumpf.positioninginfo`; debug builds add `.debug`, so both can
 be installed side by side.
 
+**Versions** are numbered by commit count (`versionCode` = commits on the branch, `versionName` =
+`1.0.<count>`), so every newer build installs over the previous one.
+
+**CI** (`.github/workflows/ci.yml`) runs the unit tests and builds a signed release on every push to
+`main`; the APK is kept as a workflow artifact for 30 days (Actions → CI → latest run → Artifacts).
+It is signed with the upload key from three repository secrets — `ANDROID_KEYSTORE_BASE64`,
+`ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD` — which forks never see.
+
+**Local release folder:** if `releases/` exists (gitignored — on the maintainer's laptop a link to a
+local share), `./gradlew assembleRelease` also copies the signed APK there as
+`positioning-info-<version>.apk`.
+
 Release builds read signing credentials from a `keystore.properties` at the repo root
 (gitignored) or from the `POSITIONINGINFO_STORE_FILE`, `POSITIONINGINFO_STORE_PASSWORD`,
 `POSITIONINGINFO_KEY_ALIAS` and `POSITIONINGINFO_KEY_PASSWORD` environment variables.
