@@ -231,6 +231,12 @@ object Glossary {
 
     val network = listOf(
         PrimerEntry(
+            "Position sources",
+            "Android has three: the GNSS receiver alone, the network provider (Wi-Fi and cells), " +
+                "and the fused provider, which blends both with motion sensors and is what most apps " +
+                "receive. The offset is each one's distance from the GNSS fix at the same moment.",
+        ),
+        PrimerEntry(
             "Network location",
             "A position without satellites: the phone reports the Wi-Fi access points and " +
                 "cell towers it hears, and a database of their known locations (Google's, " +

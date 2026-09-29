@@ -25,21 +25,25 @@ import kotlinx.coroutines.flow.callbackFlow
  * Google's location service, which looks the nearby Wi-Fi access points and cell towers up
  * in its database. Whether it works at all depends on the "Google Location Accuracy" setting.
  */
-class NetworkLocationDataSource(context: Context) {
+class NetworkLocationDataSource(
+    context: Context,
+    /** Also used for Android's own fused provider, which is what most apps receive. */
+    private val provider: String = LocationManager.NETWORK_PROVIDER,
+) {
 
     private val appContext = context.applicationContext
     private val locationManager = appContext.getSystemService<LocationManager>()
 
-    /** False when the device has no network provider or it is switched off in settings. */
+    /** False when the device lacks the provider or it is switched off in settings. */
     val isEnabled: Boolean
         get() = runCatching {
-            locationManager?.isProviderEnabled(LocationManager.NETWORK_PROVIDER) == true
+            locationManager?.isProviderEnabled(provider) == true
         }.getOrDefault(false)
 
     @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     fun fixes(): Flow<NetworkFix> = callbackFlow {
         val manager = locationManager
-        if (manager == null || LocationManager.NETWORK_PROVIDER !in manager.allProviders) {
+        if (manager == null || provider !in manager.allProviders) {
             close()
             return@callbackFlow
         }
@@ -57,7 +61,7 @@ class NetworkLocationDataSource(context: Context) {
         }
 
         manager.requestUpdates(listener)
-        runCatching { manager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER) }
+        runCatching { manager.getLastKnownLocation(provider) }
             .getOrNull()
             ?.let { trySend(it.toNetworkFix().copy(isCached = true)) }
 
@@ -68,14 +72,14 @@ class NetworkLocationDataSource(context: Context) {
     private fun LocationManager.requestUpdates(listener: LocationListener) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             requestLocationUpdates(
-                LocationManager.NETWORK_PROVIDER,
+                provider,
                 LocationRequest.Builder(UPDATE_INTERVAL_MS).setMinUpdateDistanceMeters(0f).build(),
                 appContext.mainExecutor,
                 listener,
             )
         } else {
             requestLocationUpdates(
-                LocationManager.NETWORK_PROVIDER,
+                provider,
                 UPDATE_INTERVAL_MS,
                 0f,
                 listener,
@@ -83,6 +87,10 @@ class NetworkLocationDataSource(context: Context) {
             )
         }
     }
+
+    /** Whether this phone has the provider at all (the fused one needs Android 12). */
+    val exists: Boolean
+        get() = runCatching { provider in (locationManager?.allProviders ?: emptyList()) }.getOrDefault(false)
 
     private companion object {
         const val UPDATE_INTERVAL_MS = 5_000L

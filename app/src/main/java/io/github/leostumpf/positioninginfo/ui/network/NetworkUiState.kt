@@ -21,6 +21,8 @@ data class NetworkUiState(
     val cells: List<CellTower> = emptyList(),
     val wifiAvailable: Boolean = true,
     val accessPoints: List<AccessPoint> = emptyList(),
+    /** GNSS, network and fused positions side by side. */
+    val sources: List<SourceRow> = emptyList(),
 ) {
     companion object {
         fun from(
@@ -82,3 +84,16 @@ internal fun band(frequencyMhz: Int): String = when (frequencyMhz) {
     in 5_925..7_125 -> "6 GHz"
     else -> "$frequencyMhz MHz"
 }
+
+/** One position source in the comparison. */
+data class SourceRow(
+    val name: String,
+    val description: String,
+    val available: Boolean,
+    val accuracyM: Float?,
+    val ageMs: Long?,
+    /** Distance to the GNSS position, or null for GNSS itself or when either is missing. */
+    val offsetM: Double?,
+    val isReference: Boolean = false,
+    val isMock: Boolean = false,
+)

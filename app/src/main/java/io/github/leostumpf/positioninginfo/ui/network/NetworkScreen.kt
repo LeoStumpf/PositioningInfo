@@ -40,6 +40,7 @@ import io.github.leostumpf.positioninginfo.ui.common.DASH
 import io.github.leostumpf.positioninginfo.ui.common.HeroValue
 import io.github.leostumpf.positioninginfo.ui.common.InfoCard
 import io.github.leostumpf.positioninginfo.ui.common.LevelBar
+import io.github.leostumpf.positioninginfo.ui.common.Note
 import io.github.leostumpf.positioninginfo.ui.common.Notice
 import io.github.leostumpf.positioninginfo.ui.common.Page
 import io.github.leostumpf.positioninginfo.ui.common.PageScaffold
@@ -82,6 +83,16 @@ fun NetworkScreen(state: NetworkUiState, modifier: Modifier = Modifier) {
                 }
                 Comparison(state)
             }
+        }
+
+        section("Position sources", trailing = "offset from GNSS")
+        items(state.sources, key = { it.name }) { SourceRowView(it) }
+        item {
+            Note(
+                "Apps usually get the fused position, which blends GNSS, Wi-Fi, cells and motion sensors. " +
+                    "That is why a maps app can show you a few metres from the raw GNSS fix.",
+                modifier = Modifier.padding(top = 6.dp),
+            )
         }
 
         section("Cell towers")
@@ -168,6 +179,44 @@ private fun Comparison(state: NetworkUiState) {
                 Text("GNSS reference ±${c.gnssAccuracyM.roundToInt()} m", style = CaptionStyle.copy(fontSize = 12.sp), color = Palette.TextTertiary)
             }
         }
+    }
+}
+
+@Composable
+private fun SourceRowView(source: SourceRow) {
+    Column {
+        Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(source.name, style = BodyStyle, color = Palette.TextPrimary)
+                Text(
+                    when {
+                        !source.available -> "not available or switched off"
+                        source.accuracyM == null -> source.description
+                        else -> listOfNotNull(
+                            "±${formatDistance(source.accuracyM.toDouble())}",
+                            source.ageMs?.let { formatAge(it) },
+                            if (source.isMock) "SIMULATED" else null,
+                        ).joinToString(" · ")
+                    },
+                    style = CaptionStyle.copy(fontSize = 12.sp),
+                    color = if (source.isMock) Palette.Bad else Palette.TextTertiary,
+                )
+            }
+            Text(
+                when {
+                    source.isReference -> if (source.accuracyM != null) "reference" else DASH
+                    source.offsetM != null -> formatDistance(source.offsetM)
+                    else -> DASH
+                },
+                style = DataStyle,
+                color = when {
+                    source.isReference -> Palette.TextTertiary
+                    source.offsetM != null && source.accuracyM != null && source.offsetM > source.accuracyM -> Palette.Degraded
+                    else -> Palette.TextPrimary
+                },
+            )
+        }
+        HorizontalDivider(color = Palette.Divider)
     }
 }
 

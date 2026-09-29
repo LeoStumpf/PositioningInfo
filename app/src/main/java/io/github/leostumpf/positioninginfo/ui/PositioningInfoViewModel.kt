@@ -43,6 +43,8 @@ import io.github.leostumpf.positioninginfo.settings.UnitPreference
 import io.github.leostumpf.positioninginfo.ui.gnss.GnssUiState
 import io.github.leostumpf.positioninginfo.ui.gnss.TimingUiState
 import io.github.leostumpf.positioninginfo.ui.network.NetworkUiState
+import io.github.leostumpf.positioninginfo.ui.network.SourceRow
+import io.github.leostumpf.positioninginfo.domain.NetworkComparison
 import io.github.leostumpf.positioninginfo.ui.signal.SignalUiState
 import io.github.leostumpf.positioninginfo.ui.sky.SkyUiState
 import io.github.leostumpf.positioninginfo.ui.speed.SpeedUiState
@@ -69,6 +71,9 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     private val capabilitySource = GnssCapabilityDataSource(application)
     private val assistanceSource = AssistanceDataSource(application)
     private val networkLocationSource = NetworkLocationDataSource(application)
+    // "fused" is LocationManager.FUSED_PROVIDER, which only exists from Android 12; older
+    // phones simply do not list it, and the source reports itself absent.
+    private val fusedLocationSource = NetworkLocationDataSource(application, "fused")
     private val cellSource = CellInfoDataSource(application)
     private val wifiSource = WifiScanDataSource(application)
     private val systemStatus = SystemStatusDataSource(application)
@@ -94,6 +99,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     private var lastSnapshot = GnssSnapshot.EMPTY
 
     private var networkFix: NetworkFix? = null
+    private var fusedFix: NetworkFix? = null
     private var cells: List<CellTower> = emptyList()
     private var accessPoints: List<AccessPoint> = emptyList()
 
@@ -194,6 +200,11 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         // Wi-Fi readings mostly return what the radios already know.
         trackingJobs += viewModelScope.launch {
             networkLocationSource.fixes().collect { networkFix = it; publishNetwork() }
+        }
+        if (fusedLocationSource.exists) {
+            trackingJobs += viewModelScope.launch {
+                fusedLocationSource.fixes().collect { fusedFix = it; publishNetwork() }
+            }
         }
         trackingJobs += viewModelScope.launch {
             cellSource.cells().collect { cells = it; publishNetwork() }
@@ -325,6 +336,36 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         publishSky(now)
     }
 
+    /** The same moment seen by the receiver, the network provider and Android's fused provider. */
+    private fun positionSources(): List<SourceRow> {
+        val now = SystemClock.elapsedRealtime()
+        val gnss = lastFix?.takeIf { !it.isCached && it.latitude != null }
+        fun offset(lat: Double, lon: Double) = gnss?.let { NetworkComparison.distanceM(it.latitude!!, it.longitude!!, lat, lon) }
+        fun row(name: String, description: String, source: NetworkLocationDataSource, fix: NetworkFix?) = SourceRow(
+            name = name,
+            description = description,
+            available = source.exists && source.isEnabled,
+            accuracyM = fix?.accuracyM,
+            ageMs = fix?.let { now - it.elapsedRealtimeMs },
+            offsetM = fix?.let { offset(it.latitude, it.longitude) },
+            isMock = fix?.isMock == true,
+        )
+        return listOf(
+            SourceRow(
+                name = "GNSS receiver",
+                description = "satellites only; the reference",
+                available = locationSource.isGpsEnabled,
+                accuracyM = gnss?.horizontalAccuracyM,
+                ageMs = gnss?.let { now - it.elapsedRealtimeMs },
+                offsetM = null,
+                isReference = true,
+                isMock = gnss?.isMock == true,
+            ),
+            row("Network", "Wi-Fi and cell towers", networkLocationSource, networkFix),
+            row("Fused", "Android's blend of all sources — what most apps show", fusedLocationSource, fusedFix),
+        )
+    }
+
     /** Re-run on every sweep and tick, so "searching for" and the settings stay current. */
     private fun publishDiagnosis() {
         val sats = lastSnapshot.satellites
@@ -362,7 +403,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
             cells = cells,
             wifiAvailable = wifiSource.canScan,
             accessPoints = accessPoints,
-        )
+        ).copy(sources = positionSources())
     }
 
     private fun publishSky(nowMs: Long) {
