@@ -1,9 +1,42 @@
 # GPS Tools
 
-A minimal GPS speedometer for Android. Open it, see your speed. No ads, no tracking,
-no account, no network access at all.
+Everything your phone's GNSS receiver knows, on eight pages: a glanceable speedometer, trip
+recording, coordinates and altitude, satellite status and a sky plot, accuracy and geometry,
+receiver internals (interference, clock, NMEA), and network location. No ads, no tracking,
+no account, and no network access at all — every figure is measured or computed on the phone.
 
-Built because every speedometer on the Play Store had been buried under advertising.
+Started as a speedometer, because every speedometer on the Play Store had been buried under
+advertising.
+
+> **Transparency:** GPS Tools was "vibe-coded" with Claude (Anthropic's AI model), which wrote
+> the code under human direction. See [Who wrote this](#who-wrote-this).
+
+App ID: `io.github.leostumpf.gpstools`
+
+## Who wrote this
+
+**Claude wrote it** — Anthropic's model (Claude Opus 5.5, working in Claude Code), in
+conversation over a few days in September 2026. All of it: about 11 700 lines of Kotlin
+including the tests, the in-app glossary texts, this README and the commit messages. The
+visual design ("Instrument Black") was drafted by Claude as well. Some of the maths and parsing
+modules were written by Claude sub-agents working in parallel and then merged. Every commit
+carries `Co-Authored-By: Claude Opus 5.5`.
+
+Leo Stumpf set the problem and made every decision that needed a person: what the app should
+show, that it never gets internet access, that background operation is opt-in and explained,
+what to reorganise, and what to ship. He ran every build on a real phone and he answers for the
+result, which is why the git author line is his. **He does not claim to have written the
+code.** That is the reason this section exists — it is here to inform, not to excuse or limit
+anything; using a model to build software is neither novel nor a problem.
+
+What stands behind the code: 202 unit tests; reference values checked independently rather
+than recalled (UTM against a separate implementation, GPS navigation-message fields against
+IS-GPS-200); and every feature exercised on a Pixel 4a. What does *not* stand behind it is a
+line-by-line human review, and some paths could not be tried on real hardware — the jamming
+and spoofing indicators have never met a jammer, and that phone does not pass navigation
+messages on. Judge it on the code and on whether the readings hold up.
+
+The IBM Plex typefaces are by IBM, bundled under the SIL Open Font License 1.1.
 
 ## Current features
 
@@ -148,6 +181,9 @@ Requires JDK 17+ and the Android SDK (compileSdk 36).
 ./gradlew :app:test              # unit tests
 ./gradlew :app:installDebug      # install to a connected device
 ```
+
+The release app ID is `io.github.leostumpf.gpstools`; debug builds add `.debug`, so both can
+be installed side by side.
 
 Release builds read signing credentials from a `keystore.properties` at the repo root
 (gitignored) or from the `GPSTOOLS_STORE_FILE`, `GPSTOOLS_STORE_PASSWORD`,

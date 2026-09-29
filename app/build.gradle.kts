@@ -19,11 +19,11 @@ fun signingValue(key: String, env: String): String? =
     keystoreProperties.getProperty(key) ?: System.getenv(env)
 
 android {
-    namespace = "de.leostumpf.gpstools"
+    namespace = "io.github.leostumpf.gpstools"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "de.leostumpf.gpstools"
+        applicationId = "io.github.leostumpf.gpstools"
         minSdk = 26
         targetSdk = 36
         versionCode = 1
