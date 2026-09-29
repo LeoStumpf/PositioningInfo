@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="108" height="108">
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
-<!-- Source of the app icon (Positioning Info). The Android layers in res/drawable/ic_launcher_* are generated from this drawing. -->
+<!-- Source of the app icon (Positioning Info). The Android layers in app/src/main/res/drawable/ic_launcher_* are generated from this drawing. -->
   <rect width="108" height="108" fill="#000000"/>
   <g transform="translate(54 55) scale(0.74) translate(-54 -55)">
   <!-- signal paths to the phone -->
