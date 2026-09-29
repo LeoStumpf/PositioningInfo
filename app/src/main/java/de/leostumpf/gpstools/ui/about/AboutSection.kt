@@ -36,7 +36,7 @@ import de.leostumpf.gpstools.ui.theme.OverlineStyle
 import de.leostumpf.gpstools.ui.theme.Palette
 import de.leostumpf.gpstools.ui.theme.TitleStyle
 
-const val SOURCE_URL = "https://github.com/leostumpf/GpsTools"
+const val SOURCE_URL = "https://github.com/LeoStumpf/GpsTools"
 const val LICENSE_URL = "https://www.gnu.org/licenses/agpl-3.0.html"
 
 /**
