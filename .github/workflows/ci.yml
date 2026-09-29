@@ -1,0 +1,118 @@
+# Builds, tests and signs Positioning Info on every push to main, every pull request and on
+# demand (Run workflow). Mirrors the ZoneCraft pipeline.
+#
+# Steps, in increasing cost:
+#   1. unit tests                       — the pure domain logic (diagnosis, decoders, maths)
+#   2. a *release* build                — R8 shrinking only happens in release, so a break
+#                                         there would otherwise surface on the phone
+#   3. signed with the upload key       — Gradle falls back to an unsigned build silently
+#                                         without the key, so a missing or debug signature
+#                                         fails the run
+#   4. keep the signed APK              — artifact positioning-info-<sha>, 30 days
+#
+# Three repository secrets make the release build the installable one. They mirror files
+# that live outside version control, so rotating either side means rotating both:
+#   ANDROID_KEYSTORE_BASE64    <- ~/positioninginfo-upload-keystore.jks, base64
+#   ANDROID_KEYSTORE_PASSWORD  <- keystore.properties (storePassword)
+#   ANDROID_KEY_PASSWORD       <- keystore.properties (keyPassword)
+# The alias `upload` is a literal, not a secret: GitHub masks every occurrence of a secret's
+# value in the log.
+#
+# A fork's pull request sees no secrets. Every step marked `if: env.HAVE_KEYSTORE` is then
+# skipped and the unsigned release build is only a smoke test — deliberately not uploaded.
+# Never switch this to `pull_request_target`: it would hand the key to code a fork controls.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    # The `secrets` context cannot be read in a step's `if:`; an env var can.
+    env:
+      HAVE_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+
+    steps:
+      # Full history: versionCode is the commit count, so a shallow clone would number
+      # every build 1 and the phone would refuse the update.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # 21 because that is the JDK that builds this project on the laptop; the bytecode
+      # target is 17 either way (app/build.gradle.kts).
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Unit tests
+        run: ./gradlew --no-daemon testDebugUnitTest
+
+      # Materialise what app/build.gradle.kts reads. storeFile resolves relative to app/;
+      # both files are gitignored (*.jks, keystore.properties) and live only in this run.
+      - name: Release signing
+        if: env.HAVE_KEYSTORE != ''
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 -d > app/upload-keystore.jks
+          {
+            echo "storeFile=upload-keystore.jks"
+            echo "storePassword=$ANDROID_KEYSTORE_PASSWORD"
+            echo "keyPassword=$ANDROID_KEY_PASSWORD"
+            echo "keyAlias=upload"
+          } > keystore.properties
+
+      - name: Release build
+        run: ./gradlew --no-daemon assembleRelease
+
+      # An APK carries a v2/v3 signature that only apksigner reads.
+      - name: Signed with the upload key, not debug
+        if: env.HAVE_KEYSTORE != ''
+        run: |
+          apksigner="$(ls -d "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)"
+          apk=app/build/outputs/apk/release/app-release.apk
+          desc="$("$apksigner" verify --print-certs "$apk")"
+          echo "$desc" | grep -E 'DN:|SHA-256' || true
+          if [ -z "$desc" ]; then echo "!!! no signing certificate" >&2; exit 1; fi
+          if echo "$desc" | grep -q 'CN=Android Debug'; then echo "!!! signed with the debug key" >&2; exit 1; fi
+
+      - name: Name the APK after its version
+        if: env.HAVE_KEYSTORE != ''
+        run: |
+          mkdir -p dist
+          cp app/build/outputs/apk/release/app-release.apk "dist/positioning-info-1.0.$(git rev-list --count HEAD).apk"
+
+      - name: Keep the signed build
+        if: env.HAVE_KEYSTORE != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: positioning-info-${{ github.sha }}
+          path: dist/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      # The runner is discarded afterwards, but the key should not outlive the step that
+      # needed it even there.
+      - name: Remove the key
+        if: always()
+        run: rm -f app/upload-keystore.jks keystore.properties
