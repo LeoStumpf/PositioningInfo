@@ -3,6 +3,7 @@ package io.github.leostumpf.positioninginfo.background
 
 import android.content.Context
 import android.content.Intent
+import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -25,9 +26,24 @@ object BackgroundMode {
         _active.value = value
     }
 
-    /** Must be called while the app is on screen: Android only lets a visible app start a location service. */
-    fun start(context: Context) {
-        ContextCompat.startForegroundService(context, Intent(context, BackgroundTrackingService::class.java))
+    /**
+     * Must be called while the app is on screen: Android only lets a visible app start a
+     * location service. Marked active at once rather than when the service comes up, so
+     * leaving the app in between does not stop tracking under a notification that says it
+     * runs. Returns false, and stays off, if Android refuses the start.
+     */
+    fun start(context: Context): Boolean {
+        _active.value = true
+        return try {
+            ContextCompat.startForegroundService(context, Intent(context, BackgroundTrackingService::class.java))
+            true
+        } catch (e: RuntimeException) {
+            // ForegroundServiceStartNotAllowedException (an IllegalStateException) when the
+            // app is no longer in front, or a SecurityException without location access.
+            Log.w("PositioningInfo", "Background mode could not start", e)
+            _active.value = false
+            false
+        }
     }
 
     fun stop(context: Context) {
