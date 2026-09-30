@@ -94,3 +94,44 @@ data class SourceRow(
     val isReference: Boolean = false,
     val isMock: Boolean = false,
 )
+
+/**
+ * The same moment seen by the receiver, the network provider and Android's fused provider,
+ * each with its distance from the GNSS fix. A cached GNSS fix is no reference.
+ */
+fun positionSources(
+    gnss: SpeedFix?,
+    network: NetworkFix?,
+    fused: NetworkFix?,
+    gpsEnabled: Boolean,
+    networkEnabled: Boolean,
+    fusedEnabled: Boolean,
+    nowMs: Long,
+): List<SourceRow> {
+    val reference = gnss?.takeIf { !it.isCached && it.latitude != null && it.longitude != null }
+    fun offset(lat: Double, lon: Double) =
+        reference?.let { NetworkComparison.distanceM(it.latitude!!, it.longitude!!, lat, lon) }
+    fun row(name: String, description: String, available: Boolean, fix: NetworkFix?) = SourceRow(
+        name = name,
+        description = description,
+        available = available,
+        accuracyM = fix?.accuracyM,
+        ageMs = fix?.let { nowMs - it.elapsedRealtimeMs },
+        offsetM = fix?.let { offset(it.latitude, it.longitude) },
+        isMock = fix?.isMock == true,
+    )
+    return listOf(
+        SourceRow(
+            name = "GNSS receiver",
+            description = "satellites only; the reference",
+            available = gpsEnabled,
+            accuracyM = reference?.horizontalAccuracyM,
+            ageMs = reference?.let { nowMs - it.elapsedRealtimeMs },
+            offsetM = null,
+            isReference = true,
+            isMock = reference?.isMock == true,
+        ),
+        row("Network", "Wi-Fi and cell towers", networkEnabled, network),
+        row("Fused", "Android's blend of all sources — what most apps show", fusedEnabled, fused),
+    )
+}

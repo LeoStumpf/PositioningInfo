@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.gnss
 
+import io.github.leostumpf.positioninginfo.domain.SkyPoint
+import io.github.leostumpf.positioninginfo.domain.DopCalculator
+import io.github.leostumpf.positioninginfo.domain.DiagnosisInput
+import io.github.leostumpf.positioninginfo.domain.PowerSaveLocation
+import io.github.leostumpf.positioninginfo.data.model.countSatellites
+import io.github.leostumpf.positioninginfo.data.model.SpeedFix
+import io.github.leostumpf.positioninginfo.data.model.GnssSnapshot
 import io.github.leostumpf.positioninginfo.data.model.PhoneSettings
 import io.github.leostumpf.positioninginfo.data.model.SatelliteInfo
 import io.github.leostumpf.positioninginfo.data.model.SignalMeasurement
@@ -124,3 +131,39 @@ data class SignalDetail(
     /** The raw measurement itself, null when the chip reports none for this signal. */
     val raw: SignalMeasurement? = null,
 )
+
+/**
+ * What the "Why no fix?" chain needs to know, from the latest satellite report and fix and
+ * the phone's settings. Satellites are counted once each, whatever the number of bands; the
+ * geometry uses only those in the fix with a real position in the sky.
+ */
+fun diagnosisInput(
+    snapshot: GnssSnapshot,
+    fix: SpeedFix?,
+    gpsEnabled: Boolean,
+    powerSave: PowerSaveLocation,
+    airplaneMode: Boolean,
+    dataConnection: Boolean?,
+    searchingMs: Long?,
+    firstFixMs: Long?,
+): DiagnosisInput {
+    val sats = snapshot.satellites
+    val status = AlmanacStatus.from(snapshot)
+    val used = sats.filter { it.usedInFix && !(it.azimuthDegrees == 0f && it.elevationDegrees == 0f) }
+        .distinctBy { it.constellation to it.svid }
+    return DiagnosisInput(
+        gpsEnabled = gpsEnabled,
+        isMock = fix?.isMock == true,
+        powerSave = powerSave,
+        airplaneMode = airplaneMode,
+        dataConnection = dataConnection,
+        satellitesHeard = sats.countSatellites { it.cn0DbHz > 0f },
+        satellitesStrong = sats.countSatellites { it.cn0DbHz >= DiagnosisInput.STRONG_CN0 },
+        usedInFix = snapshot.usedInFixCount,
+        readiness = status.readiness,
+        withEphemeris = status.withEphemeris,
+        pdop = DopCalculator.of(used.map { SkyPoint(it.azimuthDegrees, it.elevationDegrees) })?.pdop,
+        searchingMs = searchingMs,
+        firstFixMs = firstFixMs,
+    )
+}
