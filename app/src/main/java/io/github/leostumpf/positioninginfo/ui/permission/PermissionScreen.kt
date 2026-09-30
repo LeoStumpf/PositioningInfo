@@ -29,9 +29,18 @@ enum class PermissionState {
     /** Denied once; the system will still show the dialog again. */
     DENIED,
 
-    /** Denied permanently, or only coarse location granted — both require app settings. */
+    /** Only approximate location; the system can still offer the upgrade to precise. */
+    APPROXIMATE_ONLY,
+
+    /** Only approximate location, and the upgrade was declined: app settings only. */
+    APPROXIMATE_NEEDS_SETTINGS,
+
+    /** Denied permanently: app settings only. */
     NEEDS_SETTINGS,
 }
+
+private val PermissionState.needsSettings: Boolean
+    get() = this == PermissionState.NEEDS_SETTINGS || this == PermissionState.APPROXIMATE_NEEDS_SETTINGS
 
 @Composable
 fun PermissionScreen(
@@ -70,8 +79,14 @@ fun PermissionScreen(
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(top = 12.dp, bottom = 28.dp),
             )
-            Button(onClick = if (state == PermissionState.NEEDS_SETTINGS) onOpenSettings else onRequest) {
-                Text(if (state == PermissionState.NEEDS_SETTINGS) "Open app settings" else "Grant access")
+            Button(onClick = if (state.needsSettings) onOpenSettings else onRequest) {
+                Text(
+                    when (state) {
+                        PermissionState.APPROXIMATE_ONLY -> "Allow precise location"
+                        PermissionState.NEEDS_SETTINGS, PermissionState.APPROXIMATE_NEEDS_SETTINGS -> "Open app settings"
+                        else -> "Grant access"
+                    },
+                )
             }
         }
     }
@@ -86,7 +101,15 @@ private fun PermissionState.explanation(): String = when (this) {
         "Without location access there is no speed to show. " +
             "Location is used while the app is open, or in background mode if you switch it on — it is never sent anywhere."
 
+    PermissionState.APPROXIMATE_ONLY ->
+        "Only approximate location is allowed. It cannot give a speed, the satellites or a precise " +
+            "position, which is everything this app shows. Allow precise location to continue."
+
+    PermissionState.APPROXIMATE_NEEDS_SETTINGS ->
+        "Only approximate location is allowed, which cannot give a speed or the satellites. In the app " +
+            "settings, open Permissions › Location and switch on \"Use precise location\"."
+
     PermissionState.NEEDS_SETTINGS ->
-        "Precise location must be enabled in the system settings. " +
-            "Approximate location cannot provide speed."
+        "Location access was declined. In the app settings, open Permissions › Location and choose " +
+            "\"Allow only while using the app\". It is never sent anywhere."
 }

@@ -86,12 +86,18 @@ private fun PositioningInfoRoot() {
         SpeedRoute()
         return
     }
-    // Coarse-only counts as denied here: it cannot produce a speed, and the system will not
-    // re-prompt for an upgrade to precise, so the only route left is app settings.
+    // Approximate location cannot produce a speed or satellites, so it is not enough on its
+    // own. Android 12+ offers an upgrade to precise when asked again, until the user has
+    // declined that too; after that, only the app's settings can change it.
+    val hasCoarse = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+        PackageManager.PERMISSION_GRANTED
+    val mayAskAgain = !wasDenied ||
+        activity?.shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) == true
     val state = when {
+        hasCoarse && mayAskAgain -> PermissionState.APPROXIMATE_ONLY
+        hasCoarse -> PermissionState.APPROXIMATE_NEEDS_SETTINGS
         !wasDenied -> PermissionState.NEEDS_REQUEST
-        activity?.shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) == true ->
-            PermissionState.DENIED
+        mayAskAgain -> PermissionState.DENIED
         else -> PermissionState.NEEDS_SETTINGS
     }
     PermissionScreen(
