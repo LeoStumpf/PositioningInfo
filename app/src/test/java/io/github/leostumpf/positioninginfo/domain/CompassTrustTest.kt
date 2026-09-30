@@ -26,4 +26,9 @@ class CompassTrustTest {
     fun `magnitude combines the axes`() {
         assertEquals(50.0, CompassTrust.magnitude(30f, 40f, 0f), 1e-9)
     }
+
+    @Test
+    fun `no expected field is disturbed, not NaN`() {
+        assertEquals(CompassTrust.Level.DISTURBED, CompassTrust(48.0, 0.0).level)
+    }
 }

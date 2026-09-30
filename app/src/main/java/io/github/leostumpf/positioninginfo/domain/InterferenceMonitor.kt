@@ -44,8 +44,9 @@ enum class Band {
          * 1176 MHz.
          */
         fun of(carrierHz: Double): Band = when (carrierHz / 1e6) {
-            in 1559.0..1610.0 -> L1_E1_B1
-            in 1164.0..1189.0 -> L5_E5A_B2A
+            // The same edges as SignalBand, so a signal sits on the same band on every page.
+            in 1555.0..1610.0 -> L1_E1_B1
+            in 1164.0..1192.0 -> L5_E5A_B2A
             else -> OTHER
         }
     }

@@ -94,7 +94,10 @@ object NmeaParser {
         if (s.length < 4 || s[0] != '$') return null
         val star = s.lastIndexOf('*')
         if (star < 0 || s.length != star + 3) return null
-        val expected = s.substring(star + 1).toIntOrNull(16) ?: return null
+        val hex = s.substring(star + 1)
+        // Exactly two hex digits: toIntOrNull alone would also take "+7".
+        if (!hex.all { it in '0'..'9' || it in 'A'..'F' || it in 'a'..'f' }) return null
+        val expected = hex.toInt(16)
         val body = s.substring(1, star)
         var sum = 0
         for (c in body) {
@@ -119,8 +122,8 @@ object NmeaParser {
                     if (f.size < 12) throw Malformed()
                     Gga(
                         talker = talker,
-                        latitude = coordinate(f[2], f[3], 'N', 'S'),
-                        longitude = coordinate(f[4], f[5], 'E', 'W'),
+                        latitude = coordinate(f[2], f[3], 'N', 'S', maxDegrees = 90.0),
+                        longitude = coordinate(f[4], f[5], 'E', 'W', maxDegrees = 180.0),
                         fixQuality = int(f[6]),
                         satellites = int(f[7]),
                         hdop = double(f[8]),
@@ -178,13 +181,14 @@ object NmeaParser {
         if (field.isEmpty()) null else field.toIntOrNull() ?: throw Malformed()
 
     /** `ddmm.mmmm` / `dddmm.mmmm` plus hemisphere to signed decimal degrees. */
-    private fun coordinate(value: String, hemisphere: String, positive: Char, negative: Char): Double? {
+    private fun coordinate(value: String, hemisphere: String, positive: Char, negative: Char, maxDegrees: Double): Double? {
         val raw = double(value) ?: return null
         if (raw < 0) throw Malformed()
         val degrees = Math.floor(raw / 100.0)
         val minutes = raw - degrees * 100.0
         if (minutes >= 60.0) throw Malformed()
         val abs = degrees + minutes / 60.0
+        if (abs > maxDegrees) throw Malformed()
         return when (hemisphere.singleOrNull()) {
             positive -> abs
             negative -> -abs

@@ -164,6 +164,14 @@ class TripTest {
     }
 
     @Test
+    fun `non-finite or out-of-range values in the file are skipped`() {
+        assertNull(TripCsv.decode("1000,NaN,11.5,500,1,5"))
+        assertNull(TripCsv.decode("1000,48.1,Infinity,500,1,5"))
+        assertNull(TripCsv.decode("1000,95.0,11.5,500,1,5"))
+        assertNull(TripCsv.decode("1000,48.1,11.5,NaN,1,5"))
+    }
+
+    @Test
     fun `descent is counted`() {
         var trip = TripAccumulator()
         for (i in 0..10) trip = trip.add(point(i * 1_000L, 0.0, 0.0), 100.0 - i * 5.0)

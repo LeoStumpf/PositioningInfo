@@ -84,7 +84,7 @@ object CoordinateFormats {
     private fun Double.pow(k: Int): Double = Math.pow(this, k.toDouble())
 
     fun utm(lat: Double, lon: Double): UtmCoordinate? {
-        if (lat.isNaN() || lon.isNaN() || lat < -80.0 || lat > 84.0) return null
+        if (!lat.isFinite() || !lon.isFinite() || lat < -80.0 || lat > 84.0) return null
         val lo = normaliseLongitude(lon)
         val zone = utmZone(lat, lo)
         // Band X is 12° tall (72°..84°), so the index is clamped rather than overflowing.
@@ -169,7 +169,8 @@ object CoordinateFormats {
         val lo = normaliseLongitude(lon)
         // Integer arithmetic, like the reference implementation, so that values sitting exactly
         // on a cell edge do not fall into the cell below through floating point error.
-        var latUnits = ((la + 90) * 2.5e7).roundToLong() / 3125 // 1/8000° steps
+        // Clamped: a latitude a hair below 90° rounds up to the pole, which has no cell.
+        var latUnits = (((la + 90) * 2.5e7).roundToLong() / 3125).coerceAtMost(180L * 8000 - 1) // 1/8000° steps
         var lonUnits = ((lo + 180) * 8.192e6).roundToLong() / 1024
         val digits = CharArray(OLC_PAIR_LENGTH)
         for (pair in OLC_PAIR_LENGTH / 2 - 1 downTo 0) {

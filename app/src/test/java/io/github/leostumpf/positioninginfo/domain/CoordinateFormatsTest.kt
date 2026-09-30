@@ -121,4 +121,18 @@ class CoordinateFormatsTest {
         assertEquals("RR99xx", CoordinateFormats.maidenhead(90.0, 179.9999999))
         assertTrue(CoordinateFormats.maidenhead(-90.0, -180.0) == "AA00aa")
     }
+
+    @Test
+    fun `infinite coordinates have no UTM or MGRS`() {
+        assertNull(CoordinateFormats.utm(45.0, Double.POSITIVE_INFINITY))
+        assertNull(CoordinateFormats.mgrs(45.0, Double.NEGATIVE_INFINITY))
+        assertNull(CoordinateFormats.mgrs(Double.POSITIVE_INFINITY, 10.0))
+    }
+
+    @Test
+    fun `a plus code just below the pole is still valid`() {
+        val code = CoordinateFormats.plusCode(90.0 - 1e-9, 0.0)
+        // The first character encodes latitude in 20° steps from -90: at most 'C' (index 8).
+        assertTrue(code, code[0] in "23456789C")
+    }
 }

@@ -36,6 +36,11 @@ class AlmanacStatusTest {
         GnssSnapshot(satellites = sats.toList(), hasReported = true)
 
     @Test
+    fun `a report listing no satellites is unknown, not a cold start`() {
+        assertEquals(AlmanacReadiness.UNKNOWN, AlmanacStatus.from(snapshot()).readiness)
+    }
+
+    @Test
     fun `nothing heard from the receiver yet is unknown, not cold`() {
         val status = AlmanacStatus.from(GnssSnapshot.EMPTY)
         assertEquals(AlmanacReadiness.UNKNOWN, status.readiness)

@@ -136,7 +136,7 @@ data class TripAccumulator(
             stats = TripStats(
                 points = stats.points + 1,
                 distanceM = distance,
-                durationMs = lastTime - first,
+                durationMs = (lastTime - first).coerceAtLeast(0L),
                 movingTimeMs = moving,
                 maxSpeedMps = listOfNotNull(stats.maxSpeedMps, point.speedMps).maxOrNull(),
                 avgMovingSpeedMps = if (moving > 0L) distance / (moving / 1000.0) else null,
@@ -180,11 +180,13 @@ object TripCsv {
         val f = line.trim().split(',').map { it.trim() }
         if (f.size != 6) return null
         val time = f[0].toLongOrNull() ?: return null
-        val lat = f[1].toDoubleOrNull() ?: return null
-        val lon = f[2].toDoubleOrNull() ?: return null
-        val alt = if (f[3].isEmpty()) null else f[3].toDoubleOrNull() ?: return null
-        val speed = if (f[4].isEmpty()) null else f[4].toFloatOrNull() ?: return null
-        val acc = if (f[5].isEmpty()) null else f[5].toFloatOrNull() ?: return null
+        // Finite and in range only: "NaN" and "Infinity" parse as numbers but would end up
+        // as invalid coordinates in an exported GPX.
+        val lat = f[1].toDoubleOrNull()?.takeIf { it.isFinite() && it in -90.0..90.0 } ?: return null
+        val lon = f[2].toDoubleOrNull()?.takeIf { it.isFinite() && it in -180.0..180.0 } ?: return null
+        val alt = if (f[3].isEmpty()) null else f[3].toDoubleOrNull()?.takeIf { it.isFinite() } ?: return null
+        val speed = if (f[4].isEmpty()) null else f[4].toFloatOrNull()?.takeIf { it.isFinite() } ?: return null
+        val acc = if (f[5].isEmpty()) null else f[5].toFloatOrNull()?.takeIf { it.isFinite() } ?: return null
         return TripPoint(time, lat, lon, alt, speed, acc)
     }
 }

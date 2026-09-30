@@ -66,15 +66,30 @@ class PositioningQualityTest {
     fun `hearing L1 and L5 together counts as dual frequency`() {
         val quality = PositioningQuality.from(
             snapshot(
-                sat(carrierMhz = 1575.42),
-                sat(carrierMhz = 1575.42),
-                sat(carrierMhz = 1176.45),
-                sat(carrierMhz = 1176.45),
+                sat(carrierMhz = 1575.42, svid = 1),
+                sat(carrierMhz = 1575.42, svid = 2),
+                sat(carrierMhz = 1575.42, svid = 3),
+                sat(carrierMhz = 1575.42, svid = 4),
+                sat(carrierMhz = 1176.45, svid = 1),
+                sat(carrierMhz = 1176.45, svid = 2),
             ),
         )
         assertTrue(quality.dualFrequency)
         assertEquals(ResolutionClass.DUAL_FREQUENCY, quality.resolution)
         assertEquals(listOf(SignalBand.L1, SignalBand.L5), quality.bandsInUse)
+    }
+
+    @Test
+    fun `L1 and L5 from different satellites is not dual frequency`() {
+        val quality = PositioningQuality.from(
+            snapshot(
+                sat(carrierMhz = 1575.42, svid = 1),
+                sat(carrierMhz = 1575.42, svid = 2),
+                sat(carrierMhz = 1176.45, svid = 3),
+                sat(carrierMhz = 1176.45, svid = 4),
+            ),
+        )
+        assertFalse(quality.dualFrequency)
     }
 
     @Test
@@ -101,9 +116,10 @@ class PositioningQualityTest {
     fun `dual frequency plus augmentation is the best case`() {
         val quality = PositioningQuality.from(
             snapshot(
-                sat(carrierMhz = 1575.42),
-                sat(carrierMhz = 1176.45),
-                sat(carrierMhz = 1176.45),
+                sat(carrierMhz = 1575.42, svid = 1),
+                sat(carrierMhz = 1575.42, svid = 2),
+                sat(carrierMhz = 1575.42, svid = 3),
+                sat(carrierMhz = 1176.45, svid = 1),
                 sat(Constellation.SBAS, svid = 131, carrierMhz = 1575.42),
             ),
         )

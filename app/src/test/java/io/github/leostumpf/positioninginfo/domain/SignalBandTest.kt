@@ -53,4 +53,17 @@ class SignalBandTest {
             SignalBand.entries.filter { it.isHighPrecision },
         )
     }
+
+    @Test
+    fun `the precise-positioning and GLONASS L3 bands are recognised`() {
+        assertEquals(SignalBand.E6, SignalBand.fromCarrierFrequencyHz(1268.52e6f))  // BeiDou B3I
+        assertEquals(SignalBand.E6, SignalBand.fromCarrierFrequencyHz(1278.75e6f))  // Galileo E6, QZSS L6
+        assertEquals(SignalBand.E5B, SignalBand.fromCarrierFrequencyHz(1202.025e6f)) // GLONASS L3
+    }
+
+    @Test
+    fun `Galileo E5 AltBOC is L5 on every page`() {
+        assertEquals(SignalBand.L5, SignalBand.fromCarrierFrequencyHz(1191.795e6f))
+        assertEquals(Band.L5_E5A_B2A, Band.of(1191.795e6))
+    }
 }

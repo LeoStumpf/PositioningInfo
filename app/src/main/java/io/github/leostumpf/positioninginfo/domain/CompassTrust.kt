@@ -15,8 +15,9 @@ data class CompassTrust(
     val measuredUt: Double,
     val expectedUt: Double,
 ) {
-    /** Relative difference, 0.12 for 12 %. */
-    val deviation: Double get() = abs(measuredUt - expectedUt) / expectedUt
+    /** Relative difference, 0.12 for 12 %; infinite when no field is expected at all. */
+    val deviation: Double
+        get() = if (expectedUt > 0.0) abs(measuredUt - expectedUt) / expectedUt else Double.POSITIVE_INFINITY
 
     val level: Level
         get() = when {

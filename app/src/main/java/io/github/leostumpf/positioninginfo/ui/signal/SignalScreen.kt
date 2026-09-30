@@ -233,6 +233,7 @@ private fun SignalBand.frequencyLabel(): String? = when (this) {
     SignalBand.L2 -> "1227 MHz"
     SignalBand.L5 -> "1176 MHz"
     SignalBand.E5B -> "1207 MHz"
+    SignalBand.E6 -> "1278 MHz"
     SignalBand.S_BAND -> "2492 MHz"
     SignalBand.UNKNOWN -> null
 }

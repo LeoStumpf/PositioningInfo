@@ -87,6 +87,8 @@ data class AlmanacStatus(
 
         private fun readinessOf(snapshot: GnssSnapshot): AlmanacReadiness = when {
             !snapshot.hasReported -> AlmanacReadiness.UNKNOWN
+            // Reported, but listing nothing: that says nothing about stored orbits either way.
+            snapshot.satellites.isEmpty() -> AlmanacReadiness.UNKNOWN
 
             // A receiver actually using satellites for a fix is ready by demonstration,
             // whatever its flags claim. Observed behaviour outranks reported state.

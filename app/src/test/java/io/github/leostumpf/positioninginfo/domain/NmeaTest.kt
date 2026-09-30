@@ -152,4 +152,22 @@ class NmeaTest {
         assertEquals(0.031, state.gst!!.altSigmaM!!, 1e-9)
         assertTrue(state.rmc!!.valid)
     }
+
+    private fun withChecksum(body: String): String =
+        "\$" + body + "*" + "%02X".format(body.fold(0) { acc, c -> acc xor c.code })
+
+    @Test
+    fun `a signed checksum is rejected`() {
+        val body = "GPGGA,123519,4807.038,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,"
+        val sum = body.fold(0) { acc, c -> acc xor c.code }
+        assertNull(NmeaParser.parse("\$" + body + "*+" + (sum and 0xF).toString(16)))
+    }
+
+    @Test
+    fun `coordinates out of range are malformed`() {
+        val lat = NmeaParser.parse(withChecksum("GPGGA,123519,9959.900,N,01131.000,E,1,08,0.9,545.4,M,46.9,M,,"))
+        val lon = NmeaParser.parse(withChecksum("GPGGA,123519,4807.038,N,19959.000,E,1,08,0.9,545.4,M,46.9,M,,"))
+        assertTrue(lat == null || lat !is Gga)
+        assertTrue(lon == null || lon !is Gga)
+    }
 }

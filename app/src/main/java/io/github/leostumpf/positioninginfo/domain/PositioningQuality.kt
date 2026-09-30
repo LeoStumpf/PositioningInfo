@@ -59,7 +59,11 @@ data class PositioningQuality(
                 .sortedBy { it.ordinal }
 
             val sbasUsed = used.any { it.constellation == Constellation.SBAS }
-            val dualFrequency = bands.any { it.isHighPrecision } && bands.contains(SignalBand.L1)
+            // Dual frequency cancels the ionospheric delay only when one satellite is heard on
+            // both bands; L1 from one satellite and L5 from another does not.
+            val dualFrequency = used.groupBy { it.constellation to it.svid }.values.any { signals ->
+                signals.any { it.band == SignalBand.L1 } && signals.any { it.band?.isHighPrecision == true }
+            }
 
             return PositioningQuality(
                 resolution = classify(

@@ -96,6 +96,8 @@ data class BaroAltimeter(
         }
 
         val implied = seaLevelPressureHpa(p, mslM)
+        // Beyond the formula's range (≥ 44 330 m) it gives NaN, which would spoil the sum for good.
+        if (!implied.isFinite()) return this
         // Guard against a receiver claiming 0 m, which would take all the weight forever.
         val sigma = max(verticalAccuracyM.toDouble(), MIN_VERTICAL_ACCURACY_M)
         val weight = 1.0 / (sigma * sigma)
