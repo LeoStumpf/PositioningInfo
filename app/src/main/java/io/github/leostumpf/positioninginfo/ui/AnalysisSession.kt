@@ -116,15 +116,25 @@ class AnalysisSession(
     private var scatterRunning = false
 
     private var trip = TripAccumulator()
-    private var tripAltitudes = listOf<Double>()
+    /** Appended in place: copying the list on every fix cost O(n²) over a long trip. */
+    private val tripAltitudes = ArrayList<Double>()
     private var tripRecording = false
+    /** Recording waits until the saved trip is loaded, so the load cannot overwrite new points. */
+    private var tripLoaded = false
+    /** Bumped by every delete, so a load that was already under way cannot bring a trip back. */
+    private var tripGeneration = 0
     private var tripMessage: String? = null
 
     init {
         scope.launch {
+            val generation = tripGeneration
             val saved = tripStore.load()
-            trip = saved.fold(TripAccumulator()) { acc, p -> acc.add(p, p.altitudeM) }
-            tripAltitudes = saved.mapNotNull { it.altitudeM }
+            if (generation == tripGeneration) {
+                trip = saved.fold(TripAccumulator()) { acc, p -> acc.add(p, p.altitudeM) }
+                tripAltitudes.clear()
+                saved.mapNotNullTo(tripAltitudes) { it.altitudeM }
+            }
+            tripLoaded = true
             publishTrip()
         }
     }
@@ -205,7 +215,11 @@ class AnalysisSession(
                     PositionScatter.Sample(lat, lon, msl?.first ?: fix.ellipsoidAltitudeM, fix.horizontalAccuracyM),
                 )
             }
-            if (tripRecording) {
+            if (tripRecording && trip.stats.points >= MAX_TRIP_POINTS) {
+                tripRecording = false
+                tripMessage = "The trip is full ($MAX_TRIP_POINTS points). Export it and delete it to record a new one."
+                publishTrip()
+            } else if (tripRecording) {
                 val point = TripPoint(
                     timeUtcMs = fix.utcTimeMs ?: System.currentTimeMillis(),
                     latitude = lat,
@@ -215,7 +229,7 @@ class AnalysisSession(
                     accuracyM = fix.horizontalAccuracyM,
                 )
                 trip = trip.add(point, baro.calibratedAltitudeM ?: baro.standardAltitudeM ?: msl?.first)
-                point.altitudeM?.let { tripAltitudes = tripAltitudes + it }
+                point.altitudeM?.let { tripAltitudes += it }
                 scope.launch { tripStore.append(point) }
                 publishTrip()
             }
@@ -249,6 +263,7 @@ class AnalysisSession(
     }
 
     fun toggleTrip() {
+        if (!tripLoaded) return
         tripRecording = !tripRecording
         tripMessage = null
         publishTrip()
@@ -257,7 +272,8 @@ class AnalysisSession(
     fun clearTrip() {
         tripRecording = false
         trip = TripAccumulator()
-        tripAltitudes = emptyList()
+        tripAltitudes.clear()
+        tripGeneration++
         tripMessage = "Trip deleted."
         scope.launch { tripStore.clear() }
         publishTrip()
@@ -297,7 +313,8 @@ class AnalysisSession(
     fun clearAll() {
         tripRecording = false
         trip = TripAccumulator()
-        tripAltitudes = emptyList()
+        tripAltitudes.clear()
+        tripGeneration++
         tripMessage = null
         scope.launch { tripStore.clear() }
         scatter = PositionScatter()
@@ -510,8 +527,11 @@ class AnalysisSession(
     }
 
     /** Every n-th value, so a long trip still draws cheaply. */
-    private fun thin(values: List<Double>, max: Int): List<Double> =
-        if (values.size <= max) values else values.filterIndexed { i, _ -> i % (values.size / max + 1) == 0 }
+    private fun thin(values: List<Double>, max: Int): List<Double> {
+        if (values.size <= max) return values.toList()
+        val step = values.size / max + 1
+        return List((values.size + step - 1) / step) { values[it * step] }
+    }
 
     private fun suggestedDate(): String =
         SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())
@@ -519,6 +539,8 @@ class AnalysisSession(
     private companion object {
         const val GGA_FRESH_MS = 3_000L
         const val PROFILE_POINTS = 300
+        /** About 55 hours at one fix a second, some 12 MB on disk; the whole file is read at start. */
+        const val MAX_TRIP_POINTS = 200_000
         const val FIELD_SMOOTHING = 0.1
         const val L1_HZ = 1_575.42e6
         const val GPS_EPOCH_MS = 315_964_800_000L
