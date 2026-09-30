@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.gnss
 
+import io.github.leostumpf.positioninginfo.ui.common.rememberLogTimeFormat
+import java.util.Locale
 import io.github.leostumpf.positioninginfo.ui.common.TileRow
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.verticalScroll
@@ -216,7 +218,7 @@ fun GnssScreen(
             state.ttffLog.takeLast(5).reversed().forEachIndexed { i, e ->
                 item {
                     ValueRow(
-                        java.text.SimpleDateFormat("EEE d MMM, HH:mm", java.util.Locale.getDefault()).format(java.util.Date(e.utcMs)),
+                        rememberLogTimeFormat().format(java.util.Date(e.utcMs)),
                         FixDiagnosis.formatDuration(e.ttffMs),
                         detail = when (e.startType) {
                             AlmanacReadiness.HOT -> "hot start"
@@ -352,7 +354,7 @@ private fun SatelliteRow(satellite: SatelliteInfo, detail: SignalDetail?, onClic
             Text(satellite.band?.shortLabel() ?: "—", style = DataStyle.copy(fontSize = 11.sp), color = Palette.TextTertiary, modifier = Modifier.widthIn(min = 24.dp))
             StageGauge(if (heard) detail?.stage else null)
             LevelBar((satellite.cn0DbHz / GOOD_SIGNAL_DB_HZ), signalColour(satellite.cn0DbHz), Modifier.weight(1f))
-            Text(if (heard) "%.0f".format(satellite.cn0DbHz) else "—", style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary, textAlign = TextAlign.End, modifier = Modifier.widthIn(min = 24.dp))
+            Text(if (heard) "%.0f".format(Locale.US, satellite.cn0DbHz) else "—", style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary, textAlign = TextAlign.End, modifier = Modifier.widthIn(min = 24.dp))
             Text(
                 buildAnnotatedString {
                     withStyle(SpanStyle(color = if (satellite.hasAlmanac) Palette.TextPrimary else Palette.Inactive)) { append("A ") }
@@ -573,7 +575,7 @@ private fun SatelliteSheet(row: SignalRow, detail: SignalDetail?, siblings: List
             siblings.forEach { sib ->
                 ValueRow(
                     "Strength" + (sib.satellite.band?.shortLabel()?.let { " · $it" } ?: ""),
-                    if (sib.satellite.cn0DbHz > 0f) "%.0f dB-Hz".format(sib.satellite.cn0DbHz) else "—",
+                    if (sib.satellite.cn0DbHz > 0f) "%.0f dB-Hz".format(Locale.US, sib.satellite.cn0DbHz) else "—",
                 )
             }
             ValueRow("Doppler shift", detail?.dopplerHz?.takeIf { heard }?.let { (if (it >= 0) "+" else "−") + String.format(java.util.Locale.US, "%.2f kHz", kotlin.math.abs(it) / 1_000) } ?: "—",
@@ -583,8 +585,8 @@ private fun SatelliteSheet(row: SignalRow, detail: SignalDetail?, siblings: List
             detail?.raw?.takeIf { heard }?.let { RawMeasurementRows(sat, it) }
 
             SectionHeader("Position and data", modifier = Modifier.padding(top = 16.dp, bottom = 2.dp))
-            ValueRow("Elevation", "%.0f°".format(sat.elevationDegrees))
-            ValueRow("Azimuth", "%.0f°".format(sat.azimuthDegrees))
+            ValueRow("Elevation", "%.0f°".format(Locale.US, sat.elevationDegrees))
+            ValueRow("Azimuth", "%.0f°".format(Locale.US, sat.azimuthDegrees))
             ValueRow("Almanac", if (sat.hasAlmanac) "held" else "missing")
             ValueRow("Ephemeris", if (sat.hasEphemeris) "held" else "missing")
             ValueRow(

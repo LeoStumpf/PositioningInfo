@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.common
 
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
+import android.text.format.DateFormat
+import java.text.SimpleDateFormat
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -551,6 +555,20 @@ const val DASH = "—"
 
 fun Double.fmt(decimals: Int): String = String.format(Locale.US, "%.${decimals}f", this)
 fun Float.fmt(decimals: Int): String = toDouble().fmt(decimals)
+
+/** A count with a narrow space between thousands, "12 345", the same on every phone. */
+fun Long.grouped(): String = String.format(Locale.US, "%,d", this).replace(',', '\u202F')
+fun Int.grouped(): String = toLong().grouped()
+
+/**
+ * Date and time for a log line: English like the rest of the app, but on the phone's 12- or
+ * 24-hour clock.
+ */
+@Composable
+fun rememberLogTimeFormat(): SimpleDateFormat {
+    val is24Hour = DateFormat.is24HourFormat(LocalContext.current)
+    return remember(is24Hour) { SimpleDateFormat(if (is24Hour) "EEE d MMM, HH:mm" else "EEE d MMM, h:mm a", Locale.US) }
+}
 
 /** "12.3 m", or "1.2 km" beyond a kilometre. */
 fun metres(value: Double?, decimals: Int = 1): String = when {

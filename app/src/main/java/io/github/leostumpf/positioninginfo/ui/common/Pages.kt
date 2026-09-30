@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.common
 
+import java.util.Locale
+
 /** The app's pages in swipe order: name, short name for the indicator, and glossary. */
 enum class Page(val title: String, val shortName: String, val glossary: List<PrimerEntry>) {
     SPEED("Speed", "Speed", Glossary.speed),
@@ -14,5 +16,5 @@ enum class Page(val title: String, val shortName: String, val glossary: List<Pri
     ;
 
     /** "03 / 08". */
-    val number: String get() = "%02d / %02d".format(ordinal + 1, entries.size)
+    val number: String get() = "%02d / %02d".format(Locale.US, ordinal + 1, entries.size)
 }

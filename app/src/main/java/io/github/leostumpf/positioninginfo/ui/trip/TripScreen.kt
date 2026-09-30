@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.trip
 
+import io.github.leostumpf.positioninginfo.ui.common.grouped
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -113,7 +114,7 @@ fun TripScreen(
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     StatTile("Average moving", stats?.avgMovingSpeedMps?.let { formatSpeed(it, unit) } ?: DASH, Modifier.weight(1f), unit = unit.symbol)
-                    StatTile("Track points", "%,d".format(points).replace(',', ' '), Modifier.weight(1f))
+                    StatTile("Track points", points.grouped(), Modifier.weight(1f))
                 }
                 if (state.elevationProfile.size <= 1) {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

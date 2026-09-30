@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.domain
 
+import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.sqrt
 
@@ -236,7 +237,7 @@ data class InterferenceMonitor(
                 val sd = stdDev(m.cn0s)
                 if (sd < SPOOF_UNIFORM_MAX_STDDEV && mean > SPOOF_UNIFORM_MIN_MEAN) {
                     out += "${band.label}: ${m.cn0s.size} signals are unusually alike in strength " +
-                        "(%.0f dB-Hz ± %.1f). Real satellites at different elevations usually differ more; ".format(mean, sd) +
+                        "(%.0f dB-Hz ± %.1f). Real satellites at different elevations usually differ more; ".format(Locale.US, mean, sd) +
                         "one transmitter could make them alike."
                 }
             }
@@ -246,14 +247,14 @@ data class InterferenceMonitor(
             val mean = s.meanCn0DbHz ?: continue
             val baseline = s.cn0BaselineDbHz ?: continue
             if (drop >= SPOOF_AGC_SHIFT_DB && mean - baseline >= SPOOF_CN0_RISE_DB) {
-                out += "${s.band.label}: more power in the band (AGC %.0f dB below baseline) ".format(drop) +
+                out += "${s.band.label}: more power in the band (AGC %.0f dB below baseline) ".format(Locale.US, drop) +
                     "while signals got stronger. This could be a source stronger than the sky."
             }
         }
         val jumpAt = lastDriftJumpMs
         val now = lastEpoch?.atMs
         if (jumpAt != null && now != null && now - jumpAt <= DRIFT_WINDOW_MS) {
-            out += "The clock drift jumped by more than %.1f ppm between epochs, which an oscillator ".format(DRIFT_JUMP_PPM) +
+            out += "The clock drift jumped by more than %.1f ppm between epochs, which an oscillator ".format(Locale.US, DRIFT_JUMP_PPM) +
                 "rarely does on its own."
         }
         return out

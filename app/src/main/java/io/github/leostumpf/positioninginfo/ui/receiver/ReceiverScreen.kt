@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.receiver
 
+import java.util.Locale
+import io.github.leostumpf.positioninginfo.ui.common.grouped
 import io.github.leostumpf.positioninginfo.ui.common.TileRow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -169,7 +171,7 @@ fun ReceiverScreen(state: ReceiverUiState, modifier: Modifier = Modifier) {
                     when {
                         gps.health.isEmpty() -> DASH
                         unhealthy.isEmpty() -> "all ${gps.health.size} healthy"
-                        else -> unhealthy.joinToString { "G%02d".format(it) }
+                        else -> unhealthy.joinToString { "G%02d".format(Locale.US, it) }
                     },
                     valueColor = if (unhealthy.isNotEmpty()) Palette.Degraded else null,
                 )
@@ -189,7 +191,7 @@ fun ReceiverScreen(state: ReceiverUiState, modifier: Modifier = Modifier) {
                 item {
                     ValueRow(
                         "Ionosphere model", "received",
-                        detail = "α " + k.alpha.joinToString(" ") { "%.2e".format(it) } + " · β " + k.beta.joinToString(" ") { "%.2e".format(it) },
+                        detail = "α " + k.alpha.joinToString(" ") { "%.2e".format(Locale.US, it) } + " · β " + k.beta.joinToString(" ") { "%.2e".format(Locale.US, it) },
                         divider = false,
                     )
                 }
@@ -320,7 +322,7 @@ private fun SentenceMix(counts: Map<String, Int>, total: Int, rejected: Int) {
     Column(Modifier.padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row {
             Text("Sentences", style = BodyStyle, color = Palette.TextSecondary, modifier = Modifier.weight(1f))
-            Text("%,d".format(total).replace(',', ' ') + if (rejected > 0) " ($rejected bad)" else "", style = DataStyle, color = Palette.TextPrimary)
+            Text(total.grouped() + if (rejected > 0) " ($rejected bad)" else "", style = DataStyle, color = Palette.TextPrimary)
         }
         Row(Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(4.dp)), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             val sum = sorted.sumOf { it.value }.coerceAtLeast(1)
