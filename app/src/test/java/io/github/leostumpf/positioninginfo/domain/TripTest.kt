@@ -141,6 +141,29 @@ class TripTest {
     }
 
     @Test
+    fun `switching the altitude source is not a climb`() {
+        var trip = TripAccumulator()
+        // Standard atmosphere at 1030 hPa reads ~140 m low until the barometer is calibrated.
+        for (i in 0 until 10) trip = trip.add(point(i * 1_000L, 0.0, 0.0), 360.0, ClimbSource.BAROMETER_STANDARD)
+        for (i in 10 until 20) trip = trip.add(point(i * 1_000L, 0.0, 0.0), 500.0, ClimbSource.BAROMETER)
+        // And GNSS height, when the barometer drops out, is off by its own offset.
+        for (i in 20 until 30) trip = trip.add(point(i * 1_000L, 0.0, 0.0), 470.0, ClimbSource.GNSS)
+        assertEquals(0.0, trip.stats.ascentM, 0.0)
+        assertEquals(0.0, trip.stats.descentM, 0.0)
+    }
+
+    @Test
+    fun `realistic GNSS height noise adds no climb`() {
+        val random = Random(7)
+        var trip = TripAccumulator()
+        for (i in 0 until 1_000) {
+            trip = trip.add(point(i * 1_000L, 0.0, 0.0), 500.0 + random.nextDouble(-4.5, 4.5), ClimbSource.GNSS)
+        }
+        assertEquals(0.0, trip.stats.ascentM, 0.0)
+        assertEquals(0.0, trip.stats.descentM, 0.0)
+    }
+
+    @Test
     fun `descent is counted`() {
         var trip = TripAccumulator()
         for (i in 0..10) trip = trip.add(point(i * 1_000L, 0.0, 0.0), 100.0 - i * 5.0)

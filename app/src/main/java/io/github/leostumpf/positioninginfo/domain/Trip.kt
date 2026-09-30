@@ -39,11 +39,25 @@ data class TripStats(
  * point, or the receiver reports real motion (> [MOVING_SPEED_MPS]). Fixes worse than
  * [MAX_ACCURACY_M] never contribute distance. Across a reception gap longer than [MAX_GAP_MS]
  * the jump in position still counts, and so does the gap's time as moving time whenever the
- * jump implies travel — distance and moving time always cover the same stretches. Ascent and descent use a [CLIMB_HYSTERESIS_M]
+ * jump implies travel — distance and moving time always cover the same stretches. Ascent and descent use a hysteresis (see [ClimbSource])
  * hysteresis for the same reason: altitude noise must not add up to phantom climbing.
  *
  * Immutable: [add] returns a new instance.
  */
+/**
+ * Where a climb altitude comes from. The sources disagree by tens of metres — the standard
+ * atmosphere is off by about 8 m per hPa of weather, GNSS height by its geoid and its noise —
+ * so a switch between them is a jump in the reference, not a climb.
+ */
+enum class ClimbSource(val hysteresisM: Double) {
+    /** Barometer calibrated against GNSS: smooth to a metre or so. */
+    BAROMETER(3.0),
+    /** Barometer on the standard atmosphere, before calibration: smooth, but offset. */
+    BAROMETER_STANDARD(3.0),
+    /** GNSS height alone: 5–10 m of slowly wandering noise, so a wider band. */
+    GNSS(10.0),
+}
+
 data class TripAccumulator(
     val stats: TripStats = TripStats(0, 0.0, 0L, 0L, null, null, 0.0, 0.0),
     private val firstTimeMs: Long? = null,
@@ -52,9 +66,15 @@ data class TripAccumulator(
     private val anchor: TripPoint? = null,
     /** Altitude at which the last climb or descent was counted. */
     private val climbReferenceM: Double? = null,
+    /** Where [climbReferenceM] came from; a different source starts a new reference. */
+    private val climbSource: ClimbSource? = null,
 ) {
-    /** [climbAltitudeM] is the altitude to use for ascent/descent (barometric if available, else GNSS); may be null. */
-    fun add(point: TripPoint, climbAltitudeM: Double?): TripAccumulator {
+    /**
+     * [climbAltitudeM] is the altitude to use for ascent/descent, from [source]; may be null.
+     * When the source changes, the new altitude becomes the reference without counting the
+     * step between the two.
+     */
+    fun add(point: TripPoint, climbAltitudeM: Double?, source: ClimbSource = ClimbSource.BAROMETER): TripAccumulator {
         val first = firstTimeMs ?: point.timeUtcMs
 
         var distance = stats.distanceM
@@ -96,13 +116,15 @@ data class TripAccumulator(
         var ascent = stats.ascentM
         var descent = stats.descentM
         var reference = climbReferenceM
+        var referenceSource = climbSource
         if (climbAltitudeM != null && climbAltitudeM.isFinite()) {
             val ref = reference
-            if (ref == null) {
+            if (ref == null || source != climbSource) {
                 reference = climbAltitudeM
+                referenceSource = source
             } else {
                 val delta = climbAltitudeM - ref
-                if (abs(delta) >= CLIMB_HYSTERESIS_M) {
+                if (abs(delta) >= source.hysteresisM) {
                     if (delta > 0) ascent += delta else descent -= delta
                     reference = climbAltitudeM
                 }
@@ -125,6 +147,7 @@ data class TripAccumulator(
             previous = point,
             anchor = newAnchor,
             climbReferenceM = reference,
+            climbSource = referenceSource,
         )
     }
 
@@ -134,7 +157,6 @@ data class TripAccumulator(
         const val MOVING_SPEED_MPS = 0.5f
         /** Intervals above this are reception gaps, judged by their overall displacement. */
         const val MAX_GAP_MS = 30_000L
-        const val CLIMB_HYSTERESIS_M = 3.0
     }
 }
 

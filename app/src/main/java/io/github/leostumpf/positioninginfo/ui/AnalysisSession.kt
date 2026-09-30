@@ -36,6 +36,7 @@ import io.github.leostumpf.positioninginfo.domain.ScatterStats
 import io.github.leostumpf.positioninginfo.domain.SkyPoint
 import io.github.leostumpf.positioninginfo.domain.SpeedUnit
 import io.github.leostumpf.positioninginfo.domain.TripAccumulator
+import io.github.leostumpf.positioninginfo.domain.ClimbSource
 import io.github.leostumpf.positioninginfo.domain.TripPoint
 import io.github.leostumpf.positioninginfo.ui.common.fmt
 import io.github.leostumpf.positioninginfo.ui.position.PositionUiState
@@ -138,7 +139,9 @@ class AnalysisSession(
             val generation = tripGeneration
             val saved = tripStore.load()
             if (generation == tripGeneration) {
-                trip = saved.fold(TripAccumulator()) { acc, p -> acc.add(p, p.altitudeM) }
+                // The file keeps the calibrated barometric height where there was one, else GNSS.
+                val source = if (hasBarometer) ClimbSource.BAROMETER else ClimbSource.GNSS
+                trip = saved.fold(TripAccumulator()) { acc, p -> acc.add(p, p.altitudeM, source) }
                 tripAltitudes.clear()
                 saved.mapNotNullTo(tripAltitudes) { it.altitudeM }
             }
@@ -236,7 +239,10 @@ class AnalysisSession(
                     speedMps = fix.speedMps,
                     accuracyM = fix.horizontalAccuracyM,
                 )
-                trip = trip.add(point, baro.calibratedAltitudeM ?: baro.standardAltitudeM ?: msl?.first)
+                val (climbAltitude, climbSource) = baro.calibratedAltitudeM?.let { it to ClimbSource.BAROMETER }
+                    ?: baro.standardAltitudeM?.let { it to ClimbSource.BAROMETER_STANDARD }
+                    ?: (msl?.first to ClimbSource.GNSS)
+                trip = trip.add(point, climbAltitude, climbSource)
                 point.altitudeM?.let { tripAltitudes += it }
                 scope.launch { tripStore.append(point) }
                 publishTrip()
