@@ -65,7 +65,8 @@ fun Diagnosis.detail(): String {
 
         Verdict.SIGNALS_TOO_WEAK ->
             "${i.satellitesHeard.counted("satellite")} ${if (i.satellitesHeard == 1) "is" else "are"} heard, " +
-                "but only ${i.satellitesStrong} strongly enough to decode their data. Typical indoors or under dense trees."
+                "but only ${i.satellitesStrong} strongly enough to decode their data. Typical indoors or under " +
+                "dense trees."
 
         Verdict.FIX_LOST ->
             "The receiver had a fix this session and still holds the orbits, so it usually " +

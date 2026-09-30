@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.leostumpf.positioninginfo.domain.CheckStatus
 import io.github.leostumpf.positioninginfo.domain.Diagnosis
+import io.github.leostumpf.positioninginfo.domain.DiagnosisCheck
 import io.github.leostumpf.positioninginfo.ui.common.Tone
 import io.github.leostumpf.positioninginfo.ui.common.tinted
 import io.github.leostumpf.positioninginfo.ui.sky.label
@@ -77,40 +78,46 @@ internal fun DiagnosisCard(d: Diagnosis, modifier: Modifier = Modifier) {
         if (expanded) {
             Column(Modifier.padding(top = 6.dp)) {
                 d.checks.forEachIndexed { i, check ->
-                    Row(
-                        Modifier.fillMaxWidth().padding(vertical = 7.dp),
-                        verticalAlignment = Alignment.Top,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        Box(Modifier.padding(top = 7.dp).size(6.dp).background(check.status.tone().color, CircleShape))
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                check.label(d.input),
-                                style = BodyStyle.copy(fontSize = 14.sp),
-                                color = Palette.TextSecondary,
-                            )
-                            if (check.status != CheckStatus.OK) {
-                                check.hint(d.input, d.expectedMs)?.let {
-                                    Text(
-                                        it,
-                                        style = BodyStyle.copy(fontSize = 12.sp, lineHeight = 17.sp),
-                                        color = Palette.TextTertiary,
-                                    )
-                                }
-                            }
-                        }
-                        Text(
-                            check.value(d.input),
-                            style = DataStyle.copy(fontSize = 13.sp),
-                            color = Palette.TextPrimary,
-                            textAlign = TextAlign.End,
-                            modifier = Modifier.widthIn(max = 180.dp),
-                        )
-                    }
+                    CheckRow(check, d)
                     if (i < d.checks.lastIndex) HorizontalDivider(color = Palette.Divider)
                 }
             }
         }
+    }
+}
+
+/** One link of the chain: status dot, what was checked, a hint when it is not fine, the value. */
+@Composable
+private fun CheckRow(check: DiagnosisCheck, d: Diagnosis, modifier: Modifier = Modifier) {
+    Row(
+        modifier.fillMaxWidth().padding(vertical = 7.dp),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Box(Modifier.padding(top = 7.dp).size(6.dp).background(check.status.tone().color, CircleShape))
+        Column(Modifier.weight(1f)) {
+            Text(
+                check.label(d.input),
+                style = BodyStyle.copy(fontSize = 14.sp),
+                color = Palette.TextSecondary,
+            )
+            if (check.status != CheckStatus.OK) {
+                check.hint(d.input, d.expectedMs)?.let {
+                    Text(
+                        it,
+                        style = BodyStyle.copy(fontSize = 12.sp, lineHeight = 17.sp),
+                        color = Palette.TextTertiary,
+                    )
+                }
+            }
+        }
+        Text(
+            check.value(d.input),
+            style = DataStyle.copy(fontSize = 13.sp),
+            color = Palette.TextPrimary,
+            textAlign = TextAlign.End,
+            modifier = Modifier.widthIn(max = 180.dp),
+        )
     }
 }
 

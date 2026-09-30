@@ -35,31 +35,34 @@ class BackgroundTrackingService : Service() {
             return START_NOT_STICKY
         }
         createChannel()
-        try {
-            ServiceCompat.startForeground(
-                this,
-                NOTIFICATION_ID,
-                buildNotification(),
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION else 0,
-            )
-        } catch (e: IllegalStateException) {
-            // The app left the screen before the service came up.
-            return refused(e)
-        } catch (e: SecurityException) {
-            // Location access was withdrawn.
-            return refused(e)
-        }
-        BackgroundMode.setActive(true)
+        if (enterForeground()) BackgroundMode.setActive(true)
         // Not sticky: if Android kills the process, the session it served is gone too.
         return START_NOT_STICKY
     }
 
+    /** Shows the notification and becomes a location service; false if Android refuses. */
+    private fun enterForeground(): Boolean {
+        // The service type is declared from Android 10 on; before, the manifest says it all.
+        val location = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
+        val type = if (location) ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION else 0
+        return try {
+            ServiceCompat.startForeground(this, NOTIFICATION_ID, buildNotification(), type)
+            true
+        } catch (e: IllegalStateException) {
+            // The app left the screen before the service came up.
+            refused(e)
+        } catch (e: SecurityException) {
+            // Location access was withdrawn.
+            refused(e)
+        }
+    }
+
     /** Background mode ends when Android refuses the service; the app itself is unaffected. */
-    private fun refused(e: Exception): Int {
+    private fun refused(e: Exception): Boolean {
         Log.w("PositioningInfo", "Background mode refused by the system", e)
         BackgroundMode.setActive(false)
         stopSelf()
-        return START_NOT_STICKY
+        return false
     }
 
     /** Swiping the app away from recents ends it, background mode included. */

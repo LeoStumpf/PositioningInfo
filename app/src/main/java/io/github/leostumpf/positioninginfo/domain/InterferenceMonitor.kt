@@ -152,76 +152,85 @@ data class InterferenceMonitor(
     val epochs: Int = 0,
 ) {
 
+    /** Takes in one epoch of raw measurements; the baseline is learned over the first minute. */
     fun onEpoch(epoch: RawEpoch): InterferenceMonitor {
         val previousAt = lastEpoch?.atMs
-        val base = if (previousAt == null || epoch.atMs - previousAt > RESET_AFTER_MS) {
-            // A fresh start: the old baseline may describe another place or another time.
-            copy(
-                sessionStartMs = epoch.atMs,
-                lastEpoch = null,
-                baselineSamples = emptyMap(),
-                jammingStreak = 0,
-                driftHistory = emptyList(),
-                lastDriftJumpMs = null,
-                lastDiscontinuityCount = null,
-            )
-        } else {
-            this
-        }
+        // After a long gap the old baseline may describe another place or another time.
+        val base = if (previousAt == null || epoch.atMs - previousAt > RESET_AFTER_MS) freshStart(epoch.atMs) else this
         val start = base.sessionStartMs ?: epoch.atMs
         val current = measure(epoch)
 
         val collecting = epoch.atMs - start < BASELINE_MS
-        val samples = if (collecting) {
-            val updated = base.baselineSamples.toMutableMap()
-            for ((band, m) in current) {
-                val old = updated[band] ?: BandBaselineSamples()
-                updated[band] = BandBaselineSamples(
-                    agcDb = m.agcDb?.let { old.agcDb + it } ?: old.agcDb,
-                    meanCn0DbHz = m.meanCn0?.let { old.meanCn0DbHz + it } ?: old.meanCn0DbHz,
-                    signals = old.signals + m.cn0s.size.toDouble(),
-                )
-            }
-            updated
-        } else {
-            base.baselineSamples
-        }
-
+        val samples = if (collecting) base.baselineSamples.plus(current) else base.baselineSamples
         val statuses = bandStatuses(current, if (collecting) emptyMap() else samples)
         val jamming = statuses.any { it.looksJammed() }
 
         val count = epoch.hardwareClockDiscontinuityCount
-        val lastCount = base.lastDiscontinuityCount
-        val newDiscontinuities = when {
-            count == null || lastCount == null || count == lastCount -> 0
-            count > lastCount -> count - lastCount
-            else -> 1 // the counter went backwards: at least one reset happened
-        }
-
-        // A drift jump counts only between consecutive epochs of one continuous clock: after
-        // a hardware discontinuity (routine duty cycling) the drift estimate restarts, and
-        // across a gap in the epochs the change is spread over time nobody watched.
-        val driftPpm = epoch.clockDriftNsPerS?.let { it / 1000.0 }
-        val previous = base.driftHistory.lastOrNull()
-        val jumped = driftPpm != null && previous != null && newDiscontinuities == 0 &&
-            epoch.atMs - previous.first <= DRIFT_JUMP_MAX_GAP_MS &&
-            abs(driftPpm - previous.second) > DRIFT_JUMP_PPM
-        val kept = if (newDiscontinuities > 0) emptyList() else base.driftHistory
-        val history = (if (driftPpm != null) kept + (epoch.atMs to driftPpm) else kept)
-            .filter { epoch.atMs - it.first <= DRIFT_WINDOW_MS }
+        val newDiscontinuities = newDiscontinuities(count, base.lastDiscontinuityCount)
+        val drift = base.driftAfter(epoch, clockReset = newDiscontinuities > 0)
 
         return base.copy(
             sessionStartMs = start,
             lastEpoch = epoch,
             baselineSamples = samples,
             jammingStreak = if (jamming) base.jammingStreak + 1 else 0,
-            driftHistory = history,
-            lastDriftJumpMs = if (jumped) epoch.atMs else base.lastDriftJumpMs,
-            lastDiscontinuityCount = count ?: lastCount,
+            driftHistory = drift.history,
+            lastDriftJumpMs = if (drift.jumped) epoch.atMs else base.lastDriftJumpMs,
+            lastDiscontinuityCount = count ?: base.lastDiscontinuityCount,
             discontinuities = base.discontinuities + newDiscontinuities,
             leapSecond = epoch.leapSecond ?: base.leapSecond,
             epochs = base.epochs + 1,
         )
+    }
+
+    private fun freshStart(atMs: Long) = copy(
+        sessionStartMs = atMs,
+        lastEpoch = null,
+        baselineSamples = emptyMap(),
+        jammingStreak = 0,
+        driftHistory = emptyList(),
+        lastDriftJumpMs = null,
+        lastDiscontinuityCount = null,
+    )
+
+    /** How many times the hardware clock restarted since [lastCount] was read. */
+    private fun newDiscontinuities(count: Int?, lastCount: Int?): Int = when {
+        count == null || lastCount == null || count == lastCount -> 0
+        count > lastCount -> count - lastCount
+        else -> 1 // the counter went backwards: at least one reset happened
+    }
+
+    /** The drift history with [epoch] added, and whether the drift jumped since the epoch before. */
+    private class DriftUpdate(val history: List<Pair<Long, Double>>, val jumped: Boolean)
+
+    private fun driftAfter(epoch: RawEpoch, clockReset: Boolean): DriftUpdate {
+        // A drift jump counts only between consecutive epochs of one continuous clock: after
+        // a hardware discontinuity (routine duty cycling) the drift estimate restarts, and
+        // across a gap in the epochs the change is spread over time nobody watched.
+        val driftPpm = epoch.clockDriftNsPerS?.let { it / NS_PER_S_PER_PPM }
+        val previous = driftHistory.lastOrNull()
+        val consecutive = previous != null && !clockReset && epoch.atMs - previous.first <= DRIFT_JUMP_MAX_GAP_MS
+        val jumped = consecutive && driftPpm != null && abs(driftPpm - previous.second) > DRIFT_JUMP_PPM
+        val kept = if (clockReset) emptyList() else driftHistory
+        val history = (if (driftPpm != null) kept + (epoch.atMs to driftPpm) else kept)
+            .filter { epoch.atMs - it.first <= DRIFT_WINDOW_MS }
+        return DriftUpdate(history, jumped)
+    }
+
+    /** The baseline samples with one more epoch's measurements per band added. */
+    private fun Map<Band, BandBaselineSamples>.plus(
+        current: Map<Band, BandMeasurement>,
+    ): Map<Band, BandBaselineSamples> {
+        val updated = toMutableMap()
+        for ((band, m) in current) {
+            val old = updated[band] ?: BandBaselineSamples()
+            updated[band] = BandBaselineSamples(
+                agcDb = m.agcDb?.let { old.agcDb + it } ?: old.agcDb,
+                meanCn0DbHz = m.meanCn0?.let { old.meanCn0DbHz + it } ?: old.meanCn0DbHz,
+                signals = old.signals + m.cn0s.size.toDouble(),
+            )
+        }
+        return updated
     }
 
     val assessment: InterferenceAssessment
@@ -314,6 +323,9 @@ data class InterferenceMonitor(
         /** Signals must have got clearly stronger, not by the odd tenth of a dB. */
         const val SPOOF_CN0_RISE_DB = 3.0
         const val DRIFT_JUMP_PPM = 0.5
+
+        /** Clock drift arrives in ns/s; 1 ppm is 1000 ns/s. */
+        private const val NS_PER_S_PER_PPM = 1_000.0
 
         /** Epochs further apart than this are not compared for a drift jump. */
         const val DRIFT_JUMP_MAX_GAP_MS = 2_000L

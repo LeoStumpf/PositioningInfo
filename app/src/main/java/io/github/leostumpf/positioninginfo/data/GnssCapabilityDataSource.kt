@@ -5,6 +5,7 @@ import android.content.Context
 import android.location.GnssCapabilities
 import android.location.LocationManager
 import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.core.content.getSystemService
 import io.github.leostumpf.positioninginfo.data.model.AssistanceCapabilities
 
@@ -31,63 +32,63 @@ class GnssCapabilityDataSource(context: Context) {
 
     private fun readUnsafe(): AssistanceCapabilities {
         val manager = locationManager ?: return AssistanceCapabilities()
-
-        // The hardware name and year arrived in Android 9, well before the capabilities
-        // API, so they are read separately rather than being hidden from Android 9 and 10.
-        val model: String?
-        val year: Int?
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-            model = runCatching { manager.gnssHardwareModelName }.getOrNull()
-            year = runCatching { manager.gnssYearOfHardware }.getOrNull()?.takeIf { it > 0 }
-        } else {
-            model = null
-            year = null
-        }
-
-        // The class itself arrived in Android 11, but its query methods only became
+        val hardware = hardwareOf(manager)
+        // The capabilities class arrived in Android 11, but its query methods only became
         // public API in Android 12, so 12 is the real floor.
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
-            return AssistanceCapabilities(hardwareModel = model, hardwareYear = year)
-        }
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) capabilitiesOf(manager, hardware) else hardware
+    }
 
-        val capabilities = runCatching { manager.gnssCapabilities }.getOrNull()
-            ?: return AssistanceCapabilities(hardwareModel = model, hardwareYear = year)
+    /**
+     * The hardware name and year. They arrived in Android 9, well before the capabilities API,
+     * so they are read separately rather than being hidden from Android 9 and 10.
+     */
+    private fun hardwareOf(manager: LocationManager): AssistanceCapabilities {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return AssistanceCapabilities()
+        return AssistanceCapabilities(
+            hardwareModel = runCatching { manager.gnssHardwareModelName }.getOrNull(),
+            hardwareYear = runCatching { manager.gnssYearOfHardware }.getOrNull()?.takeIf { it > 0 },
+        )
+    }
+
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun capabilitiesOf(manager: LocationManager, hardware: AssistanceCapabilities): AssistanceCapabilities {
+        val capabilities = runCatching { manager.gnssCapabilities }.getOrNull() ?: return hardware
 
         // Available since Android 12: the two founding members of the public API, and antenna info.
-        val base = AssistanceCapabilities(
+        val base = hardware.copy(
             reported = true,
             rawMeasurements = capabilities.hasMeasurements(),
             navigationMessages = capabilities.hasNavigationMessages(),
-            hardwareModel = model,
-            hardwareYear = year,
             antennaInfo = capabilities.hasAntennaInfo(),
         )
-
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE) return base
-
-        return base.copy(
-            assistanceReported = true,
-            assistedMsa = capabilities.hasMsa(),
-            assistedMsb = capabilities.hasMsb(),
-            onDemandTime = capabilities.hasOnDemandTime(),
-            measurementCorrections = capabilities.hasMeasurementCorrections(),
-            carrierPhase = capabilities.hasAccumulatedDeltaRange() ==
-                GnssCapabilities.CAPABILITY_SUPPORTED,
-            satellitePvt = capabilities.hasSatellitePvt(),
-            satelliteBlocklist = capabilities.hasSatelliteBlocklist(),
-            lowPowerMode = capabilities.hasLowPowerMode(),
-            geofencing = capabilities.hasGeofencing(),
-            scheduling = capabilities.hasScheduling(),
-            singleShotFix = capabilities.hasSingleShotFix(),
-            correctionKinds = listOfNotNull(
-                "line of sight".takeIf { capabilities.hasMeasurementCorrectionsLosSats() },
-                "excess path".takeIf { capabilities.hasMeasurementCorrectionsExcessPathLength() },
-                "reflecting planes".takeIf { capabilities.hasMeasurementCorrectionsReflectingPlane() },
-                "driving".takeIf { capabilities.hasMeasurementCorrectionsForDriving() },
-            ),
-            correlationVectors = capabilities.hasMeasurementCorrelationVectors(),
-            powerStats = capabilities.hasPowerTotal() || capabilities.hasPowerSinglebandTracking() ||
-                capabilities.hasPowerMultibandTracking(),
-        )
+        val android14 = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+        return if (android14) base.withAndroid14(capabilities) else base
     }
+
+    /** What Android 14 added: the assistance services and the chip's other features. */
+    @RequiresApi(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+    private fun AssistanceCapabilities.withAndroid14(capabilities: GnssCapabilities): AssistanceCapabilities = copy(
+        assistanceReported = true,
+        assistedMsa = capabilities.hasMsa(),
+        assistedMsb = capabilities.hasMsb(),
+        onDemandTime = capabilities.hasOnDemandTime(),
+        measurementCorrections = capabilities.hasMeasurementCorrections(),
+        carrierPhase = capabilities.hasAccumulatedDeltaRange() ==
+            GnssCapabilities.CAPABILITY_SUPPORTED,
+        satellitePvt = capabilities.hasSatellitePvt(),
+        satelliteBlocklist = capabilities.hasSatelliteBlocklist(),
+        lowPowerMode = capabilities.hasLowPowerMode(),
+        geofencing = capabilities.hasGeofencing(),
+        scheduling = capabilities.hasScheduling(),
+        singleShotFix = capabilities.hasSingleShotFix(),
+        correctionKinds = listOfNotNull(
+            "line of sight".takeIf { capabilities.hasMeasurementCorrectionsLosSats() },
+            "excess path".takeIf { capabilities.hasMeasurementCorrectionsExcessPathLength() },
+            "reflecting planes".takeIf { capabilities.hasMeasurementCorrectionsReflectingPlane() },
+            "driving".takeIf { capabilities.hasMeasurementCorrectionsForDriving() },
+        ),
+        correlationVectors = capabilities.hasMeasurementCorrelationVectors(),
+        powerStats = capabilities.hasPowerTotal() || capabilities.hasPowerSinglebandTracking() ||
+            capabilities.hasPowerMultibandTracking(),
+    )
 }

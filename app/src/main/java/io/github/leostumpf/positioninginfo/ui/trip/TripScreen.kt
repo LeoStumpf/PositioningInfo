@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -35,6 +36,7 @@ import io.github.leostumpf.positioninginfo.ui.common.QuietButton
 import io.github.leostumpf.positioninginfo.ui.common.SecondaryButton
 import io.github.leostumpf.positioninginfo.ui.common.StatTile
 import io.github.leostumpf.positioninginfo.ui.common.StatusBadge
+import io.github.leostumpf.positioninginfo.ui.common.TileRow
 import io.github.leostumpf.positioninginfo.ui.common.Tone
 import io.github.leostumpf.positioninginfo.ui.common.duration
 import io.github.leostumpf.positioninginfo.ui.common.fmt
@@ -60,106 +62,12 @@ fun TripScreen(
     modifier: Modifier = Modifier,
 ) {
     var confirmClear by rememberSaveable { mutableStateOf(false) }
-    val stats = state.stats
-    val points = stats?.points ?: 0
-    val unit = state.unit
+    val points = state.stats?.points ?: 0
 
     PageScaffold(Page.TRIP, modifier) {
-        item {
-            Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    when {
-                        state.recording -> StatusBadge("Recording", Tone.BAD)
-                        points > 0 -> StatusBadge("Paused", Tone.DEGRADED)
-                        else -> StatusBadge("Not recording", Tone.NEUTRAL)
-                    }
-                    if (points > 0) {
-                        Text(duration(stats!!.durationMs), style = StatusLineStyle, color = Palette.TextSecondary)
-                    }
-                }
-                val distanceM = stats?.distanceM ?: 0.0
-                val km = distanceM >= 1_000
-                HeroValue(
-                    value = if (km) (distanceM / 1_000).fmt(2) else distanceM.roundToInt().toString(),
-                    unit = if (km) "km" else "m",
-                )
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 4.dp)) {
-                    PrimaryButton(
-                        text = if (state.recording) {
-                            "Pause"
-                        } else if (points > 0) {
-                            "Resume"
-                        } else {
-                            "Start recording"
-                        },
-                        onClick = onToggleRecording,
-                        modifier = Modifier.weight(1f),
-                    )
-                    SecondaryButton(
-                        "Export GPX",
-                        onClick = onExport,
-                        enabled = points > 1,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                state.message?.let { Note(it) }
-            }
-        }
-
-        if (state.elevationProfile.size > 1) {
-            section("Elevation")
-            item { ElevationProfile(state.elevationProfile) }
-            item {
-                Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                    Text(
-                        "↑ ${stats?.ascentM?.roundToInt() ?: 0} m",
-                        style = StatusLineStyle,
-                        color = Palette.TextTertiary,
-                        modifier = Modifier.weight(1f),
-                    )
-                    Text(
-                        "↓ ${stats?.descentM?.roundToInt() ?: 0} m · " +
-                            if (state.climbFromBarometer) "barometric" else "from GNSS",
-                        style = StatusLineStyle,
-                        color = Palette.TextTertiary,
-                    )
-                }
-            }
-        }
-
-        section("Statistics")
-        item {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StatTile("Moving time", stats?.let { duration(it.movingTimeMs) } ?: DASH, Modifier.weight(1f))
-                    StatTile(
-                        "Max speed",
-                        stats?.maxSpeedMps?.let { formatSpeed(it, unit) } ?: DASH,
-                        Modifier.weight(1f),
-                        unit = unit.symbol,
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StatTile(
-                        "Average moving",
-                        stats?.avgMovingSpeedMps?.let { formatSpeed(it, unit) } ?: DASH,
-                        Modifier.weight(1f),
-                        unit = unit.symbol,
-                    )
-                    StatTile("Track points", points.grouped(), Modifier.weight(1f))
-                }
-                if (state.elevationProfile.size <= 1) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        StatTile("Ascent", "${stats?.ascentM?.roundToInt() ?: 0}", Modifier.weight(1f), unit = "m")
-                        StatTile("Descent", "${stats?.descentM?.roundToInt() ?: 0}", Modifier.weight(1f), unit = "m")
-                    }
-                }
-            }
-        }
-
+        item { RecordingPanel(state, onToggleRecording, onExport, Modifier.padding(top = 16.dp)) }
+        elevationSection(state)
+        statisticsSection(state)
         section("Recording with the screen off")
         item { BackgroundModeSwitch(active = backgroundActive, onSetActive = onSetBackground) }
         item {
@@ -217,6 +125,111 @@ private fun ElevationProfile(heights: List<Double>) {
             drawPath(fill, Palette.TextPrimary.copy(alpha = 0.06f))
             drawPath(line, Palette.TextPrimary, style = Stroke(1.5.dp.toPx()))
             drawCircle(Palette.TextPrimary, 2.5.dp.toPx(), Offset(size.width, y(heights.last())))
+        }
+    }
+}
+
+/** Whether it records, the distance so far, and the record and export buttons. */
+@Composable
+private fun RecordingPanel(
+    state: TripUiState,
+    onToggleRecording: () -> Unit,
+    onExport: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val stats = state.stats
+    val points = stats?.points ?: 0
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            when {
+                state.recording -> StatusBadge("Recording", Tone.BAD)
+                points > 0 -> StatusBadge("Paused", Tone.DEGRADED)
+                else -> StatusBadge("Not recording", Tone.NEUTRAL)
+            }
+            if (stats != null && points > 0) {
+                Text(duration(stats.durationMs), style = StatusLineStyle, color = Palette.TextSecondary)
+            }
+        }
+        val distanceM = stats?.distanceM ?: 0.0
+        val km = distanceM >= 1_000
+        HeroValue(
+            value = if (km) (distanceM / 1_000).fmt(2) else distanceM.roundToInt().toString(),
+            unit = if (km) "km" else "m",
+        )
+        val action = when {
+            state.recording -> "Pause"
+            points > 0 -> "Resume"
+            else -> "Start recording"
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 4.dp)) {
+            PrimaryButton(text = action, onClick = onToggleRecording, modifier = Modifier.weight(1f))
+            // GPX needs a track, which takes two points.
+            SecondaryButton("Export GPX", onClick = onExport, enabled = points > 1, modifier = Modifier.weight(1f))
+        }
+        state.message?.let { Note(it) }
+    }
+}
+
+/** The height profile of the track, once there is one, with the climb and descent. */
+private fun LazyListScope.elevationSection(state: TripUiState) {
+    if (state.elevationProfile.size <= 1) return
+    val stats = state.stats
+    section("Elevation")
+    item { ElevationProfile(state.elevationProfile) }
+    item {
+        Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
+            Text(
+                "↑ ${stats?.ascentM?.roundToInt() ?: 0} m",
+                style = StatusLineStyle,
+                color = Palette.TextTertiary,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                "↓ ${stats?.descentM?.roundToInt() ?: 0} m · " +
+                    if (state.climbFromBarometer) "barometric" else "from GNSS",
+                style = StatusLineStyle,
+                color = Palette.TextTertiary,
+            )
+        }
+    }
+}
+
+/** Moving time, speeds and points; climb too while there is no profile to show it. */
+private fun LazyListScope.statisticsSection(state: TripUiState) {
+    val stats = state.stats
+    val unit = state.unit
+    val maxSpeed = stats?.maxSpeedMps?.let { formatSpeed(it, unit) } ?: DASH
+    val averageSpeed = stats?.avgMovingSpeedMps?.let { formatSpeed(it, unit) } ?: DASH
+    section("Statistics")
+    item {
+        TileRow(
+            listOf(
+                { m -> StatTile("Moving time", stats?.let { duration(it.movingTimeMs) } ?: DASH, m) },
+                { m -> StatTile("Max speed", maxSpeed, m, unit = unit.symbol) },
+            ),
+            spacing = 12.dp,
+        )
+    }
+    item {
+        TileRow(
+            listOf(
+                { m -> StatTile("Average moving", averageSpeed, m, unit = unit.symbol) },
+                { m -> StatTile("Track points", (stats?.points ?: 0).grouped(), m) },
+            ),
+            Modifier.padding(top = 12.dp),
+            spacing = 12.dp,
+        )
+    }
+    if (state.elevationProfile.size <= 1) {
+        item {
+            TileRow(
+                listOf(
+                    { m -> StatTile("Ascent", "${stats?.ascentM?.roundToInt() ?: 0}", m, unit = "m") },
+                    { m -> StatTile("Descent", "${stats?.descentM?.roundToInt() ?: 0}", m, unit = "m") },
+                ),
+                Modifier.padding(top = 12.dp),
+                spacing = 12.dp,
+            )
         }
     }
 }

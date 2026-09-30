@@ -37,6 +37,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeJoin
+import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
@@ -47,6 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.leostumpf.positioninginfo.domain.FixFreshness
 import io.github.leostumpf.positioninginfo.domain.SpeedHistory
+import io.github.leostumpf.positioninginfo.domain.SpeedSample
 import io.github.leostumpf.positioninginfo.domain.SpeedUnit
 import io.github.leostumpf.positioninginfo.domain.formatDuration
 import io.github.leostumpf.positioninginfo.ui.common.AppIcons
@@ -405,52 +407,11 @@ private fun SpeedChart(
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Canvas(
             Modifier.fillMaxWidth().height(height).semantics {
-                contentDescription = "Speed since the last reset, highest ${formatSpeed(
-                    max,
-                    state.unit,
-                )} ${state.unit.symbol}"
+                contentDescription =
+                    "Speed since the last reset, highest ${formatSpeed(max, state.unit)} ${state.unit.symbol}"
             },
         ) {
-            val span = (end - start).coerceAtLeast(1L).toFloat()
-            val top = (max * 1.15f).coerceAtLeast(1f)
-            fun x(t: Long) = (t - start) / span * size.width
-            fun y(v: Float) = size.height - v / top * size.height
-            drawLine(Palette.Hairline, Offset(0f, size.height), Offset(size.width, size.height))
-            // The maximum, dashed, so the line can be read against it.
-            drawLine(
-                Palette.Outline,
-                Offset(0f, y(max)),
-                Offset(size.width, y(max)),
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 2.dp.toPx())),
-            )
-            val line = Path()
-            val fill = Path()
-            var previous: Long? = null
-            var segmentStartX = 0f
-            samples.forEach { s ->
-                val px = x(s.atMs)
-                val py = y(s.mps)
-                if (previous == null || s.atMs - previous > SpeedHistory.GAP_MS) {
-                    if (previous != null) {
-                        fill.lineTo(x(previous), size.height)
-                        fill.lineTo(segmentStartX, size.height)
-                        fill.close()
-                    }
-                    line.moveTo(px, py)
-                    fill.moveTo(px, size.height)
-                    fill.lineTo(px, py)
-                    segmentStartX = px
-                } else {
-                    line.lineTo(px, py)
-                    fill.lineTo(px, py)
-                }
-                previous = s.atMs
-            }
-            fill.lineTo(x(end), size.height)
-            fill.lineTo(segmentStartX, size.height)
-            fill.close()
-            drawPath(fill, Palette.TextPrimary.copy(alpha = 0.07f))
-            drawPath(line, Palette.TextSecondary, style = Stroke(1.5.dp.toPx(), join = StrokeJoin.Round))
+            drawSpeedTrace(samples, max)
         }
         // Two captions that move to two lines as a whole when the text is large, instead of
         // breaking mid-phrase.
@@ -470,3 +431,58 @@ private fun SpeedChart(
         }
     }
 }
+
+/**
+ * Speed over time, filled underneath, against a dashed line at the maximum. The trace breaks
+ * where samples are missing for longer than [SpeedHistory.GAP_MS].
+ */
+private fun DrawScope.drawSpeedTrace(samples: List<SpeedSample>, max: Float) {
+    val start = samples.first().atMs
+    val end = samples.last().atMs
+    val span = (end - start).coerceAtLeast(1L).toFloat()
+    val top = (max * HEADROOM).coerceAtLeast(1f)
+    fun x(t: Long) = (t - start) / span * size.width
+    fun y(v: Float) = size.height - v / top * size.height
+    drawLine(Palette.Hairline, Offset(0f, size.height), Offset(size.width, size.height))
+    // The maximum, dashed, so the line can be read against it.
+    drawLine(
+        Palette.Outline,
+        Offset(0f, y(max)),
+        Offset(size.width, y(max)),
+        pathEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 2.dp.toPx())),
+    )
+    val line = Path()
+    val fill = Path()
+    var previous: Long? = null
+    var segmentStartX = 0f
+
+    // Closes the area under the segment that ended at [lastMs] down to the baseline.
+    fun closeFill(lastMs: Long) {
+        fill.lineTo(x(lastMs), size.height)
+        fill.lineTo(segmentStartX, size.height)
+        fill.close()
+    }
+    samples.forEach { s ->
+        val px = x(s.atMs)
+        val py = y(s.mps)
+        val last = previous
+        if (last == null || s.atMs - last > SpeedHistory.GAP_MS) {
+            if (last != null) closeFill(last)
+            line.moveTo(px, py)
+            fill.moveTo(px, size.height)
+            fill.lineTo(px, py)
+            segmentStartX = px
+        } else {
+            line.lineTo(px, py)
+            fill.lineTo(px, py)
+        }
+        previous = s.atMs
+    }
+    closeFill(end)
+    drawPath(fill, Palette.TextPrimary.copy(alpha = FILL_ALPHA))
+    drawPath(line, Palette.TextSecondary, style = Stroke(1.5.dp.toPx(), join = StrokeJoin.Round))
+}
+
+/** Room above the maximum so the trace does not touch the top edge. */
+private const val HEADROOM = 1.15f
+private const val FILL_ALPHA = 0.07f

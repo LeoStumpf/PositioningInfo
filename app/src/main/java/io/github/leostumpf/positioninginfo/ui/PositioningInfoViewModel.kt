@@ -21,38 +21,28 @@ import io.github.leostumpf.positioninginfo.data.NetworkLocationDataSource
 import io.github.leostumpf.positioninginfo.data.SystemStatusDataSource
 import io.github.leostumpf.positioninginfo.data.TtffLogStore
 import io.github.leostumpf.positioninginfo.data.WifiScanDataSource
-import io.github.leostumpf.positioninginfo.data.model.AccessPoint
-import io.github.leostumpf.positioninginfo.data.model.CellTower
 import io.github.leostumpf.positioninginfo.data.model.GnssSnapshot
-import io.github.leostumpf.positioninginfo.data.model.NetworkFix
 import io.github.leostumpf.positioninginfo.data.model.SpeedFix
-import io.github.leostumpf.positioninginfo.domain.AlmanacReadiness
 import io.github.leostumpf.positioninginfo.domain.AlmanacStatus
-import io.github.leostumpf.positioninginfo.domain.ClockOffset
-import io.github.leostumpf.positioninginfo.domain.FirstFixTimer
 import io.github.leostumpf.positioninginfo.domain.FixDiagnosis
 import io.github.leostumpf.positioninginfo.domain.FixFreshness
 import io.github.leostumpf.positioninginfo.domain.History
 import io.github.leostumpf.positioninginfo.domain.HistorySample
 import io.github.leostumpf.positioninginfo.domain.PositioningQuality
-import io.github.leostumpf.positioninginfo.domain.SessionStats
 import io.github.leostumpf.positioninginfo.domain.SkyTracker
-import io.github.leostumpf.positioninginfo.domain.SpeedHistory
-import io.github.leostumpf.positioninginfo.domain.SpeedReading
-import io.github.leostumpf.positioninginfo.domain.SpeedResolver
 import io.github.leostumpf.positioninginfo.domain.SpeedUnit
-import io.github.leostumpf.positioninginfo.domain.TtffEntry
 import io.github.leostumpf.positioninginfo.domain.UpdateRate
 import io.github.leostumpf.positioninginfo.settings.UnitPreference
 import io.github.leostumpf.positioninginfo.ui.common.DataInventory
+import io.github.leostumpf.positioninginfo.ui.gnss.FirstFixSession
 import io.github.leostumpf.positioninginfo.ui.gnss.GnssUiState
 import io.github.leostumpf.positioninginfo.ui.gnss.TimingUiState
 import io.github.leostumpf.positioninginfo.ui.gnss.diagnosisInput
+import io.github.leostumpf.positioninginfo.ui.network.NetworkSession
 import io.github.leostumpf.positioninginfo.ui.network.NetworkUiState
-import io.github.leostumpf.positioninginfo.ui.network.positionSources
 import io.github.leostumpf.positioninginfo.ui.signal.SignalUiState
 import io.github.leostumpf.positioninginfo.ui.sky.SkyUiState
-import io.github.leostumpf.positioninginfo.ui.speed.SpeedUiState
+import io.github.leostumpf.positioninginfo.ui.speed.SpeedSession
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -87,7 +77,6 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     private val locationSource = LocationDataSource(application)
     private val gnssSource = GnssStatusDataSource(application)
     private val unitPreference = UnitPreference(application)
-    private val capabilitySource = GnssCapabilityDataSource(application)
     private val assistanceSource = AssistanceDataSource(application)
     private val networkLocationSource = NetworkLocationDataSource(application)
 
@@ -96,24 +85,21 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     private val fusedLocationSource = NetworkLocationDataSource(application, "fused")
     private val cellSource = CellInfoDataSource(application)
     private val wifiSource = WifiScanDataSource(application)
-    private val systemStatus = SystemStatusDataSource(application)
-    private val ttffStore = TtffLogStore(application)
-    private val providerSource = LocationProviderDataSource(application)
     private val facts = PhoneFacts(
         locationSource,
         networkLocationSource,
         fusedLocationSource,
         cellSource,
         wifiSource,
-        systemStatus,
-        providerSource,
+        SystemStatusDataSource(application),
+        LocationProviderDataSource(application),
     )
 
     /** Static for the life of the device, so it is read once rather than streamed. */
-    private val capabilities = capabilitySource.read()
+    private val capabilities = GnssCapabilityDataSource(application).read()
 
-    private val _speedState = MutableStateFlow(SpeedUiState())
-    val speedState: StateFlow<SpeedUiState> = _speedState.asStateFlow()
+    /** The speed page, and the unit every page shows speeds in. */
+    val speed = SpeedSession(scope, unitPreference)
 
     private val _gnssState = MutableStateFlow(GnssUiState())
     val gnssState: StateFlow<GnssUiState> = _gnssState.asStateFlow()
@@ -124,40 +110,32 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     private val _skyState = MutableStateFlow(SkyUiState())
     val skyState: StateFlow<SkyUiState> = _skyState.asStateFlow()
 
-    private val _networkState = MutableStateFlow(NetworkUiState())
-    val networkState: StateFlow<NetworkUiState> = _networkState.asStateFlow()
+    private val network = NetworkSession(
+        scope,
+        networkLocationSource,
+        fusedLocationSource,
+        cellSource,
+        wifiSource,
+        facts,
+        gnssFix = { lastFix },
+        visible = { uiVisible },
+    )
+    val networkState: StateFlow<NetworkUiState> = network.state
+
+    private val firstFix = FirstFixSession(scope, TtffLogStore(application)) { log ->
+        _gnssState.update { it.copy(ttffLog = log) }
+    }
 
     private var lastSnapshot = GnssSnapshot.EMPTY
-
-    private var networkFix: NetworkFix? = null
-    private var fusedFix: NetworkFix? = null
-    private var cells: List<CellTower> = emptyList()
-    private var accessPoints: List<AccessPoint> = emptyList()
 
     /** Deliberately kept across stop/start, so the sky view's history survives backgrounding. */
     private var skyTracker = SkyTracker()
 
-    private var stats = SessionStats()
     private var lastFix: SpeedFix? = null
     private var updateRate = UpdateRate()
 
-    /** Speed since the last reset, for the plot on the speed page; memory only. */
-    private var speedHistory = SpeedHistory()
-
     /** Held in memory only; see [History]. */
     private var history = History()
-    private var ttffLog = listOf<TtffEntry>()
-
-    /** What the receiver held when this session started: hot, warm or cold. */
-    private var sessionStartType: AlmanacReadiness? = null
-    private var firstFixTimer: FirstFixTimer? = null
-
-    /** When the receiver was last released; null before the first start, or after a cold start. */
-    private var releasedAtMs: Long? = null
-
-    /** Whether this session's first fix goes into the log; see [startTracking]. */
-    private var logThisFirstFix = true
-    private var clockOffsetMs: Long? = null
 
     private var ticks = 0
     private var assistanceMessage: String? = null
@@ -168,7 +146,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         application = application,
         scope = scope,
         capabilities = capabilities,
-        speedUnit = { _speedState.value.unit },
+        speedUnit = { speed.state.value.unit },
         // Heading, compass, map and path toggles only change the decoration; the satellite
         // tracks underneath stay as built. In compass mode this runs at sensor rate.
         onSkyChanged = { if (uiVisible) _skyState.update { analysis.decorateSky(it) } },
@@ -181,7 +159,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
 
     /** What the app keeps right now, for the "Data on this phone" section. */
     val dataInventory: StateFlow<DataInventory> by lazy {
-        combine(analysis.tripState, _gnssState, _speedState) { trip, gnss, speed ->
+        combine(analysis.tripState, _gnssState, speed.state) { trip, gnss, speed ->
             DataInventory(
                 tripPoints = trip.stats?.points ?: 0,
                 firstFixEntries = gnss.ttffLog.size,
@@ -196,27 +174,17 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
      * on, so the pages fill again from scratch.
      */
     fun clearAllData() {
-        resetSession()
+        speed.reset()
         history = History()
-        ttffLog = emptyList()
+        firstFix.clearLog()
         skyTracker = SkyTracker()
         analysis.clearAll()
-        scope.launch {
-            ttffStore.clear()
-            unitPreference.clear()
-        }
+        scope.launch { unitPreference.clear() }
         _gnssState.update { it.copy(history = emptyList(), ttffLog = emptyList()) }
         publishSky(SystemClock.elapsedRealtime())
     }
 
     init {
-        scope.launch {
-            ttffLog = ttffStore.load()
-            _gnssState.update { it.copy(ttffLog = ttffLog) }
-        }
-        scope.launch {
-            unitPreference.unit.collect { unit -> _speedState.update { it.copy(unit = unit) } }
-        }
         // Stopped from the notification while the app is out of sight: release the receiver.
         scope.launch {
             BackgroundMode.active.collect { active -> if (!active && !uiVisible) stopTracking() }
@@ -262,68 +230,16 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
      * next ON_START would otherwise register a listener the app is no longer allowed.
      */
     @SuppressLint("MissingPermission") // guarded by hasLocationPermission() immediately below
-    fun startTracking() {
+    private fun startTracking() {
         if (trackingJobs.isNotEmpty()) return
         if (!hasLocationPermission()) return
         facts.refreshGps()
+        firstFix.onStart()
 
-        // Each start is a new receiver session, so it gets its own time to first fix. Only
-        // a receiver that was really off gets its first fix logged, though: a glance at
-        // another app or a rotation restarts the session within seconds, and logging each
-        // of those near-instant "hot starts" would push the real measurements out of the log.
-        val startedAt = SystemClock.elapsedRealtime()
-        firstFixTimer = FirstFixTimer(startedAtMs = startedAt)
-        sessionStartType = null
-        logThisFirstFix = releasedAtMs.let { it == null || startedAt - it >= MIN_RELEASE_FOR_TTFF_LOG_MS }
-
-        trackingJobs += scope.launch {
-            locationSource.fixes().collect { fix ->
-                lastFix = fix
-                if (!fix.isCached) updateRate = updateRate.onFix(fix.elapsedRealtimeMs)
-                val hadFirstFix = firstFixTimer?.hasFix == true
-                firstFixTimer = firstFixTimer?.onFix(fix)
-                val ttff = firstFixTimer?.firstFixAfterMs
-                if (!hadFirstFix && ttff != null && logThisFirstFix) logFirstFix(ttff)
-                ClockOffset.of(fix, System.currentTimeMillis(), SystemClock.elapsedRealtime())
-                    ?.let { clockOffsetMs = it }
-                publishSpeed(fix)
-                analysis.onFix(fix)
-            }
-        }
-        trackingJobs += scope.launch {
-            gnssSource.snapshots().collect(::onSnapshot)
-        }
-        // Network positioning runs alongside GNSS for the comparison page. All three are
-        // cheap: the network provider does one lookup every few seconds, and the cell and
-        // Wi-Fi readings mostly return what the radios already know.
-        trackingJobs += scope.launch {
-            networkLocationSource.fixes().collect {
-                networkFix = it
-                publishNetwork()
-            }
-        }
-        if (facts.fusedProviderExists) {
-            trackingJobs += scope.launch {
-                fusedLocationSource.fixes().collect {
-                    fusedFix = it
-                    publishNetwork()
-                }
-            }
-        }
-        if (facts.hasTelephony) {
-            trackingJobs += scope.launch {
-                cellSource.cells().collect {
-                    cells = it
-                    publishNetwork()
-                }
-            }
-        }
-        trackingJobs += scope.launch {
-            wifiSource.accessPoints().collect {
-                accessPoints = it
-                publishNetwork()
-            }
-        }
+        trackingJobs += scope.launch { locationSource.fixes().collect(::onFix) }
+        trackingJobs += scope.launch { gnssSource.snapshots().collect(::onSnapshot) }
+        // Network positioning runs alongside GNSS for the comparison page.
+        trackingJobs += network.start()
         trackingJobs += analysis.start()
         // A fix ages whether or not a new one arrives, so the reading has to be
         // re-evaluated on a timer as well as on new data — otherwise a lost signal would
@@ -333,20 +249,31 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
                 // Settings, providers and the system clocks change rarely; a few seconds is fresh enough.
                 if (ticks++ % SLOW_TICKS == 0) readPhoneState()
                 delay(FRESHNESS_TICK_MS)
-                facts.refreshGps()
-                val now = SystemClock.elapsedRealtime()
-                skyTracker = skyTracker.onTick(now)
-                // Out of sight (background mode) only the statistics and the timer move on;
-                // the pages are built again when the app returns.
-                publishSpeed(lastFix)
-                publishTiming()
-                publishSky(now)
-                publishNetwork()
-                analysis.onTick()
+                onTick()
             }
         }
 
-        publishSpeed(lastFix)
+        publishSpeed()
+    }
+
+    private fun onFix(fix: SpeedFix) {
+        lastFix = fix
+        if (!fix.isCached) updateRate = updateRate.onFix(fix.elapsedRealtimeMs)
+        firstFix.onFix(fix)
+        publishSpeed()
+        analysis.onFix(fix)
+    }
+
+    /** Out of sight (background mode) only the statistics and the timer move on. */
+    private fun onTick() {
+        facts.refreshGps()
+        val now = SystemClock.elapsedRealtime()
+        skyTracker = skyTracker.onTick(now)
+        publishSpeed()
+        publishTiming()
+        publishSky(now)
+        network.publish()
+        analysis.onTick()
     }
 
     private fun readPhoneState() {
@@ -354,21 +281,11 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         _gnssState.update { it.copy(settings = facts.phoneSettings) }
     }
 
-    fun stopTracking() {
-        if (trackingJobs.isNotEmpty()) releasedAtMs = SystemClock.elapsedRealtime()
+    private fun stopTracking() {
+        if (trackingJobs.isNotEmpty()) firstFix.onRelease()
         trackingJobs.forEach(Job::cancel)
         trackingJobs.clear()
         skyTracker = skyTracker.onPause()
-    }
-
-    fun setUnit(unit: SpeedUnit) {
-        scope.launch { unitPreference.set(unit) }
-    }
-
-    fun resetSession() {
-        stats = SessionStats()
-        speedHistory = SpeedHistory()
-        _speedState.update { it.copy(maxMps = null, averageMps = null, speedHistory = emptyList()) }
     }
 
     /**
@@ -381,7 +298,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         if (!accepted) return
         stopTracking()
         lastFix = null
-        releasedAtMs = null // a cold start is exactly what the log is for
+        firstFix.forgetRelease()
         startTracking()
     }
 
@@ -395,50 +312,16 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         )
     }
 
-    private fun publishAssistance(message: String) {
-        assistanceMessage = message
-        _gnssState.update { it.copy(assistanceMessage = message) }
-    }
-
-    private fun publishSpeed(fix: SpeedFix?) {
-        val reading: SpeedReading = SpeedResolver.resolve(fix, SystemClock.elapsedRealtime())
-
-        if (reading.countsTowardsStats && fix != null) {
-            stats = stats.accept(reading.speedMps!!.toDouble(), fix.elapsedRealtimeMs)
-            speedHistory = speedHistory.add(fix.elapsedRealtimeMs, reading.speedMps)
-        }
-        if (!uiVisible) return
-
-        _speedState.update {
-            it.copy(
-                speedMps = reading.speedMps,
-                freshness = reading.freshness,
-                maxMps = if (stats.hasData) stats.maxMps else null,
-                averageMps = stats.averageMps,
-                // An expired fix's accuracy is withdrawn along with its speed: quoting a
-                // figure from a reading we have just declared untrustworthy would undo the
-                // point of withdrawing it.
-                horizontalAccuracyM = if (reading.freshness == FixFreshness.EXPIRED) {
-                    null
-                } else {
-                    fix?.horizontalAccuracyM ?: it.horizontalAccuracyM
-                },
-                hasEverHadFix = it.hasEverHadFix || reading.speedMps != null,
-                gpsEnabled = facts.gpsEnabled,
-                speedAccuracyMps = if (reading.freshness == FixFreshness.EXPIRED) null else fix?.speedAccuracyMps,
-                isMock = fix?.isMock == true,
-                speedHistory = speedHistory.samples,
-            )
-        }
-
-        // The measured accuracy arrives with the fix rather than the satellite sweep, so
-        // the signal screen is refreshed from here too.
-        publishSignal()
+    /** Starts the sky paths and the event list afresh, e.g. after fragments from earlier sessions. */
+    fun clearSkyPaths() {
+        skyTracker = SkyTracker()
+        publishSky(SystemClock.elapsedRealtime())
     }
 
     private fun onSnapshot(snapshot: GnssSnapshot) {
         facts.refreshGps()
         lastSnapshot = snapshot
+        firstFix.onSnapshot(snapshot)
         recordHistory(snapshot)
         analysis.onSnapshot(snapshot)
         val now = SystemClock.elapsedRealtime()
@@ -446,45 +329,16 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         publishGnss(now)
     }
 
-    private fun publishGnss(now: Long) {
-        if (!uiVisible) return
-        val snapshot = lastSnapshot
-        _speedState.update {
-            it.copy(satellitesUsed = snapshot.usedInFixCount, satellitesVisible = snapshot.visibleCount)
-        }
-        _gnssState.value = analysis.decorateGnss(
-            GnssUiState.from(
-                status = AlmanacStatus.from(snapshot),
-                satellites = snapshot.satellites,
-                gpsEnabled = facts.gpsEnabled,
-                timing = currentTiming(),
-                assistanceMessage = assistanceMessage,
-            ),
-        ).copy(history = history.samples, ttffLog = ttffLog, settings = facts.phoneSettings)
-        publishSignal()
-        publishDiagnosis()
-        publishSky(now)
-    }
-
-    /** Every page at once, e.g. when the app returns from the background. */
-    private fun publishAll() {
-        val now = SystemClock.elapsedRealtime()
-        publishSpeed(lastFix)
-        publishGnss(now)
-        publishTiming()
-        publishNetwork()
-    }
-
     private fun recordHistory(snapshot: GnssSnapshot) {
         if (!snapshot.hasReported) return
-        if (sessionStartType == null) sessionStartType = AlmanacStatus.from(snapshot).readiness
         // One value per physical satellite: its strongest band.
         val heardCn0 = snapshot.satellites.filter { it.cn0DbHz > 0f }
             .groupBy { it.constellation to it.svid }.values.map { sigs -> sigs.maxOf { it.cn0DbHz } }
-        val fresh = lastFix?.takeIf { !it.isCached && SystemClock.elapsedRealtime() - it.elapsedRealtimeMs < 5_000L }
+        val now = SystemClock.elapsedRealtime()
+        val fresh = lastFix?.takeIf { !it.isCached && now - it.elapsedRealtimeMs < HISTORY_FIX_FRESH_MS }
         history = history.add(
             HistorySample(
-                atMs = SystemClock.elapsedRealtime(),
+                atMs = now,
                 usedInFix = snapshot.usedInFixCount,
                 heard = heardCn0.size,
                 meanCn0 = heardCn0.takeIf { it.isNotEmpty() }?.average()?.toFloat(),
@@ -493,12 +347,44 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         )
     }
 
-    private fun logFirstFix(ttffMs: Long) {
-        val entry = TtffEntry(System.currentTimeMillis(), ttffMs, sessionStartType ?: AlmanacReadiness.UNKNOWN)
-        scope.launch {
-            ttffLog = ttffStore.add(entry)
-            _gnssState.update { it.copy(ttffLog = ttffLog) }
-        }
+    // --- publishing: each page is rebuilt only while the app is on screen ------------------
+
+    /** Every page at once, e.g. when the app returns from the background. */
+    private fun publishAll() {
+        publishSpeed()
+        publishGnss(SystemClock.elapsedRealtime())
+        publishTiming()
+        network.publish()
+    }
+
+    private fun publishSpeed() {
+        speed.update(lastFix, facts.gpsEnabled, publish = uiVisible)
+        // The measured accuracy arrives with the fix rather than the satellite sweep, so
+        // the signal screen is refreshed from here too.
+        publishSignal()
+    }
+
+    private fun publishAssistance(message: String) {
+        assistanceMessage = message
+        _gnssState.update { it.copy(assistanceMessage = message) }
+    }
+
+    private fun publishGnss(now: Long) {
+        if (!uiVisible) return
+        val snapshot = lastSnapshot
+        speed.onSnapshot(snapshot)
+        _gnssState.value = analysis.decorateGnss(
+            GnssUiState.from(
+                status = AlmanacStatus.from(snapshot),
+                satellites = snapshot.satellites,
+                gpsEnabled = facts.gpsEnabled,
+                timing = currentTiming(),
+                assistanceMessage = assistanceMessage,
+            ),
+        ).copy(history = history.samples, ttffLog = firstFix.log, settings = facts.phoneSettings)
+        publishSignal()
+        publishDiagnosis()
+        publishSky(now)
     }
 
     /** Re-run on every sweep and tick, so "searching for" and the settings stay current. */
@@ -520,37 +406,6 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         _gnssState.update { it.copy(diagnosis = diagnosis) }
     }
 
-    private fun publishNetwork() {
-        if (!uiVisible) return
-        _networkState.value = NetworkUiState.from(
-            providerEnabled = facts.networkProviderEnabled,
-            fix = networkFix,
-            gnss = lastFix,
-            nowMs = SystemClock.elapsedRealtime(),
-            hasTelephony = facts.hasTelephony,
-            cells = cells,
-            wifiAvailable = facts.wifiCanScan,
-            accessPoints = accessPoints,
-        ).copy(
-            sources = positionSources(
-                gnss = lastFix,
-                network = networkFix,
-                fused = fusedFix,
-                gpsEnabled = facts.gpsEnabled,
-                networkEnabled = facts.networkProviderEnabled,
-                fusedEnabled = facts.fusedProviderEnabled,
-                nowMs = SystemClock.elapsedRealtime(),
-            ),
-            providers = facts.providers,
-        )
-    }
-
-    /** Starts the sky paths and the event list afresh, e.g. after fragments from earlier sessions. */
-    fun clearSkyPaths() {
-        skyTracker = SkyTracker()
-        publishSky(SystemClock.elapsedRealtime())
-    }
-
     private fun publishSky(nowMs: Long) {
         if (!uiVisible) return
         _skyState.value = analysis.decorateSky(SkyUiState.from(skyTracker, nowMs))
@@ -558,11 +413,12 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
 
     private fun publishSignal() {
         if (!uiVisible) return
-        val fix = lastFix?.takeIf { _speedState.value.freshness != FixFreshness.EXPIRED }
+        val speedState = speed.state.value
+        val fix = lastFix?.takeIf { speedState.freshness != FixFreshness.EXPIRED }
         _signalState.value = analysis.decorateSignal(
             SignalUiState.from(
                 quality = PositioningQuality.from(lastSnapshot),
-                measuredAccuracyM = _speedState.value.horizontalAccuracyM,
+                measuredAccuracyM = speedState.horizontalAccuracyM,
             ).copy(
                 verticalAccuracyM = fix?.verticalAccuracyM,
                 speedAccuracyMps = fix?.speedAccuracyMps,
@@ -576,26 +432,14 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
 
     /** Re-evaluated on the ticker, so "searching…" counts up while nothing else changes. */
     private fun publishTiming() {
-        firstFixTimer = firstFixTimer?.holdWhileDisabled(
-            nowMs = SystemClock.elapsedRealtime(),
-            gpsEnabled = facts.gpsEnabled,
-        )
+        firstFix.holdWhileDisabled(facts.gpsEnabled)
         if (!uiVisible) return
         // No satellite sweeps arrive while location is off, so the switch is picked up here.
         _gnssState.update { it.copy(timing = currentTiming(), gpsEnabled = facts.gpsEnabled) }
         publishDiagnosis()
     }
 
-    private fun currentTiming(): TimingUiState {
-        val timer = firstFixTimer
-        return TimingUiState(
-            firstFixMs = timer?.firstFixAfterMs,
-            searchingForMs = timer?.searchingForMs(SystemClock.elapsedRealtime()),
-            clockOffsetMs = clockOffsetMs,
-            networkOffsetMs = facts.networkOffsetMs,
-            systemGnssOffsetMs = facts.systemGnssOffsetMs,
-        )
-    }
+    private fun currentTiming(): TimingUiState = firstFix.timing(facts.networkOffsetMs, facts.systemGnssOffsetMs)
 
     private fun hasLocationPermission(): Boolean = ContextCompat.checkSelfPermission(
         getApplication(),
@@ -607,7 +451,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         const val FRESHNESS_TICK_MS = 500L
         const val SLOW_TICKS = 10
 
-        /** A receiver released for less than this restarts hot; its first fix is not logged. */
-        const val MIN_RELEASE_FOR_TTFF_LOG_MS = 60_000L
+        /** A fix older than this is not counted as the accuracy of a history sample. */
+        const val HISTORY_FIX_FRESH_MS = 5_000L
     }
 }

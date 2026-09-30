@@ -39,6 +39,7 @@ import io.github.leostumpf.positioninginfo.ui.theme.Palette
 import io.github.leostumpf.positioninginfo.ui.theme.TitleStyle
 import io.github.leostumpf.positioninginfo.ui.theme.color
 import java.util.Locale
+import kotlin.math.abs
 
 /** Everything known about one satellite, updated live while open. */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -75,71 +76,8 @@ internal fun SatelliteSheet(row: SignalRow, detail: SignalDetail?, siblings: Lis
                 )
             }
 
-            SectionHeader("Acquisition", modifier = Modifier.padding(top = 16.dp, bottom = 6.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                AcquisitionStage.entries.drop(1).forEach { s ->
-                    val done = stage != null && s.step <= stage.step
-                    // Every step reached is lit; all four green once the satellite is usable.
-                    val barColour = when {
-                        !done -> Palette.Hairline
-                        stage == AcquisitionStage.TIME_DECODED -> Palette.Good
-                        else -> Palette.TextPrimary
-                    }
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Box(Modifier.fillMaxWidth().height(4.dp).background(barColour, RoundedCornerShape(2.dp)))
-                        Text(
-                            s.label,
-                            style = CaptionStyle.copy(fontSize = 11.sp),
-                            color = if (done) Palette.TextPrimary else Palette.TextTertiary,
-                        )
-                    }
-                }
-            }
-            Note(
-                when {
-                    !heard ->
-                        "No signal from this satellite. The receiver only knows from the almanac that it " +
-                            "should be up there."
-
-                    stage == null ->
-                        "The chip reports no raw measurement for this signal right now, so how far " +
-                            "acquisition has got is unknown."
-
-                    inferred ->
-                        "In the fix, so every step is complete — the chip just reports no raw " +
-                            "measurement for it right now."
-
-                    else -> stage.meaning
-                },
-                modifier = Modifier.padding(top = 6.dp),
-            )
-
-            SectionHeader("Signal", modifier = Modifier.padding(top = 16.dp, bottom = 2.dp))
-            siblings.forEach { sib ->
-                ValueRow(
-                    "Strength" + (sib.satellite.band?.shortLabel()?.let { " · $it" } ?: ""),
-                    if (sib.satellite.cn0DbHz > 0f) "%.0f dB-Hz".format(Locale.US, sib.satellite.cn0DbHz) else "—",
-                )
-            }
-            ValueRow(
-                "Doppler shift",
-                detail?.dopplerHz?.takeIf { heard }?.let {
-                    (if (it >= 0) "+" else "−") + String.format(
-                        java.util.Locale.US,
-                        "%.2f kHz",
-                        kotlin.math.abs(it) / 1_000,
-                    )
-                } ?: "—",
-                detail = "positive: approaching",
-            )
-            ValueRow(
-                "Multipath",
-                when (detail?.multipath) {
-                    true -> "detected"
-                    false -> "none"
-                    null -> "not reported"
-                },
-            )
+            AcquisitionSection(stage, stageNote(heard, stage, inferred))
+            SignalSection(siblings, detail?.takeIf { heard }?.dopplerHz, detail?.multipath)
 
             detail?.raw?.takeIf { heard }?.let { RawMeasurementRows(sat, it) }
 
@@ -156,6 +94,80 @@ internal fun SatelliteSheet(row: SignalRow, detail: SignalDetail?, siblings: Lis
         }
     }
 }
+
+/** The four acquisition steps as bars, lit up to [stage], with a sentence on where it stands. */
+@Composable
+private fun AcquisitionSection(stage: AcquisitionStage?, note: String) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        SectionHeader("Acquisition", modifier = Modifier.padding(top = 16.dp, bottom = 6.dp))
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            AcquisitionStage.entries.drop(1).forEach { s ->
+                val done = stage != null && s.step <= stage.step
+                // Every step reached is lit; all four green once the satellite is usable.
+                val barColour = when {
+                    !done -> Palette.Hairline
+                    stage == AcquisitionStage.TIME_DECODED -> Palette.Good
+                    else -> Palette.TextPrimary
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Box(Modifier.fillMaxWidth().height(4.dp).background(barColour, RoundedCornerShape(2.dp)))
+                    Text(
+                        s.label,
+                        style = CaptionStyle.copy(fontSize = 11.sp),
+                        color = if (done) Palette.TextPrimary else Palette.TextTertiary,
+                    )
+                }
+            }
+        }
+        Note(note, modifier = Modifier.padding(top = 6.dp))
+    }
+}
+
+/** Why the acquisition bars look the way they do. */
+private fun stageNote(heard: Boolean, stage: AcquisitionStage?, inferred: Boolean): String = when {
+    !heard ->
+        "No signal from this satellite. The receiver only knows from the almanac that it " +
+            "should be up there."
+
+    stage == null ->
+        "The chip reports no raw measurement for this signal right now, so how far " +
+            "acquisition has got is unknown."
+
+    inferred ->
+        "In the fix, so every step is complete — the chip just reports no raw " +
+            "measurement for it right now."
+
+    else -> stage.meaning
+}
+
+/** Strength on every band the satellite is heard on, then Doppler and multipath. */
+@Composable
+private fun SignalSection(siblings: List<SignalRow>, dopplerHz: Double?, multipath: Boolean?) {
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        SectionHeader("Signal", modifier = Modifier.padding(top = 16.dp, bottom = 2.dp))
+        siblings.forEach { sib ->
+            ValueRow(
+                "Strength" + (sib.satellite.band?.shortLabel()?.let { " · $it" } ?: ""),
+                if (sib.satellite.cn0DbHz > 0f) "%.0f dB-Hz".format(Locale.US, sib.satellite.cn0DbHz) else "—",
+            )
+        }
+        ValueRow(
+            "Doppler shift",
+            dopplerHz?.let { (if (it >= 0) "+" else "−") + "%.2f kHz".format(Locale.US, abs(it) / HZ_PER_KHZ) } ?: "—",
+            detail = "positive: approaching",
+        )
+        ValueRow(
+            "Multipath",
+            when (multipath) {
+                true -> "detected"
+                false -> "none"
+                null -> "not reported"
+            },
+        )
+    }
+}
+
+private const val HZ_PER_KHZ = 1_000
 
 /** The raw-measurement fields that need a word of translation, for the satellite sheet. */
 @Composable

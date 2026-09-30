@@ -81,11 +81,13 @@ fun PermissionScreen(
 private fun PermissionState.explanation(): String = when (this) {
     PermissionState.NEEDS_REQUEST ->
         "Positioning Info shows what your phone's GNSS receiver and sensors know about where it is. " +
-            "Location is used while the app is open, or in background mode if you switch it on — it is never sent anywhere."
+            "Location is used while the app is open, or in background mode if you switch it on — it is never " +
+            "sent anywhere."
 
     PermissionState.DENIED ->
         "Without location access there is no speed to show. " +
-            "Location is used while the app is open, or in background mode if you switch it on — it is never sent anywhere."
+            "Location is used while the app is open, or in background mode if you switch it on — it is never " +
+            "sent anywhere."
 
     PermissionState.APPROXIMATE_ONLY ->
         "Only approximate location is allowed. It cannot give a speed, the satellites or a precise " +

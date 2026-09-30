@@ -9,8 +9,9 @@ naming:
 
 style:
   ReturnCount:
-    # STAGED: switched on with the complexity rules below.
-    active: false
+    # Early returns that reject input up front (guard clauses) make a function easier to
+    # follow, not harder; the rule counts the others.
+    excludeGuardClauses: true
   MagicNumber:
     # Layout sizes (12.dp, 0.55f alpha) inside composables are the design itself; naming each
     # would only move it away from where it is used. Numbers in logic get names.
@@ -28,10 +29,11 @@ comments:
     active: false
 
 complexity:
-  # STAGED: switched on once the long and branchy functions are split.
   CyclomaticComplexMethod:
-    active: false
-  LongMethod:
-    active: false
+    # A flat `when` that maps one value to another is a table, not branching logic.
+    ignoreSimpleWhenEntries: true
   TooManyFunctions:
-    active: false
+    # Counts what a class offers, not how finely it is split up inside: private helpers
+    # that break a long method into named steps are what the length rules ask for.
+    ignorePrivate: true
+    ignoreOverridden: true

@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.HorizontalDivider
@@ -41,6 +43,9 @@ import io.github.leostumpf.positioninginfo.domain.SatelliteId
 import io.github.leostumpf.positioninginfo.domain.SignalBand
 import io.github.leostumpf.positioninginfo.domain.band
 import io.github.leostumpf.positioninginfo.ui.common.LevelBar
+import io.github.leostumpf.positioninginfo.ui.common.Note
+import io.github.leostumpf.positioninginfo.ui.common.QuietButton
+import io.github.leostumpf.positioninginfo.ui.common.section
 import io.github.leostumpf.positioninginfo.ui.sky.label
 import io.github.leostumpf.positioninginfo.ui.theme.BodyStyle
 import io.github.leostumpf.positioninginfo.ui.theme.DataStyle
@@ -114,16 +119,7 @@ internal fun ConstellationRow(summary: ConstellationSummary, last: Boolean) {
 internal fun SatelliteRow(satellite: SatelliteInfo, detail: SignalDetail?, onClick: () -> Unit) {
     val color = satellite.constellation.color()
     val heard = satellite.cn0DbHz > 0f
-    // One spoken line instead of "G07, L1, 42, A E": the letters and grey levels mean nothing aloud.
-    val spoken = buildString {
-        append("${satellite.code()}, ${satellite.constellation.label}")
-        satellite.band?.shortLabel()?.let { append(", $it") }
-        append(if (heard) ", ${satellite.cn0DbHz.roundToInt()} dB-Hz" else ", not heard")
-        if (satellite.usedInFix) append(", in the fix")
-        detail?.stage?.takeIf { heard }?.let { append(", ${it.label}") }
-        append(if (satellite.hasAlmanac) ", almanac" else ", no almanac")
-        append(if (satellite.hasEphemeris) ", ephemeris" else ", no ephemeris")
-    }
+    val spoken = spokenDescription(satellite, detail)
     Column(
         Modifier.alpha(if (heard) 1f else 0.55f)
             .clickable(onClickLabel = "Show satellite details", onClick = onClick)
@@ -134,15 +130,7 @@ internal fun SatelliteRow(satellite: SatelliteInfo, detail: SignalDetail?, onCli
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Box(
-                Modifier.size(8.dp).then(
-                    if (satellite.usedInFix) {
-                        Modifier.background(color, CircleShape)
-                    } else {
-                        Modifier.border(if (heard) 1.5.dp else 1.dp, color, CircleShape)
-                    },
-                ),
-            )
+            FixDot(satellite)
             Text(
                 satellite.code(),
                 style = DataStyle.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium),
@@ -164,18 +152,7 @@ internal fun SatelliteRow(satellite: SatelliteInfo, detail: SignalDetail?, onCli
                 textAlign = TextAlign.End,
                 modifier = Modifier.widthIn(min = 24.dp),
             )
-            Text(
-                buildAnnotatedString {
-                    withStyle(
-                        SpanStyle(color = if (satellite.hasAlmanac) Palette.TextPrimary else Palette.Inactive),
-                    ) { append("A ") }
-                    withStyle(
-                        SpanStyle(color = if (satellite.hasEphemeris) Palette.TextPrimary else Palette.Inactive),
-                    ) { append("E") }
-                },
-                style = DataStyle.copy(fontSize = 11.sp),
-                modifier = Modifier.widthIn(min = 32.dp),
-            )
+            OrbitFlags(satellite, Modifier.widthIn(min = 32.dp))
         }
         HorizontalDivider(color = Palette.RowDivider)
     }
@@ -208,4 +185,86 @@ private fun StageGauge(stage: AcquisitionStage?) {
             )
         }
     }
+}
+
+/**
+ * Every satellite the receiver lists: the ones heard first, strongest on top, then — on
+ * request — those known only from the almanac. [onSelect] opens a satellite's sheet.
+ */
+internal fun LazyListScope.satelliteListItems(
+    state: GnssUiState,
+    showUnheard: Boolean,
+    onToggleUnheard: () -> Unit,
+    onSelect: (String) -> Unit,
+) {
+    if (state.signals.isEmpty()) return
+    val (heard, unheard) = state.signals.partition { it.satellite.cn0DbHz > 0f }
+    section("Satellites · ${state.visible}", trailing = "C/N₀ · A E")
+    val shown = if (showUnheard) heard + unheard else heard
+    items(shown, key = { it.key }) { SatelliteRow(it.satellite, state.details[it.baseKey]) { onSelect(it.baseKey) } }
+    if (unheard.isNotEmpty()) {
+        item {
+            val count = unheard.size
+            QuietButton(
+                if (showUnheard) "Hide the $count not heard" else "Show $count not heard (almanac only)",
+                onClick = onToggleUnheard,
+            )
+        }
+    }
+    item {
+        Note(
+            "Filled dot: used in the fix. Ring: heard. Faint: known only from the almanac. The four " +
+                "ticks are the acquisition steps — code lock, bit sync, frame sync, time decoded; a " +
+                "satellite is usable once all four are done. Tap a row for details.",
+            modifier = Modifier.padding(top = 4.dp),
+        )
+    }
+}
+
+/** Satellites per system: in view, with almanac, with ephemeris, in the fix. */
+internal fun LazyListScope.constellationSection(state: GnssUiState) {
+    if (state.perConstellation.isEmpty()) return
+    section("Constellations")
+    item { ConstellationHeader() }
+    items(state.perConstellation, key = { it.constellation.name }) {
+        ConstellationRow(it, last = it == state.perConstellation.last())
+    }
+}
+
+/** One spoken line instead of "G07, L1, 42, A E": the letters and grey levels mean nothing aloud. */
+private fun spokenDescription(satellite: SatelliteInfo, detail: SignalDetail?): String = buildString {
+    val heard = satellite.cn0DbHz > 0f
+    append("${satellite.code()}, ${satellite.constellation.label}")
+    satellite.band?.shortLabel()?.let { append(", $it") }
+    append(if (heard) ", ${satellite.cn0DbHz.roundToInt()} dB-Hz" else ", not heard")
+    if (satellite.usedInFix) append(", in the fix")
+    detail?.stage?.takeIf { heard }?.let { append(", ${it.label}") }
+    append(if (satellite.hasAlmanac) ", almanac" else ", no almanac")
+    append(if (satellite.hasEphemeris) ", ephemeris" else ", no ephemeris")
+}
+
+/** Filled: used in the fix. Ring: heard. Thin ring: known only from the almanac. */
+@Composable
+private fun FixDot(satellite: SatelliteInfo, modifier: Modifier = Modifier) {
+    val color = satellite.constellation.color()
+    val shape = if (satellite.usedInFix) {
+        Modifier.background(color, CircleShape)
+    } else {
+        Modifier.border(if (satellite.cn0DbHz > 0f) 1.5.dp else 1.dp, color, CircleShape)
+    }
+    Box(modifier.size(8.dp).then(shape))
+}
+
+/** "A E", each letter lit when the receiver holds that kind of orbit for the satellite. */
+@Composable
+private fun OrbitFlags(satellite: SatelliteInfo, modifier: Modifier = Modifier) {
+    fun lit(held: Boolean) = SpanStyle(color = if (held) Palette.TextPrimary else Palette.Inactive)
+    Text(
+        buildAnnotatedString {
+            withStyle(lit(satellite.hasAlmanac)) { append("A ") }
+            withStyle(lit(satellite.hasEphemeris)) { append("E") }
+        },
+        style = DataStyle.copy(fontSize = 11.sp),
+        modifier = modifier,
+    )
 }

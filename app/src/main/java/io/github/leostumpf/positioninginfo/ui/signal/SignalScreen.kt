@@ -3,11 +3,11 @@ package io.github.leostumpf.positioninginfo.ui.signal
 
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -51,229 +51,222 @@ import io.github.leostumpf.positioninginfo.ui.theme.TitleStyle
 @Composable
 fun SignalScreen(state: SignalUiState, modifier: Modifier = Modifier) {
     PageScaffold(Page.SIGNAL, modifier) {
-        item {
-            Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                HeroValue(
-                    value = state.measuredAccuracyM?.let { "±${it.fmt(1)}" } ?: DASH,
-                    unit = state.measuredAccuracyM?.let { "m" },
-                    caption = if (state.measuredAccuracyM != null) {
-                        "Measured horizontal accuracy · 68 % confidence"
-                    } else {
-                        "No fix, so the receiver reports no accuracy"
-                    },
-                )
-                InfoCard {
-                    Text("EXPECTED FOR THIS TECHNIQUE", style = OverlineStyle, color = Palette.TextTertiary)
-                    Text(
-                        if (state.resolution == ResolutionClass.NO_FIX) {
-                            state.resolution.label
-                        } else {
-                            "${state.resolution.label} · ${state.resolution.typicalRange}"
-                        },
-                        style = TitleStyle,
-                        color = Palette.TextPrimary,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                    Text(
-                        if (state.resolution == ResolutionClass.NO_FIX) {
-                            "Nothing is being positioned yet, so there is no technique to judge."
-                        } else {
-                            "Typical under open sky. Buildings, trees and poor geometry make it worse."
-                        },
-                        style = CaptionStyle,
-                        color = Palette.TextTertiary,
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
-                }
-            }
-        }
-
+        item { AccuracySummary(state, Modifier.padding(top = 16.dp)) }
         if (state.isMock) {
             item {
-                Box(Modifier.padding(top = 12.dp)) {
-                    Notice(
-                        "Simulated position: these accuracies come from a mock-location app, not the receiver.",
-                        tone = Tone.BAD,
-                    )
-                }
-            }
-        }
-
-        section("Reported accuracies", trailing = "68 %")
-        item { ValueRow("Horizontal", state.measuredAccuracyM?.let { "±${it.fmt(1)} m" } ?: DASH) }
-        item { ValueRow("Vertical", state.verticalAccuracyM?.let { "±${it.fmt(1)} m" } ?: DASH) }
-        item {
-            ValueRow(
-                "Speed",
-                state.speedAccuracyMps?.let { "±${it.fmt(2)} m/s" } ?: DASH,
-                detail = state.speedAccuracyMps?.let {
-                    "±${SpeedUnit.KMH.fromMps(it.toDouble()).fmt(1)} ${SpeedUnit.KMH.symbol}"
-                },
-            )
-        }
-        item {
-            ValueRow(
-                "Direction of travel",
-                state.bearingAccuracyDeg?.let { "±${it.fmt(1)}°" } ?: DASH,
-                detail = if (state.bearingAccuracyDeg == null) "reported only while moving" else null,
-            )
-        }
-        item {
-            ValueRow(
-                "Fix timestamp",
-                state.timeUncertaintyMs?.let { if (it < 1.0) "±${(it * 1_000).fmt(0)} µs" else "±${it.fmt(1)} ms" }
-                    ?: DASH,
-                detail = if (state.timeUncertaintyMs == null) {
-                    "this receiver does not report it"
-                } else {
-                    "when the position was valid"
-                },
-            )
-        }
-        item {
-            ValueRow(
-                "Fix interval",
-                state.updateIntervalMs?.let { ms ->
-                    if (ms < 1_500) {
-                        "$ms ms"
-                    } else {
-                        "${(ms / 1_000.0).fmt(
-                            1,
-                        )} s"
-                    }
-                } ?: DASH,
-                detail = state.updateIntervalMs?.takeIf { it > 0 }?.let { "${(1_000.0 / it).fmt(1)} fixes per second" },
-                divider = false,
-            )
-        }
-
-        section("Satellite geometry")
-        val dop = state.dop
-        if (dop == null) {
-            item { Note("Needs at least four satellites in the fix.") }
-        } else {
-            item {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    StatusBadge(dop.rating.label, dop.rating.tone())
-                    Text(
-                        "from ${state.dopSatellites.counted("satellite")} in the fix",
-                        style = CaptionStyle,
-                        color = Palette.TextTertiary,
-                    )
-                }
-            }
-            item {
-                TileRow(
-                    listOf(
-                        { m ->
-                            StatTile(
-                                "PDOP",
-                                dop.pdop.fmt(2),
-                                m,
-                                footnote = state.chipPdop?.let { "chip ${it.fmt(1)}" } ?: DASH,
-                            )
-                        },
-                        { m ->
-                            StatTile(
-                                "HDOP",
-                                dop.hdop.fmt(2),
-                                m,
-                                footnote = state.chipHdop?.let { "chip ${it.fmt(1)}" } ?: DASH,
-                            )
-                        },
-                        { m ->
-                            StatTile(
-                                "VDOP",
-                                dop.vdop.fmt(2),
-                                m,
-                                footnote = state.chipVdop?.let { "chip ${it.fmt(1)}" } ?: DASH,
-                            )
-                        },
-                        { m -> StatTile("TDOP", dop.tdop.fmt(2), m, footnote = DASH) },
-                    ),
+                Notice(
+                    "Simulated position: these accuracies come from a mock-location app, not the receiver.",
                     Modifier.padding(top = 12.dp),
-                )
-            }
-            item {
-                Note(
-                    "Position error ≈ DOP × range error. Satellites spread over the whole sky keep it low; " +
-                        "a street canyon that hides half the sky drives it up.",
-                    modifier = Modifier.padding(top = 10.dp),
+                    tone = Tone.BAD,
                 )
             }
         }
+        reportedAccuraciesSection(state)
+        geometrySection(state)
+        bandsSection(state)
+        augmentationSection(state)
+    }
+}
 
-        section("Frequency bands")
-        when {
-            state.bandsUnavailable -> item {
-                Note("This receiver does not report carrier frequencies, so the bands in use cannot be determined.")
-            }
+/** The accuracy measured now, and what the technique in use typically achieves. */
+@Composable
+private fun AccuracySummary(state: SignalUiState, modifier: Modifier = Modifier) {
+    val noFix = state.resolution == ResolutionClass.NO_FIX
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(14.dp)) {
+        HeroValue(
+            value = state.measuredAccuracyM?.let { "±${it.fmt(1)}" } ?: DASH,
+            unit = state.measuredAccuracyM?.let { "m" },
+            caption = if (state.measuredAccuracyM != null) {
+                "Measured horizontal accuracy · 68 % confidence"
+            } else {
+                "No fix, so the receiver reports no accuracy"
+            },
+        )
+        InfoCard {
+            Text("EXPECTED FOR THIS TECHNIQUE", style = OverlineStyle, color = Palette.TextTertiary)
+            Text(
+                if (noFix) state.resolution.label else "${state.resolution.label} · ${state.resolution.typicalRange}",
+                style = TitleStyle,
+                color = Palette.TextPrimary,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+            Text(
+                if (noFix) {
+                    "Nothing is being positioned yet, so there is no technique to judge."
+                } else {
+                    "Typical under open sky. Buildings, trees and poor geometry make it worse."
+                },
+                style = CaptionStyle,
+                color = Palette.TextTertiary,
+                modifier = Modifier.padding(top = 4.dp),
+            )
+        }
+    }
+}
 
-            state.bandsInUse.isEmpty() -> item { Note("No satellites are being used for a fix yet.") }
+/** Every accuracy Android reports with the fix, and how often fixes arrive. */
+private fun LazyListScope.reportedAccuraciesSection(state: SignalUiState) {
+    section("Reported accuracies", trailing = "68 %")
+    item { ValueRow("Horizontal", state.measuredAccuracyM?.let { "±${it.fmt(1)} m" } ?: DASH) }
+    item { ValueRow("Vertical", state.verticalAccuracyM?.let { "±${it.fmt(1)} m" } ?: DASH) }
+    item {
+        val kmh = state.speedAccuracyMps?.let { SpeedUnit.KMH.fromMps(it.toDouble()) }
+        ValueRow(
+            "Speed",
+            state.speedAccuracyMps?.let { "±${it.fmt(2)} m/s" } ?: DASH,
+            detail = kmh?.let { "±${it.fmt(1)} ${SpeedUnit.KMH.symbol}" },
+        )
+    }
+    item {
+        ValueRow(
+            "Direction of travel",
+            state.bearingAccuracyDeg?.let { "±${it.fmt(1)}°" } ?: DASH,
+            detail = if (state.bearingAccuracyDeg == null) "reported only while moving" else null,
+        )
+    }
+    fixTimingItems(state)
+}
 
-            else -> {
-                item {
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        state.bandsInUse.forEach { BandChip(it, inUse = true) }
-                        if (SignalBand.L5 !in state.bandsInUse) BandChip(SignalBand.L5, inUse = false)
-                    }
-                }
-                item {
-                    Box(Modifier.padding(top = 12.dp)) {
-                        if (state.dualFrequency) {
-                            Notice(
-                                "Dual frequency: the receiver measures the ionospheric delay directly and removes it.",
-                                tone = Tone.GOOD,
-                            )
-                        } else {
-                            Notice(
-                                "Single frequency: ionospheric delay is estimated from a broadcast model — the " +
-                                    "largest remaining error.",
-                                tone = Tone.DEGRADED,
-                            )
-                        }
-                    }
-                }
-            }
+/** How precisely the fix is time-stamped, and how often fixes arrive. */
+private fun LazyListScope.fixTimingItems(state: SignalUiState) {
+    item {
+        val uncertainty = state.timeUncertaintyMs
+        ValueRow(
+            "Fix timestamp",
+            when {
+                uncertainty == null -> DASH
+                uncertainty < 1.0 -> "±${(uncertainty * US_PER_MS).fmt(0)} µs"
+                else -> "±${uncertainty.fmt(1)} ms"
+            },
+            detail = if (uncertainty == null) "this receiver does not report it" else "when the position was valid",
+        )
+    }
+    item {
+        val interval = state.updateIntervalMs
+        ValueRow(
+            "Fix interval",
+            when {
+                interval == null -> DASH
+                interval < SECONDS_FROM_MS -> "$interval ms"
+                else -> "${(interval / MS_PER_S).fmt(1)} s"
+            },
+            detail = interval?.takeIf { it > 0 }?.let { "${(MS_PER_S / it).fmt(1)} fixes per second" },
+            divider = false,
+        )
+    }
+}
+
+/** Dilution of precision: how well spread the satellites in the fix are. */
+private fun LazyListScope.geometrySection(state: SignalUiState) {
+    section("Satellite geometry")
+    val dop = state.dop
+    if (dop == null) {
+        item { Note("Needs at least four satellites in the fix.") }
+        return
+    }
+    item {
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+            StatusBadge(dop.rating.label, dop.rating.tone())
+            Text(
+                "from ${state.dopSatellites.counted("satellite")} in the fix",
+                style = CaptionStyle,
+                color = Palette.TextTertiary,
+            )
+        }
+    }
+    item {
+        // Computed here, with the chip's own figure from NMEA underneath where it has one.
+        fun chip(value: Double?) = value?.let { "chip ${it.fmt(1)}" } ?: DASH
+        TileRow(
+            listOf(
+                { m -> StatTile("PDOP", dop.pdop.fmt(2), m, footnote = chip(state.chipPdop)) },
+                { m -> StatTile("HDOP", dop.hdop.fmt(2), m, footnote = chip(state.chipHdop)) },
+                { m -> StatTile("VDOP", dop.vdop.fmt(2), m, footnote = chip(state.chipVdop)) },
+                { m -> StatTile("TDOP", dop.tdop.fmt(2), m, footnote = DASH) },
+            ),
+            Modifier.padding(top = 12.dp),
+        )
+    }
+    item {
+        Note(
+            "Position error ≈ DOP × range error. Satellites spread over the whole sky keep it low; " +
+                "a street canyon that hides half the sky drives it up.",
+            modifier = Modifier.padding(top = 10.dp),
+        )
+    }
+}
+
+/** The bands in use, and whether that makes the fix dual frequency. */
+private fun LazyListScope.bandsSection(state: SignalUiState) {
+    section("Frequency bands")
+    when {
+        state.bandsUnavailable -> item {
+            Note("This receiver does not report carrier frequencies, so the bands in use cannot be determined.")
         }
 
-        section("Augmentation · SBAS")
-        if (state.sbasInView.isEmpty()) {
+        state.bandsInUse.isEmpty() -> item { Note("No satellites are being used for a fix yet.") }
+
+        else -> {
             item {
-                Note(
-                    "No augmentation satellites in view. They are geostationary over the equator, so " +
-                        "whether one is reachable depends on where you are and what blocks that part of the sky.",
-                )
+                val gap = Arrangement.spacedBy(8.dp)
+                FlowRow(horizontalArrangement = gap, verticalArrangement = gap) {
+                    state.bandsInUse.forEach { BandChip(it, inUse = true) }
+                    // L5 is the band that makes the difference; shown dashed while unused.
+                    if (SignalBand.L5 !in state.bandsInUse) BandChip(SignalBand.L5, inUse = false)
+                }
             }
-        } else {
-            state.sbasInView.forEachIndexed { i, sbas ->
-                item {
-                    ValueRow(
-                        sbas.label,
-                        if (state.sbasUsedInFix) "in use" else "in view",
-                        detail = sbas.region,
-                        valueColor = if (state.sbasUsedInFix) Palette.Good else Palette.Degraded,
-                        divider = i < state.sbasInView.lastIndex,
+            item {
+                if (state.dualFrequency) {
+                    Notice(
+                        "Dual frequency: the receiver measures the ionospheric delay directly and removes it.",
+                        Modifier.padding(top = 12.dp),
+                        tone = Tone.GOOD,
+                    )
+                } else {
+                    Notice(
+                        "Single frequency: ionospheric delay is estimated from a broadcast model — the " +
+                            "largest remaining error.",
+                        Modifier.padding(top = 12.dp),
+                        tone = Tone.DEGRADED,
                     )
                 }
             }
-            item {
-                Note(
-                    if (state.sbasUsedInFix) {
-                        "Corrections are being applied to the current fix."
-                    } else {
-                        "In view but not used in the current fix, so no corrections are being applied."
-                    },
-                    modifier = Modifier.padding(top = 6.dp),
-                )
-            }
         }
+    }
+}
+
+/** Which correction services are overhead, and whether the fix uses them. */
+private fun LazyListScope.augmentationSection(state: SignalUiState) {
+    section("Augmentation · SBAS")
+    if (state.sbasInView.isEmpty()) {
+        item {
+            Note(
+                "No augmentation satellites in view. They are geostationary over the equator, so " +
+                    "whether one is reachable depends on where you are and what blocks that part of the sky.",
+            )
+        }
+        return
+    }
+    state.sbasInView.forEachIndexed { i, sbas ->
+        item {
+            ValueRow(
+                sbas.label,
+                if (state.sbasUsedInFix) "in use" else "in view",
+                detail = sbas.region,
+                valueColor = if (state.sbasUsedInFix) Palette.Good else Palette.Degraded,
+                divider = i < state.sbasInView.lastIndex,
+            )
+        }
+    }
+    item {
+        Note(
+            if (state.sbasUsedInFix) {
+                "Corrections are being applied to the current fix."
+            } else {
+                "In view but not used in the current fix, so no corrections are being applied."
+            },
+            modifier = Modifier.padding(top = 6.dp),
+        )
     }
 }
 
@@ -286,11 +279,13 @@ private fun BandChip(band: SignalBand, inUse: Boolean) {
                 if (inUse) {
                     Modifier.border(1.dp, Palette.TextPrimary, shape)
                 } else {
+                    // Dashed: a band the phone could use but does not right now.
                     Modifier.drawBehind {
+                        val dash = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 3.dp.toPx()))
                         drawRoundRect(
                             Palette.Outline,
                             cornerRadius = CornerRadius(12.dp.toPx()),
-                            style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f))),
+                            style = Stroke(1.dp.toPx(), pathEffect = dash),
                         )
                     }
                 },
@@ -327,3 +322,9 @@ private fun DopRating.tone(): Tone = when (this) {
     DopRating.MODERATE -> Tone.DEGRADED
     DopRating.FAIR, DopRating.POOR -> Tone.BAD
 }
+
+private const val US_PER_MS = 1_000.0
+private const val MS_PER_S = 1_000.0
+
+/** From 1.5 s up the fix interval reads better in seconds. */
+private const val SECONDS_FROM_MS = 1_500

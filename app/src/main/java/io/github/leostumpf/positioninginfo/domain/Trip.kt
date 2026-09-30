@@ -79,64 +79,11 @@ data class TripAccumulator(
      */
     fun add(point: TripPoint, climbAltitudeM: Double?, source: ClimbSource = ClimbSource.BAROMETER): TripAccumulator {
         val first = firstTimeMs ?: point.timeUtcMs
-
-        var distance = stats.distanceM
-        var newAnchor = anchor
-        if (point.accuracyM == null || point.accuracyM <= MAX_ACCURACY_M) {
-            val a = anchor
-            if (a == null) {
-                newAnchor = point
-            } else {
-                val d = NetworkComparison.distanceM(a.latitude, a.longitude, point.latitude, point.longitude)
-                val threshold = maxOf(MIN_SEGMENT_M, ((a.accuracyM ?: 0f) + (point.accuracyM ?: 0f)) / 2.0)
-                if (d > threshold || (point.speedMps ?: 0f) > MOVING_SPEED_MPS) {
-                    distance += d
-                    newAnchor = point
-                }
-            }
-        }
-
-        var moving = stats.movingTimeMs
-        val prev = previous
-        if (prev != null) {
-            val dt = point.timeUtcMs - prev.timeUtcMs
-            if (dt in 1..MAX_GAP_MS) {
-                // Without a reported speed, fall back to the displacement over the interval.
-                val speed = point.speedMps?.toDouble()
-                    ?: (
-                        NetworkComparison.distanceM(prev.latitude, prev.longitude, point.latitude, point.longitude) /
-                            (dt / 1000.0)
-                        )
-                if (speed > MOVING_SPEED_MPS) moving += dt
-            } else if (dt > MAX_GAP_MS && distance > stats.distanceM) {
-                // A gap the track jumped across — a tunnel, or the app closed on the way. Its
-                // distance was counted above, so its time must be too, or the average moving
-                // speed would divide the whole jump by the few seconds either side of it. The
-                // displacement over the gap decides whether it was travelled or stood.
-                val gapSpeed = (distance - stats.distanceM) / (dt / 1000.0)
-                if (gapSpeed > MOVING_SPEED_MPS) moving += dt
-            }
-        }
-
-        var ascent = stats.ascentM
-        var descent = stats.descentM
-        var reference = climbReferenceM
-        var referenceSource = climbSource
-        if (climbAltitudeM != null && climbAltitudeM.isFinite()) {
-            val ref = reference
-            if (ref == null || source != climbSource) {
-                reference = climbAltitudeM
-                referenceSource = source
-            } else {
-                val delta = climbAltitudeM - ref
-                if (abs(delta) >= source.hysteresisM) {
-                    if (delta > 0) ascent += delta else descent -= delta
-                    reference = climbAltitudeM
-                }
-            }
-        }
-
-        val lastTime = maxOf(point.timeUtcMs, prev?.timeUtcMs ?: point.timeUtcMs)
+        val (distanceStep, newAnchor) = distanceStep(point)
+        val distance = stats.distanceM + distanceStep
+        val moving = stats.movingTimeMs + movingTimeStep(point, distanceStep)
+        val climb = climbStep(climbAltitudeM, source)
+        val lastTime = maxOf(point.timeUtcMs, previous?.timeUtcMs ?: point.timeUtcMs)
         return TripAccumulator(
             stats = TripStats(
                 points = stats.points + 1,
@@ -144,20 +91,81 @@ data class TripAccumulator(
                 durationMs = (lastTime - first).coerceAtLeast(0L),
                 movingTimeMs = moving,
                 maxSpeedMps = listOfNotNull(stats.maxSpeedMps, point.speedMps).maxOrNull(),
-                avgMovingSpeedMps = if (moving > 0L) distance / (moving / 1000.0) else null,
-                ascentM = ascent,
-                descentM = descent,
+                avgMovingSpeedMps = if (moving > 0L) distance / (moving / MS_PER_S) else null,
+                ascentM = stats.ascentM + climb.ascentM,
+                descentM = stats.descentM + climb.descentM,
             ),
             firstTimeMs = first,
             previous = point,
             anchor = newAnchor,
-            climbReferenceM = reference,
-            climbSource = referenceSource,
+            climbReferenceM = climb.referenceM,
+            climbSource = climb.source,
         )
+    }
+
+    /**
+     * The distance [point] adds, and the anchor to measure the next one from. A segment counts
+     * once the position has moved beyond both fixes' uncertainty, or the receiver reports
+     * motion; an imprecise fix adds nothing and leaves the anchor where it was.
+     */
+    private fun distanceStep(point: TripPoint): Pair<Double, TripPoint?> {
+        if (point.accuracyM != null && point.accuracyM > MAX_ACCURACY_M) return 0.0 to anchor
+        val a = anchor ?: return 0.0 to point
+        val d = NetworkComparison.distanceM(a.latitude, a.longitude, point.latitude, point.longitude)
+        val threshold = maxOf(MIN_SEGMENT_M, ((a.accuracyM ?: 0f) + (point.accuracyM ?: 0f)) / 2.0)
+        val moved = d > threshold || (point.speedMps ?: 0f) > MOVING_SPEED_MPS
+        return if (moved) d to point else 0.0 to a
+    }
+
+    /** The moving time [point] adds after the previous one; [distanceStep] is what it added in distance. */
+    private fun movingTimeStep(point: TripPoint, distanceStep: Double): Long {
+        val prev = previous ?: return 0L
+        val dt = point.timeUtcMs - prev.timeUtcMs
+        val speed = when {
+            dt <= 0 -> return 0L
+
+            // Without a reported speed, fall back to the displacement over the interval.
+            dt <= MAX_GAP_MS -> point.speedMps?.toDouble() ?: (displacementM(prev, point) / (dt / MS_PER_S))
+
+            // A gap the track jumped across — a tunnel, or the app closed on the way. Its distance
+            // counts, so its time must too, or the average moving speed would divide the whole
+            // jump by the few seconds either side of it. The displacement over the gap decides
+            // whether it was travelled or stood.
+            else -> distanceStep / (dt / MS_PER_S)
+        }
+        return if (speed > MOVING_SPEED_MPS) dt else 0L
+    }
+
+    private fun displacementM(from: TripPoint, to: TripPoint): Double =
+        NetworkComparison.distanceM(from.latitude, from.longitude, to.latitude, to.longitude)
+
+    /** What one altitude reading adds to ascent and descent, and the reference it leaves. */
+    private class ClimbStep(
+        val ascentM: Double,
+        val descentM: Double,
+        val referenceM: Double?,
+        val source: ClimbSource?,
+    )
+
+    private fun climbStep(altitudeM: Double?, source: ClimbSource): ClimbStep {
+        val ref = climbReferenceM
+        return when {
+            altitudeM == null || !altitudeM.isFinite() -> ClimbStep(0.0, 0.0, ref, climbSource)
+
+            // A new source starts a new reference: the step between two sources is no climb.
+            ref == null || source != climbSource -> ClimbStep(0.0, 0.0, altitudeM, source)
+
+            abs(altitudeM - ref) < source.hysteresisM -> ClimbStep(0.0, 0.0, ref, climbSource)
+
+            altitudeM > ref -> ClimbStep(altitudeM - ref, 0.0, altitudeM, source)
+
+            else -> ClimbStep(0.0, ref - altitudeM, altitudeM, source)
+        }
     }
 
     companion object {
         const val MAX_ACCURACY_M = 30f
+        private const val MS_PER_S = 1_000.0
         const val MIN_SEGMENT_M = 3.0
         const val MOVING_SPEED_MPS = 0.5f
 
