@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.sky
 
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -93,10 +94,11 @@ fun LazyListScope.skyPlotItems(
 ) {
     section("Sky")
     item {
-        Row(
+        // Wraps the compass button under the switch when the text is large.
+        FlowRow(
             Modifier.fillMaxWidth().padding(top = 12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             SegmentedToggle(
                 options = listOf("Paths", "Signal map"),

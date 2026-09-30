@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.signal
 
+import io.github.leostumpf.positioninginfo.ui.common.TileRow
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -132,12 +134,15 @@ fun SignalScreen(state: SignalUiState, modifier: Modifier = Modifier) {
                 }
             }
             item {
-                Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StatTile("PDOP", dop.pdop.fmt(2), Modifier.weight(1f), footnote = state.chipPdop?.let { "chip ${it.fmt(1)}" } ?: DASH)
-                    StatTile("HDOP", dop.hdop.fmt(2), Modifier.weight(1f), footnote = state.chipHdop?.let { "chip ${it.fmt(1)}" } ?: DASH)
-                    StatTile("VDOP", dop.vdop.fmt(2), Modifier.weight(1f), footnote = state.chipVdop?.let { "chip ${it.fmt(1)}" } ?: DASH)
-                    StatTile("TDOP", dop.tdop.fmt(2), Modifier.weight(1f), footnote = DASH)
-                }
+                TileRow(
+                    listOf(
+                        { m -> StatTile("PDOP", dop.pdop.fmt(2), m, footnote = state.chipPdop?.let { "chip ${it.fmt(1)}" } ?: DASH) },
+                        { m -> StatTile("HDOP", dop.hdop.fmt(2), m, footnote = state.chipHdop?.let { "chip ${it.fmt(1)}" } ?: DASH) },
+                        { m -> StatTile("VDOP", dop.vdop.fmt(2), m, footnote = state.chipVdop?.let { "chip ${it.fmt(1)}" } ?: DASH) },
+                        { m -> StatTile("TDOP", dop.tdop.fmt(2), m, footnote = DASH) },
+                    ),
+                    Modifier.padding(top = 12.dp),
+                )
             }
             item {
                 Note(
@@ -154,7 +159,7 @@ fun SignalScreen(state: SignalUiState, modifier: Modifier = Modifier) {
             state.bandsInUse.isEmpty() -> item { Note("No satellites are being used for a fix yet.") }
             else -> {
                 item {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         state.bandsInUse.forEach { BandChip(it, inUse = true) }
                         if (SignalBand.L5 !in state.bandsInUse) BandChip(SignalBand.L5, inUse = false)
                     }

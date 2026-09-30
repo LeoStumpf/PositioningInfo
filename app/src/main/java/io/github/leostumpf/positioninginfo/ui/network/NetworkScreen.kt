@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.network
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -353,7 +354,7 @@ private fun CellRow(cell: CellTower, onClick: () -> Unit) {
                 style = DataStyle.copy(fontSize = 11.sp),
                 color = if (cell.registered) Palette.TextPrimary else Palette.TextSecondary,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.width(44.dp).border(1.dp, if (cell.registered) Palette.TextPrimary else Palette.Outline, RoundedCornerShape(6.dp)).padding(vertical = 2.dp),
+                modifier = Modifier.widthIn(min = 44.dp).border(1.dp, if (cell.registered) Palette.TextPrimary else Palette.Outline, RoundedCornerShape(6.dp)).padding(vertical = 2.dp),
             )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
@@ -385,7 +386,7 @@ private fun CellRow(cell: CellTower, onClick: () -> Unit) {
 @Composable
 private fun AccessPointRow(ap: AccessPoint, onClick: () -> Unit) {
     Column(Modifier.clickable(onClickLabel = "Show access point details", onClick = onClick)) {
-        Row(Modifier.fillMaxWidth().heightIn(min = 44.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
                 ap.ssid ?: "hidden · ${ap.bssid}",
                 style = BodyStyle.copy(fontSize = 14.sp),
@@ -397,7 +398,7 @@ private fun AccessPointRow(ap: AccessPoint, onClick: () -> Unit) {
             // −30 dBm is as strong as Wi-Fi gets, −90 is the edge.
             val fraction = ((ap.rssiDbm + 90) / 60f).coerceIn(0f, 1f)
             LevelBar(fraction, if (ap.rssiDbm >= -60) Palette.TextPrimary else if (ap.rssiDbm >= -75) Palette.TextSecondary else Palette.TextTertiary, Modifier.width(56.dp))
-            Text(ap.rssiDbm.toString().replace("-", "−"), style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary, textAlign = TextAlign.End, modifier = Modifier.width(32.dp))
+            Text(ap.rssiDbm.toString().replace("-", "−"), style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary, textAlign = TextAlign.End, modifier = Modifier.widthIn(min = 32.dp))
         }
         HorizontalDivider(color = Color15)
     }

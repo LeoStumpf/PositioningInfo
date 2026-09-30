@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.common
 
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -78,8 +83,12 @@ import java.util.Locale
 /** Page gutter. */
 val Gutter = 20.dp
 
-/** Room kept free at the bottom for the page indicator. */
-private val IndicatorClearance = 72.dp
+/**
+ * Room kept free at the bottom for the page indicator: its padding plus one line of its
+ * labels, which grows with the system font size.
+ */
+@Composable
+fun indicatorClearance(): Dp = with(LocalDensity.current) { maxOf(72.dp, 40.dp + 19.sp.toDp()) }
 
 // --- Page frame -----------------------------------------------------------------------
 
@@ -93,7 +102,7 @@ fun PageScaffold(page: Page, modifier: Modifier = Modifier, content: LazyListSco
     var glossaryOpen by rememberSaveable { mutableStateOf(false) }
     LazyColumn(
         modifier = modifier.fillMaxSize().background(Palette.Background),
-        contentPadding = PaddingValues(start = Gutter, end = Gutter, top = 24.dp, bottom = IndicatorClearance),
+        contentPadding = PaddingValues(start = Gutter, end = Gutter, top = 24.dp, bottom = indicatorClearance()),
     ) {
         item { PageHeader(page, onHelp = { glossaryOpen = true }) }
         content()
@@ -103,17 +112,29 @@ fun PageScaffold(page: Page, modifier: Modifier = Modifier, content: LazyListSco
 
 @Composable
 fun PageHeader(page: Page, onHelp: () -> Unit, actions: @Composable RowScope.() -> Unit = {}) {
-    Row(
-        Modifier.fillMaxWidth().padding(bottom = 8.dp),
-        verticalAlignment = Alignment.Top,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(page.number, style = OverlineStyle, color = Palette.TextTertiary)
-            Text(page.title, style = PageTitleStyle, color = Palette.TextPrimary)
-        }
+    val title: @Composable () -> Unit = {
+        Text(page.number, style = OverlineStyle, color = Palette.TextTertiary)
+        Text(page.title, style = PageTitleStyle, color = Palette.TextPrimary, modifier = Modifier.semantics { heading() })
+    }
+    val buttons: @Composable RowScope.() -> Unit = {
         actions()
         CircleIconButton(AppIcons.Help, contentDescription = "What am I looking at?", onClick = onHelp)
+    }
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+        // With large text or on a narrow screen the buttons would squeeze the title into a
+        // column a few letters wide, so they move above it instead.
+        val stacked = LocalDensity.current.fontScale > 1.3f || maxWidth < 320.dp
+        if (stacked) {
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), content = buttons)
+                title()
+            }
+        } else {
+            Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) { title() }
+                buttons()
+            }
+        }
     }
 }
 
@@ -230,6 +251,23 @@ fun ValueRow(
 }
 
 /** A small tile in a grid of figures. */
+/**
+ * Stat tiles side by side, as many as fit: all in one row normally, two per row when the
+ * system font is large, so a label such as "ephemeris" is never broken mid-word.
+ */
+@Composable
+fun TileRow(tiles: List<@Composable (Modifier) -> Unit>, modifier: Modifier = Modifier, spacing: Dp = 8.dp) {
+    val perRow = if (LocalDensity.current.fontScale > 1.3f && tiles.size > 2) 2 else tiles.size.coerceAtLeast(1)
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(spacing)) {
+        tiles.chunked(perRow).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(spacing)) {
+                row.forEach { tile -> tile(Modifier.weight(1f)) }
+                repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
+            }
+        }
+    }
+}
+
 @Composable
 fun StatTile(
     label: String,
@@ -312,11 +350,11 @@ fun StatusBadge(text: String, tone: Tone) {
     val shape = RoundedCornerShape(13.dp)
     Row(
         Modifier
-            .height(26.dp)
+            .heightIn(min = 26.dp)
             .clip(shape)
             .background(if (tone == Tone.NEUTRAL) Palette.SurfaceRaised else tone.color.copy(alpha = 0.14f))
             .border(1.dp, if (tone == Tone.NEUTRAL) Palette.Outline else tone.color.copy(alpha = 0.4f), shape)
-            .padding(horizontal = 10.dp),
+            .padding(horizontal = 10.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
@@ -413,7 +451,7 @@ fun SegmentedToggle(options: List<String>, selected: Int, onSelect: (Int) -> Uni
             val on = index == selected
             TextButton(
                 onClick = { onSelect(index) },
-                modifier = Modifier.height(40.dp),
+                modifier = Modifier.heightIn(min = 40.dp),
                 shape = RoundedCornerShape(9.dp),
                 contentPadding = PaddingValues(horizontal = 14.dp),
                 colors = ButtonDefaults.textButtonColors(
@@ -484,6 +522,8 @@ fun PageIndicator(current: Int, modifier: Modifier = Modifier) {
             style = CaptionStyle.copy(fontSize = 12.sp),
             color = Palette.TextTertiary,
             textAlign = TextAlign.End,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.width(72.dp),
         )
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -498,6 +538,8 @@ fun PageIndicator(current: Int, modifier: Modifier = Modifier) {
             pages.getOrNull(current + 1)?.shortName.orEmpty(),
             style = CaptionStyle.copy(fontSize = 12.sp),
             color = Palette.TextTertiary,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
             modifier = Modifier.width(72.dp),
         )
     }

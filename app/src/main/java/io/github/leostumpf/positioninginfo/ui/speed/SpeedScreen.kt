@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.speed
 
+import androidx.compose.foundation.layout.heightIn
+import io.github.leostumpf.positioninginfo.ui.common.indicatorClearance
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.animation.core.animateFloatAsState
@@ -90,8 +94,10 @@ fun SpeedScreen(
         if (maxWidth > maxHeight) {
             Landscape(state, onResetSession, backgroundActive, onSetBackground, { glossaryOpen = true }, { settingsOpen = true })
         } else {
-            // Sized from the height available so small screens and split-screen still fit.
-            val size = (maxHeight.value * 0.19f).coerceIn(72f, 168f).sp
+            // Sized from the height available so small screens and split-screen still fit. The
+            // size is a share of the screen, so it is converted without the system font scale,
+            // which would otherwise enlarge it a second time and push it off the screen.
+            val size = (maxHeight.value * 0.19f).coerceIn(72f, 168f)
             Portrait(state, size, onResetSession, backgroundActive, onSetBackground, { glossaryOpen = true }, { settingsOpen = true })
         }
     }
@@ -139,20 +145,28 @@ private fun SettingsSheet(
 @Composable
 private fun Portrait(
     state: SpeedUiState,
-    readoutSize: TextUnit,
+    /** The readout's size in dp of screen, at most; less if the space left is smaller. */
+    readoutDp: Float,
     onResetSession: () -> Unit,
     backgroundActive: Boolean,
     onSetBackground: (Boolean) -> Unit,
     onHelp: () -> Unit,
     onSettings: () -> Unit,
 ) {
-    Column(Modifier.fillMaxSize().padding(start = Gutter, end = Gutter, top = 24.dp, bottom = 64.dp)) {
+    Column(Modifier.fillMaxSize().padding(start = Gutter, end = Gutter, top = 24.dp, bottom = indicatorClearance())) {
         PageHeader(Page.SPEED, onHelp = onHelp) {
             BackgroundModeButton(active = backgroundActive, onSetActive = onSetBackground)
             CircleIconButton(AppIcons.Settings, contentDescription = "Settings", onClick = onSettings)
         }
-        Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Readout(state, readoutSize)
+        BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+            // What is left once the header, chart and statistics — which grow with the system
+            // font — have taken theirs, less the unit and uncertainty lines under the number.
+            val density = LocalDensity.current
+            val below = with(density) {
+                (22.sp.toDp() + 18.sp.toDp()) * 1.3f + if (state.isAcquiring) 12.dp + 18.sp.toDp() else 0.dp
+            }
+            val fits = (maxHeight - below).value / 0.95f
+            Readout(state, readoutSize(minOf(readoutDp, fits).coerceAtLeast(48f)))
         }
         if (state.speedHistory.size > 1) {
             SpeedChart(state, Modifier.fillMaxWidth().padding(bottom = 20.dp))
@@ -181,21 +195,28 @@ private fun Landscape(
     onHelp: () -> Unit,
     onSettings: () -> Unit,
 ) {
-    Row(Modifier.fillMaxSize().padding(horizontal = 32.dp, vertical = 16.dp)) {
+    Row(Modifier.fillMaxSize().padding(start = 32.dp, end = 32.dp, top = 16.dp, bottom = indicatorClearance() - 24.dp)) {
         Column(Modifier.weight(1f).fillMaxHeight()) {
             BoxWithConstraints(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Readout(state, (maxHeight.value * 0.62f).coerceIn(72f, 220f).sp, inline = true)
+                Readout(state, readoutSize((maxHeight.value * 0.62f).coerceIn(72f, 220f)), inline = true)
             }
             if (state.speedHistory.size > 1) {
                 SpeedChart(state, Modifier.fillMaxWidth().padding(end = 28.dp, bottom = 8.dp), height = 52.dp)
             }
         }
         Box(Modifier.width(1.dp).fillMaxHeight().padding(vertical = 24.dp).background(Palette.CardBorder))
+        // Spread over the height when it fits; scrolls when a large font makes it taller.
+        BoxWithConstraints(Modifier.width(252.dp).fillMaxHeight()) {
         Column(
-            Modifier.width(220.dp).fillMaxHeight().padding(start = 28.dp, top = 4.dp, bottom = 36.dp),
+            Modifier.verticalScroll(rememberScrollState()).heightIn(min = maxHeight).padding(start = 28.dp, top = 4.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.SpaceBetween,
         ) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+            // Wraps rather than squeezing the buttons when the text is large.
+            FlowRow(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 BackgroundModeButton(active = backgroundActive, onSetActive = onSetBackground)
                 CircleIconButton(AppIcons.Settings, contentDescription = "Settings", onClick = onSettings)
                 CircleIconButton(AppIcons.Help, contentDescription = "What am I looking at?", onClick = onHelp)
@@ -209,8 +230,13 @@ private fun Landscape(
             }
             StatusLine(state, Modifier.align(Alignment.End), stacked = true)
         }
+        }
     }
 }
+
+/** A readout size given in dp of screen, as sp that the system font scale does not enlarge again. */
+@Composable
+private fun readoutSize(dp: Float): TextUnit = with(LocalDensity.current) { dp.dp.toSp() }
 
 @Composable
 private fun Readout(state: SpeedUiState, size: TextUnit, inline: Boolean = false) {
@@ -336,12 +362,17 @@ private fun SpeedChart(state: SpeedUiState, modifier: Modifier = Modifier, heigh
             drawPath(fill, Palette.TextPrimary.copy(alpha = 0.07f))
             drawPath(line, Palette.TextSecondary, style = Stroke(1.5.dp.toPx(), join = StrokeJoin.Round))
         }
-        Row(Modifier.fillMaxWidth()) {
+        // Two captions that move to two lines as a whole when the text is large, instead of
+        // breaking mid-phrase.
+        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
                 "since reset · ${elapsedLabel(end - start)}",
-                style = StatusLineStyle.copy(fontSize = 11.sp), color = Palette.TextTertiary, modifier = Modifier.weight(1f),
+                style = StatusLineStyle.copy(fontSize = 11.sp), color = Palette.TextTertiary, maxLines = 1,
             )
-            Text("max ${formatSpeed(max, state.unit)} ${state.unit.symbol}", style = StatusLineStyle.copy(fontSize = 11.sp), color = Palette.TextTertiary)
+            Text(
+                "max ${formatSpeed(max, state.unit)} ${state.unit.symbol}",
+                style = StatusLineStyle.copy(fontSize = 11.sp), color = Palette.TextTertiary, maxLines = 1,
+            )
         }
     }
 }

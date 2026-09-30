@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.receiver
 
+import io.github.leostumpf.positioninginfo.ui.common.TileRow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -95,17 +96,23 @@ fun ReceiverScreen(state: ReceiverUiState, modifier: Modifier = Modifier) {
             item { Note("No NMEA sentences received yet.") }
         } else {
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StatTile(
-                        "Fix", when (n.gsa?.fixType) { 3 -> "3D"; 2 -> "2D"; 1 -> "none"; else -> DASH }, Modifier.weight(1f),
-                        footnote = n.gga?.fixQuality?.let { "quality $it · ${ggaQuality(it)}" },
-                    )
-                    StatTile("Satellites", n.gga?.satellites?.toString() ?: DASH, Modifier.weight(1f), footnote = "in solution")
-                    StatTile(
-                        "Chip DOP", n.gsa?.pdop?.fmt(1) ?: DASH, Modifier.weight(1f),
-                        footnote = n.gsa?.let { "H ${it.hdop?.fmt(1) ?: DASH} · V ${it.vdop?.fmt(1) ?: DASH}" },
-                    )
-                }
+                TileRow(
+                    listOf(
+                        { m ->
+                            StatTile(
+                                "Fix", when (n.gsa?.fixType) { 3 -> "3D"; 2 -> "2D"; 1 -> "none"; else -> DASH }, m,
+                                footnote = n.gga?.fixQuality?.let { "quality $it · ${ggaQuality(it)}" },
+                            )
+                        },
+                        { m -> StatTile("Satellites", n.gga?.satellites?.toString() ?: DASH, m, footnote = "in solution") },
+                        { m ->
+                            StatTile(
+                                "Chip DOP", n.gsa?.pdop?.fmt(1) ?: DASH, m,
+                                footnote = n.gsa?.let { "H ${it.hdop?.fmt(1) ?: DASH} · V ${it.vdop?.fmt(1) ?: DASH}" },
+                            )
+                        },
+                    ),
+                )
             }
             n.gst?.let { gst ->
                 item {

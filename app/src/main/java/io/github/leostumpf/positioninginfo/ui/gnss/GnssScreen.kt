@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.gnss
 
+import io.github.leostumpf.positioninginfo.ui.common.TileRow
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
@@ -130,12 +132,15 @@ fun GnssScreen(
         }
         state.diagnosis?.let { d -> item { DiagnosisCard(d, Modifier.padding(top = 16.dp)) } }
         item {
-            Row(Modifier.padding(top = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                StatTile("visible", state.visible.toString(), Modifier.weight(1f))
-                StatTile("almanac", state.withAlmanac.toString(), Modifier.weight(1f))
-                StatTile("ephemeris", if (state.ephemerisUnavailable) "—" else state.withEphemeris.toString(), Modifier.weight(1f))
-                StatTile("in fix", state.usedInFix.toString(), Modifier.weight(1f), tone = if (state.usedInFix > 0) Tone.GOOD else null)
-            }
+            TileRow(
+                listOf(
+                    { m -> StatTile("visible", state.visible.toString(), m) },
+                    { m -> StatTile("almanac", state.withAlmanac.toString(), m) },
+                    { m -> StatTile("ephemeris", if (state.ephemerisUnavailable) "—" else state.withEphemeris.toString(), m) },
+                    { m -> StatTile("in fix", state.usedInFix.toString(), m, tone = if (state.usedInFix > 0) Tone.GOOD else null) },
+                ),
+                Modifier.padding(top = 16.dp),
+            )
         }
         if (state.ephemerisUnavailable) {
             item {
@@ -336,25 +341,25 @@ private fun SatelliteRow(satellite: SatelliteInfo, detail: SignalDetail?, onClic
     val color = satellite.constellation.color()
     val heard = satellite.cn0DbHz > 0f
     Column(Modifier.alpha(if (heard) 1f else 0.55f).clickable(onClickLabel = "Show satellite details", onClick = onClick)) {
-        Row(Modifier.fillMaxWidth().height(40.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(
                 Modifier.size(8.dp).then(
                     if (satellite.usedInFix) Modifier.background(color, CircleShape)
                     else Modifier.border(if (heard) 1.5.dp else 1.dp, color, CircleShape),
                 ),
             )
-            Text(satellite.code(), style = DataStyle.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium), color = color, modifier = Modifier.width(40.dp))
-            Text(satellite.band?.shortLabel() ?: "—", style = DataStyle.copy(fontSize = 11.sp), color = Palette.TextTertiary, modifier = Modifier.width(24.dp))
+            Text(satellite.code(), style = DataStyle.copy(fontSize = 13.sp, fontWeight = FontWeight.Medium), color = color, modifier = Modifier.widthIn(min = 40.dp))
+            Text(satellite.band?.shortLabel() ?: "—", style = DataStyle.copy(fontSize = 11.sp), color = Palette.TextTertiary, modifier = Modifier.widthIn(min = 24.dp))
             StageGauge(if (heard) detail?.stage else null)
             LevelBar((satellite.cn0DbHz / GOOD_SIGNAL_DB_HZ), signalColour(satellite.cn0DbHz), Modifier.weight(1f))
-            Text(if (heard) "%.0f".format(satellite.cn0DbHz) else "—", style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary, textAlign = TextAlign.End, modifier = Modifier.width(24.dp))
+            Text(if (heard) "%.0f".format(satellite.cn0DbHz) else "—", style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary, textAlign = TextAlign.End, modifier = Modifier.widthIn(min = 24.dp))
             Text(
                 buildAnnotatedString {
                     withStyle(SpanStyle(color = if (satellite.hasAlmanac) Palette.TextPrimary else Palette.Inactive)) { append("A ") }
                     withStyle(SpanStyle(color = if (satellite.hasEphemeris) Palette.TextPrimary else Palette.Inactive)) { append("E") }
                 },
                 style = DataStyle.copy(fontSize = 11.sp),
-                modifier = Modifier.width(32.dp),
+                modifier = Modifier.widthIn(min = 32.dp),
             )
         }
         HorizontalDivider(color = Color(0xFF151515))
