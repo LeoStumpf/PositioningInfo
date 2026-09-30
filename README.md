@@ -204,7 +204,8 @@ it all and clears it with one button.
 
 The full [privacy policy](PRIVACY.md) is linked from the About page and the store listing.
 
-Permissions beyond location: `ACCESS_WIFI_STATE` (list access points), `ACCESS_NETWORK_STATE`
+Permissions beyond location: `ACCESS_WIFI_STATE` and `CHANGE_WIFI_STATE` (list access points and
+ask for a fresh Wi-Fi scan), `ACCESS_NETWORK_STATE`
 (tell whether a data connection exists for the system's A-GNSS download — read-only, no network
 use), `ACCESS_LOCATION_EXTRA_COMMANDS` (cold start / A-GNSS request), and the foreground-service and
 notification permissions for opt-in background mode. There is no `INTERNET` permission.

@@ -19,7 +19,7 @@ shared with anyone.
 | Access | Used for |
 |---|---|
 | **Precise location** (GNSS receiver, and Android's network and fused location) | Everything the app shows: speed, position, satellites, accuracy, and the comparison of GNSS with network positioning. Only while the app is on screen — or while you have switched on background mode, see below. |
-| **Nearby Wi-Fi networks and mobile cells** (names, hardware addresses, signal strength) | Shown on the Wi-Fi & cell page as the inputs of network positioning. Displayed only, never stored. |
+| **Nearby Wi-Fi networks and mobile cells** (names, hardware addresses, signal strength) | Shown on the Wi-Fi & cell page as the inputs of network positioning; the app asks for a fresh Wi-Fi scan while that page's data is collected. Displayed only, never stored. |
 | **Sensors** (air pressure, magnetic field, orientation) | Barometric altitude, the compass check and the compass mode of the sky plot. Not stored. |
 | **Network state** (whether a data connection exists) | To tell whether Android can download satellite assistance data. The app itself uses no network. |
 | **Location extra commands** | The cold-start and assistance-download buttons on the GNSS page. |

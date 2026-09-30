@@ -47,6 +47,11 @@ All functionality is available without special access (no login).
 
 No, the app contains no ads.
 
+## Advertising ID
+
+No. The app does not use the advertising ID, and no library adds the `AD_ID` permission (checked
+in the merged release manifest).
+
 ## Content rating (IARC questionnaire)
 
 Category *Utility, productivity, communication, or other*. Every content question is *No*,
