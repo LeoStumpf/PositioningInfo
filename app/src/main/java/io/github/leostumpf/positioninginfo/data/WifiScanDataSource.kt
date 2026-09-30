@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.data
 
+import android.annotation.SuppressLint
 import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -31,6 +32,7 @@ class WifiScanDataSource(context: Context) {
     private val wifi = appContext.getSystemService<WifiManager>()
 
     /** Scanning works with Wi-Fi off too, if "Wi-Fi scanning" is enabled in location settings. */
+    @Suppress("DEPRECATION")  // isScanAlwaysAvailable: no replacement readable by apps
     val canScan: Boolean
         get() = runCatching {
             wifi?.let { it.isWifiEnabled || it.isScanAlwaysAvailable } == true
@@ -90,6 +92,7 @@ class WifiScanDataSource(context: Context) {
 }
 
 @Suppress("DEPRECATION")  // wifiSsid replaces SSID only from API 33
+@SuppressLint("InlinedApi")  // the width and standard constants are inlined
 private fun ScanResult.toAccessPoint() = AccessPoint(
     ssid = SSID?.removeSurrounding("\"")?.takeIf { it.isNotBlank() && it != "<unknown ssid>" },
     bssid = BSSID.orEmpty(),
@@ -100,17 +103,17 @@ private fun ScanResult.toAccessPoint() = AccessPoint(
         ScanResult.CHANNEL_WIDTH_40MHZ -> 40
         ScanResult.CHANNEL_WIDTH_80MHZ -> 80
         ScanResult.CHANNEL_WIDTH_160MHZ, ScanResult.CHANNEL_WIDTH_80MHZ_PLUS_MHZ -> 160
-        5 -> 320 // CHANNEL_WIDTH_320MHZ, Android 13
+        ScanResult.CHANNEL_WIDTH_320MHZ -> 320  // an inlined constant, safe before Android 13
         else -> null
     },
     standard = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
         when (wifiStandard) {
-            4 -> "Wi-Fi 4 (802.11n)"
-            5 -> "Wi-Fi 5 (802.11ac)"
-            6 -> "Wi-Fi 6 (802.11ax)"
-            7 -> "WiGig (802.11ad)"
-            8 -> "Wi-Fi 7 (802.11be)"
-            1 -> "802.11a/b/g"
+            ScanResult.WIFI_STANDARD_11N -> "Wi-Fi 4 (802.11n)"
+            ScanResult.WIFI_STANDARD_11AC -> "Wi-Fi 5 (802.11ac)"
+            ScanResult.WIFI_STANDARD_11AX -> "Wi-Fi 6 (802.11ax)"
+            ScanResult.WIFI_STANDARD_11AD -> "WiGig (802.11ad)"
+            ScanResult.WIFI_STANDARD_11BE -> "Wi-Fi 7 (802.11be)"
+            ScanResult.WIFI_STANDARD_LEGACY -> "802.11a/b/g"
             else -> null
         }
     } else {

@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.sky
 
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.ui.platform.LocalConfiguration
 import io.github.leostumpf.positioninginfo.ui.theme.signalAlpha
 import io.github.leostumpf.positioninginfo.ui.theme.signalColour
 import io.github.leostumpf.positioninginfo.domain.counted
@@ -81,14 +82,6 @@ import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
 
-/**
- * The sky as the receiver sees it: where each satellite is, where it has been, and where
- * it seems to be heading.
- *
- * North is up and the centre is straight overhead, the usual sky-plot convention. The plot
- * is not rotated with the phone, so hold the top of the phone to the north to compare it
- * with the real sky.
- */
 /**
  * The sky as the receiver sees it: where each satellite is, where it has been, and where it
  * seems to be heading. North is up and the centre is straight overhead; compass mode turns
@@ -261,7 +254,7 @@ private fun LegendLine(dashed: Boolean, label: String) = LegendItem(label) {
     Canvas(Modifier.size(18.dp, 2.dp)) {
         drawLine(
             Palette.TextSecondary, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), strokeWidth = size.height,
-            pathEffect = if (dashed) PathEffect.dashPathEffect(floatArrayOf(4f, 3f)) else null,
+            pathEffect = if (dashed) PathEffect.dashPathEffect(floatArrayOf(1.5.dp.toPx(), 1.dp.toPx())) else null,
         )
     }
 }
@@ -312,7 +305,9 @@ private fun codeColor(code: String): Color = when (code.firstOrNull()) {
 private fun SkyPlot(state: SkyUiState, modifier: Modifier = Modifier) {
     val markers = state.markers
     val rotation = if (state.compassMode) state.headingDegrees ?: 0f else 0f
-    val measurer = rememberTextMeasurer()
+    // Room for every satellite label plus the compass letters; the default of 8 would
+    // re-measure most of them on every frame.
+    val measurer = rememberTextMeasurer(cacheSize = 64)
     val ringColour = Palette.Hairline
     val labelColour = Palette.TextTertiary
     val heard = markers.filter { it.current != null && it.tracked }
@@ -320,7 +315,7 @@ private fun SkyPlot(state: SkyUiState, modifier: Modifier = Modifier) {
         if (state.compassMode) ", turned with the phone" else ", north up"
     // Square, but never taller than most of the screen: in landscape the full width would
     // put half the plot out of view.
-    val maxSide = (LocalConfiguration.current.screenHeightDp * 0.8f).dp
+    val maxSide = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() * 0.8f }
     Canvas(
         modifier
             .fillMaxWidth()
@@ -338,7 +333,7 @@ private fun SkyPlot(state: SkyUiState, modifier: Modifier = Modifier) {
         }
 
         // The sky disc, elevation rings at 30° and 60°, the horizon, and the compass cross.
-        drawCircle(Color(0xFF060606), radius, centre)
+        drawCircle(Palette.PlotBackground, radius, centre)
         drawCircle(Palette.Outline, radius, centre, style = Stroke(1.dp.toPx()))
         for (elevation in listOf(30f, 60f)) {
             drawCircle(ringColour, radius * (90f - elevation) / 90f, centre, style = Stroke(1.dp.toPx()))
@@ -401,7 +396,7 @@ private fun SkyPlot(state: SkyUiState, modifier: Modifier = Modifier) {
                 drawPath(
                     pathOf(marker.projection.map(::at)),
                     colour.copy(alpha = 0.8f),
-                    style = Stroke(stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f))),
+                    style = Stroke(stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 3.dp.toPx()))),
                 )
             }
         }

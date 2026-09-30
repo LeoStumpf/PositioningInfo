@@ -61,6 +61,9 @@ class GnssRawDataSource(context: Context) {
                 trySend(RawMeasurementUpdate.Epoch(event.toEpoch()))
             }
 
+            // Deprecated from Android 12 in favour of capabilities, but the only signal before
+            // that of whether raw measurements are supported at all; still delivered after.
+            @Deprecated("Status callbacks are deprecated from API 31")
             override fun onStatusChanged(status: Int) {
                 trySend(RawMeasurementUpdate.Status(status.toStreamStatus()))
             }
@@ -84,7 +87,7 @@ class GnssRawDataSource(context: Context) {
                             signal = event.type.signalName(),
                             isGpsL1Ca = event.type == GnssNavigationMessage.TYPE_GPS_L1CA,
                             svid = event.svid,
-                            data = event.data ?: ByteArray(0),
+                            data = event.data,
                             parityOk = event.status and GnssNavigationMessage.STATUS_PARITY_PASSED != 0 ||
                                 event.status and GnssNavigationMessage.STATUS_PARITY_REBUILT != 0,
                         ),
@@ -92,6 +95,8 @@ class GnssRawDataSource(context: Context) {
                 )
             }
 
+            @Deprecated("Status callbacks are deprecated from API 31")
+            @Suppress("DEPRECATION")
             override fun onStatusChanged(status: Int) {
                 trySend(
                     NavigationUpdate.Status(
@@ -114,6 +119,7 @@ class GnssRawDataSource(context: Context) {
     }
 }
 
+@Suppress("DEPRECATION")  // the status constants, see onStatusChanged
 private fun Int.toStreamStatus(): RawStreamStatus = when (this) {
     GnssMeasurementsEvent.Callback.STATUS_READY -> RawStreamStatus.READY
     GnssMeasurementsEvent.Callback.STATUS_NOT_SUPPORTED,

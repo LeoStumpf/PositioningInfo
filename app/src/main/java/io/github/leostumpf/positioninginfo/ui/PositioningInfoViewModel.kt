@@ -115,7 +115,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     private val _gnssState = MutableStateFlow(GnssUiState())
     val gnssState: StateFlow<GnssUiState> = _gnssState.asStateFlow()
 
-    private val _signalState = MutableStateFlow(SignalUiState(capabilities = capabilities))
+    private val _signalState = MutableStateFlow(SignalUiState())
     val signalState: StateFlow<SignalUiState> = _signalState.asStateFlow()
 
     private val _skyState = MutableStateFlow(SkyUiState())
@@ -601,7 +601,6 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
             SignalUiState.from(
                 quality = PositioningQuality.from(lastSnapshot),
                 measuredAccuracyM = _speedState.value.horizontalAccuracyM,
-                capabilities = capabilities,
             ).copy(
                 verticalAccuracyM = fix?.verticalAccuracyM,
                 speedAccuracyMps = fix?.speedAccuracyMps,

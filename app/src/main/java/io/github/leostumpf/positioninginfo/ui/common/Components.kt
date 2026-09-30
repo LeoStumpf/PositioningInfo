@@ -194,15 +194,15 @@ fun GlossarySheet(page: Page, onDismiss: () -> Unit) {
 
 /** A section's title: overline, hairline, optional trailing note. Starts a new section. */
 fun LazyListScope.section(title: String, trailing: String? = null, trailingColor: Color = Palette.TextTertiary) {
-    item { SectionHeader(title, trailing, trailingColor, Modifier.padding(top = 32.dp, bottom = 10.dp)) }
+    item { SectionHeader(title, Modifier.padding(top = 32.dp, bottom = 10.dp), trailing, trailingColor) }
 }
 
 @Composable
 fun SectionHeader(
     title: String,
+    modifier: Modifier = Modifier,
     trailing: String? = null,
     trailingColor: Color = Palette.TextTertiary,
-    modifier: Modifier = Modifier,
 ) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(title.uppercase(Locale.ROOT), style = OverlineStyle, color = Palette.TextTertiary, modifier = Modifier.semantics { heading() })
@@ -211,9 +211,6 @@ fun SectionHeader(
     }
 }
 
-/** Kept for pages that still lay out their own sections. */
-@Composable
-fun SectionLabel(text: String) = SectionHeader(text)
 
 // --- Values ----------------------------------------------------------------------------
 
@@ -355,7 +352,7 @@ fun Notice(text: String, tone: Tone = Tone.NEUTRAL) {
 
 /** Plain explanatory text under a section. */
 @Composable
-fun Note(text: String, color: Color = Palette.TextTertiary, modifier: Modifier = Modifier) {
+fun Note(text: String, modifier: Modifier = Modifier, color: Color = Palette.TextTertiary) {
     Text(text, style = CaptionStyle, color = color, modifier = modifier)
 }
 

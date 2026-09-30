@@ -23,8 +23,6 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -62,15 +60,14 @@ fun PositionScreen(
     onResetScatter: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val clipboard = LocalClipboardManager.current
     val context = androidx.compose.ui.platform.LocalContext.current
     PageScaffold(Page.POSITION, modifier) {
         section(
             "Coordinates · WGS84",
             trailing = state.horizontalAccuracyM?.let { acc ->
-                "±${acc.fmt(1)} m · " + if ((state.fixAgeMs ?: 0) < 2_000) "live" else "${(state.fixAgeMs ?: 0) / 1_000} s old"
+                "±${acc.fmt(1)} m · " + if ((state.fixAgeMs ?: 0) < LIVE_FIX_MS) "live" else "${(state.fixAgeMs ?: 0) / 1_000} s old"
             },
-            trailingColor = if ((state.fixAgeMs ?: Long.MAX_VALUE) < 2_000) Palette.Good else Palette.Degraded,
+            trailingColor = if ((state.fixAgeMs ?: Long.MAX_VALUE) < LIVE_FIX_MS) Palette.Good else Palette.Degraded,
         )
         if (state.isMock) {
             item {
@@ -99,7 +96,7 @@ fun PositionScreen(
                                     Text(if (label == "Degrees, minutes, seconds") "DMS" else label, style = BodyStyle.copy(fontSize = 14.sp), color = Palette.TextSecondary)
                                     Text(value, style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
                                     IconButton(
-                                        onClick = { copyText(clipboard, context, value, "$label copied") },
+                                        onClick = { copyText(context, value, "$label copied") },
                                         modifier = Modifier.size(48.dp),
                                     ) {
                                         Icon(AppIcons.Copy, contentDescription = "Copy $label", tint = Palette.TextTertiary, modifier = Modifier.size(18.dp))
@@ -116,7 +113,7 @@ fun PositionScreen(
                     "Copy all formats",
                     icon = AppIcons.Copy,
                     onClick = {
-                        copyText(clipboard, context, state.coordinates.joinToString("\n") { "${it.first}: ${it.second}" }, "All formats copied")
+                        copyText(context, state.coordinates.joinToString("\n") { "${it.first}: ${it.second}" }, "All formats copied")
                     },
                     modifier = Modifier.padding(top = 10.dp),
                 )
@@ -232,7 +229,7 @@ private fun ScatterPlot(stats: ScatterStats, modifier: Modifier) {
         drawLine(Palette.Hairline, Offset(c.x - half, c.y), Offset(c.x + half, c.y))
         drawLine(Palette.Hairline, Offset(c.x, c.y - half), Offset(c.x, c.y + half))
         stats.meanClaimedAccuracyM?.let {
-            drawCircle(Palette.TextTertiary, (it * scale).toFloat(), c, style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f))))
+            drawCircle(Palette.TextTertiary, (it * scale).toFloat(), c, style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 3.dp.toPx()))))
         }
         drawCircle(Palette.Degraded, (stats.cep95M * scale).toFloat(), c, style = Stroke(1.5.dp.toPx()))
         drawCircle(Palette.Good, (stats.cep50M * scale).toFloat(), c, style = Stroke(1.5.dp.toPx()))
@@ -241,3 +238,6 @@ private fun ScatterPlot(stats: ScatterStats, modifier: Modifier) {
         }
     }
 }
+
+/** A fix younger than this reads as "live"; the receiver delivers one a second. */
+private const val LIVE_FIX_MS = 2_000L

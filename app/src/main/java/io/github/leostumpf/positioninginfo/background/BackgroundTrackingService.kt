@@ -67,7 +67,6 @@ class BackgroundTrackingService : Service() {
     }
 
     private fun createChannel() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         getSystemService<NotificationManager>()?.createNotificationChannel(
             NotificationChannel(CHANNEL_ID, "Background mode", NotificationManager.IMPORTANCE_LOW).apply {
                 description = "Shown while Positioning Info keeps the GNSS receiver running in the background."

@@ -79,7 +79,11 @@ class CellInfoDataSource(context: Context) {
     }
 }
 
+// UNAVAILABLE and UNAVAILABLE_LONG are compile-time constants (Integer and Long MAX_VALUE),
+// inlined into the app, so reading them is safe on every version.
+@SuppressLint("InlinedApi")
 private fun Int.valid(): Int? = takeIf { it != CellInfo.UNAVAILABLE && it != Int.MIN_VALUE }
+@SuppressLint("InlinedApi")
 private fun Long.valid(): Long? = takeIf { it != CellInfo.UNAVAILABLE_LONG && it != Long.MAX_VALUE }
 
 private fun network(mcc: String?, mnc: String?): String? =

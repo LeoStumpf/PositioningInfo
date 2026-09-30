@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.receiver
 
+import io.github.leostumpf.positioninginfo.domain.InterferenceMonitor
 import io.github.leostumpf.positioninginfo.domain.counted
 import java.util.Locale
 import io.github.leostumpf.positioninginfo.ui.common.grouped
@@ -24,7 +25,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -248,7 +248,7 @@ private fun Verdict(a: InterferenceAssessment) {
     val (title, subtitle, tone) = when {
         a.jammingSuspected -> Triple("Possible jamming", "Gain and signal strength dropped together", Tone.BAD)
         a.spoofingIndicators.isNotEmpty() -> Triple("Spoofing indicators", a.spoofingIndicators.first(), Tone.DEGRADED)
-        a.epochs < 60 -> Triple("Learning the baseline…", "Judged after the first minute", Tone.NEUTRAL)
+        a.epochs < BASELINE_EPOCHS -> Triple("Learning the baseline…", "Judged after the first minute", Tone.NEUTRAL)
         else -> Triple("No interference detected", "Gain and signal strength match the baseline", Tone.GOOD)
     }
     val shape = RoundedCornerShape(16.dp)
@@ -269,7 +269,7 @@ private fun Verdict(a: InterferenceAssessment) {
             Text(subtitle, style = CaptionStyle, color = Palette.TextSecondary)
         }
     }
-    a.spoofingIndicators.drop(1).forEach { Note("• $it", Palette.Degraded, Modifier.padding(top = 6.dp)) }
+    a.spoofingIndicators.drop(1).forEach { Note("• $it", Modifier.padding(top = 6.dp), color = Palette.Degraded) }
 }
 
 private val BandWeights = listOf(1.4f, 1f, 1f, 0.6f)
@@ -319,7 +319,7 @@ private fun ValueWithDelta(value: Double?, delta: Double?, alarm: Boolean, modif
 @Composable
 private fun SentenceMix(counts: Map<String, Int>, total: Int, rejected: Int) {
     val sorted = counts.entries.sortedByDescending { it.value }
-    val shades = listOf(Palette.TextPrimary, Palette.TextSecondary, Palette.TextTertiary, Palette.Inactive, Color(0xFF444444), Palette.Outline)
+    val shades = listOf(Palette.TextPrimary, Palette.TextSecondary, Palette.TextTertiary, Palette.Inactive, Palette.Faint, Palette.Outline)
     Column(Modifier.padding(vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row {
             Text("Sentences", style = BodyStyle, color = Palette.TextSecondary, modifier = Modifier.weight(1f))
@@ -361,3 +361,6 @@ internal fun fullWeek(broadcast: Int, current: Int?): Int? {
     val base = current - current % 1024 + broadcast
     return listOf(base - 1024, base, base + 1024).minBy { abs(it - current) }
 }
+
+/** One epoch a second for [InterferenceMonitor.BASELINE_MS]: the baseline minute. */
+private const val BASELINE_EPOCHS = (InterferenceMonitor.BASELINE_MS / 1_000).toInt()

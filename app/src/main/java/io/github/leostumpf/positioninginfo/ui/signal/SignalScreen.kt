@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.signal
 
+import io.github.leostumpf.positioninginfo.domain.SpeedUnit
 import io.github.leostumpf.positioninginfo.domain.counted
 import io.github.leostumpf.positioninginfo.ui.common.TileRow
 import androidx.compose.foundation.layout.FlowRow
@@ -98,7 +99,7 @@ fun SignalScreen(state: SignalUiState, modifier: Modifier = Modifier) {
         item {
             ValueRow(
                 "Speed", state.speedAccuracyMps?.let { "±${it.fmt(2)} m/s" } ?: DASH,
-                detail = state.speedAccuracyMps?.let { "±${(it * 3.6f).fmt(1)} km/h" },
+                detail = state.speedAccuracyMps?.let { "±${SpeedUnit.KMH.fromMps(it.toDouble()).fmt(1)} ${SpeedUnit.KMH.symbol}" },
             )
         }
         item {

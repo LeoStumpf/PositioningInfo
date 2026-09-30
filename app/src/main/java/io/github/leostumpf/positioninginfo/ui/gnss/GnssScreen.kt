@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.gnss
 
+import androidx.compose.runtime.LaunchedEffect
 import io.github.leostumpf.positioninginfo.ui.theme.signalColour
 import kotlin.math.roundToInt
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -58,7 +59,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -97,7 +97,6 @@ import io.github.leostumpf.positioninginfo.ui.theme.BodyStyle
 import io.github.leostumpf.positioninginfo.ui.theme.DataStyle
 import io.github.leostumpf.positioninginfo.ui.theme.OverlineStyle
 import io.github.leostumpf.positioninginfo.ui.theme.Palette
-import io.github.leostumpf.positioninginfo.ui.theme.MonoFamily
 import io.github.leostumpf.positioninginfo.ui.theme.color
 import io.github.leostumpf.positioninginfo.ui.theme.PageTitleStyle
 
@@ -271,7 +270,8 @@ fun GnssScreen(
 
     selectedKey?.let { key ->
         val row = state.signals.firstOrNull { it.baseKey == key }
-        if (row == null) selectedKey = null
+        // Gone from the list: close the sheet, from an effect rather than mid-composition.
+        if (row == null) LaunchedEffect(key) { selectedKey = null }
         else SatelliteSheet(row, state.details[key], siblings = state.signals.filter {
             it.satellite.constellation == row.satellite.constellation && it.satellite.svid == row.satellite.svid
         }, onDismiss = { selectedKey = null })
@@ -386,7 +386,7 @@ private fun SatelliteRow(satellite: SatelliteInfo, detail: SignalDetail?, onClic
                 modifier = Modifier.widthIn(min = 32.dp),
             )
         }
-        HorizontalDivider(color = Color(0xFF151515))
+        HorizontalDivider(color = Palette.RowDivider)
     }
 }
 
@@ -655,10 +655,10 @@ private fun HistoryChart(
             val span = (max - min).takeIf { it > 0f } ?: 1f
             fun x(t: Long) = ((t - start).toFloat() / History.WINDOW_MS) * size.width
             fun y(v: Float) = size.height - 3.dp.toPx() - ((v - min) / span) * (size.height - 6.dp.toPx())
-            var path = androidx.compose.ui.graphics.Path()
+            val path = androidx.compose.ui.graphics.Path()
             var previous: Long? = null
             points.forEach { (t, v) ->
-                if (previous == null || t - previous!! > History.GAP_MS) path.moveTo(x(t), y(v)) else path.lineTo(x(t), y(v))
+                if (previous == null || t - previous > History.GAP_MS) path.moveTo(x(t), y(v)) else path.lineTo(x(t), y(v))
                 previous = t
             }
             drawPath(path, Palette.TextPrimary, style = androidx.compose.ui.graphics.drawscope.Stroke(1.5.dp.toPx()))

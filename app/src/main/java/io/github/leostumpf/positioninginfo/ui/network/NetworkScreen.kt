@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.network
 
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.widthIn
@@ -98,7 +99,7 @@ fun NetworkScreen(state: NetworkUiState, modifier: Modifier = Modifier) {
                 )
                 if (!state.providerEnabled) {
                     Notice(
-                        "Network location is switched off. On a Pixel: Settings › Location › Location services › Google Location Accuracy.",
+                        "Network location is switched off. It is under Settings › Location, usually as Location services › Location accuracy (the name varies by phone).",
                         Tone.DEGRADED,
                     )
                 }
@@ -185,11 +186,11 @@ fun NetworkScreen(state: NetworkUiState, modifier: Modifier = Modifier) {
 
     selectedCell?.let { key ->
         val cell = state.cells.firstOrNull { it.key() == key }
-        if (cell == null) selectedCell = null else CellSheet(cell) { selectedCell = null }
+        if (cell == null) LaunchedEffect(key) { selectedCell = null } else CellSheet(cell) { selectedCell = null }
     }
     selectedAp?.let { bssid ->
         val ap = state.accessPoints.firstOrNull { it.bssid == bssid }
-        if (ap == null) selectedAp = null else AccessPointSheet(ap) { selectedAp = null }
+        if (ap == null) LaunchedEffect(bssid) { selectedAp = null } else AccessPointSheet(ap) { selectedAp = null }
     }
 }
 
@@ -203,7 +204,7 @@ private fun CellSheet(cell: CellTower, onDismiss: () -> Unit) {
             if (cell.registered) "The cell the phone is attached to." else "A cell the phone measures for handover but is not attached to."))
         add(DetailRow("Technology", cell.technology))
         add(DetailRow("Operator", cell.operatorName ?: "not broadcast"))
-        cell.network?.let { add(DetailRow("Network code (MCC-MNC)", it, "Country code, then operator code — 262 is Germany.")) }
+        cell.network?.let { add(DetailRow("Network code (MCC-MNC)", it, "Country code, then operator code — 310 is the USA, 234 the UK, 262 Germany.")) }
         cell.identity?.let { add(DetailRow("Area and cell identity", it, "Tracking/location area code and the cell's unique number: what position databases look up.")) }
         cell.physicalId?.let { add(DetailRow(cell.physicalIdLabel, it.toString(), "Short physical code that tells neighbouring cells apart on the air.")) }
         cell.channel?.let { add(DetailRow(cell.channelLabel ?: "Channel", it.toString() + if (cell.bands.isNotEmpty()) " · band ${cell.bands.joinToString()}" else "", "The radio channel number; the band says which frequency range.")) }
@@ -404,12 +405,23 @@ private fun AccessPointRow(ap: AccessPoint, onClick: () -> Unit) {
             Text(band(ap.frequencyMhz), style = DataStyle.copy(fontSize = 11.sp), color = Palette.TextTertiary)
             // −30 dBm is as strong as Wi-Fi gets, −90 is the edge.
             val fraction = ((ap.rssiDbm + 90) / 60f).coerceIn(0f, 1f)
-            LevelBar(fraction, if (ap.rssiDbm >= -60) Palette.TextPrimary else if (ap.rssiDbm >= -75) Palette.TextSecondary else Palette.TextTertiary, Modifier.width(56.dp))
+            LevelBar(
+                fraction,
+                when {
+                    ap.rssiDbm >= RSSI_GOOD_DBM -> Palette.TextPrimary
+                    ap.rssiDbm >= RSSI_FAIR_DBM -> Palette.TextSecondary
+                    else -> Palette.TextTertiary
+                },
+                Modifier.width(56.dp),
+            )
             Text(ap.rssiDbm.toString().replace("-", "−"), style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary, textAlign = TextAlign.End, modifier = Modifier.widthIn(min = 32.dp))
         }
-        HorizontalDivider(color = Color15)
+        HorizontalDivider(color = Palette.RowDivider)
     }
 }
 
-private val Color15 = androidx.compose.ui.graphics.Color(0xFF151515)
 private const val AP_PREVIEW = 8
+
+/** Wi-Fi signal tiers: −60 dBm and up is strong, down to −75 usable, below that weak. */
+private const val RSSI_GOOD_DBM = -60
+private const val RSSI_FAIR_DBM = -75

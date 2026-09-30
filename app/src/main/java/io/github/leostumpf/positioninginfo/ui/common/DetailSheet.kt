@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.common
 
+import androidx.core.content.getSystemService
+import android.content.ClipboardManager
+import android.content.ClipData
 import android.os.Build
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
@@ -19,10 +22,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.ClipboardManager
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.leostumpf.positioninginfo.ui.theme.CaptionStyle
@@ -46,7 +46,6 @@ fun DetailSheet(
     titleColor: Color = Palette.TextPrimary,
     intro: String? = null,
 ) {
-    val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -73,7 +72,7 @@ fun DetailSheet(
                     icon = AppIcons.Copy,
                     onClick = {
                         copyText(
-                            clipboard, context,
+                            context,
                             (listOf("$title — $subtitle") + rows.map { "${it.label}: ${it.value}" }).joinToString("\n"),
                         )
                     },
@@ -86,7 +85,7 @@ fun DetailSheet(
 }
 
 /** Copies [text]; Android 13+ confirms on its own, older versions get a short toast. */
-fun copyText(clipboard: ClipboardManager, context: android.content.Context, text: String, what: String = "Copied") {
-    clipboard.setText(AnnotatedString(text))
+fun copyText(context: android.content.Context, text: String, what: String = "Copied") {
+    context.getSystemService<ClipboardManager>()?.setPrimaryClip(ClipData.newPlainText(what, text))
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) Toast.makeText(context, what, Toast.LENGTH_SHORT).show()
 }

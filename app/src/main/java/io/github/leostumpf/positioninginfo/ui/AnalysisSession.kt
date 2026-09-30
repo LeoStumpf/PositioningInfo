@@ -376,7 +376,7 @@ class AnalysisSession(
         if (declination != null && (compassMode || moving)) {
             parts += "declination ${abs(declination).fmt(1)}° ${if (declination >= 0) "E" else "W"}"
         }
-        if (moving) parts += "course ${fix!!.bearingDegrees!!.roundToInt()}°"
+        if (moving) parts += "course ${fix.bearingDegrees.roundToInt()}°"
         val expectedUt = field?.fieldUt
         return state.copy(
             magneticUt = if (compassMode) magneticUt else null,

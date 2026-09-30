@@ -25,6 +25,12 @@ object Palette {
     val Divider = Color(0xFF1A1A1A)
     val Hairline = Color(0xFF242424)
     val Outline = Color(0xFF333333)
+    /** Between rows of a dense list, fainter than [Divider]. */
+    val RowDivider = Color(0xFF151515)
+    /** The sky plot's disc, a shade off black. */
+    val PlotBackground = Color(0xFF060606)
+    /** The dimmest step of a greyscale ramp, below [Inactive]. */
+    val Faint = Color(0xFF444444)
 
     val TextPrimary = Color(0xFFEDEDED)
     val TextSecondary = Color(0xFFA6A6A6)

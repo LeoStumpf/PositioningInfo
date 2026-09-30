@@ -347,7 +347,7 @@ private fun SpeedChart(state: SpeedUiState, modifier: Modifier = Modifier, heigh
             // The maximum, dashed, so the line can be read against it.
             drawLine(
                 Palette.Outline, Offset(0f, y(max)), Offset(size.width, y(max)),
-                pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f)),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(2.dp.toPx(), 2.dp.toPx())),
             )
             val line = Path()
             val fill = Path()
@@ -356,8 +356,8 @@ private fun SpeedChart(state: SpeedUiState, modifier: Modifier = Modifier, heigh
             samples.forEach { s ->
                 val px = x(s.atMs)
                 val py = y(s.mps)
-                if (previous == null || s.atMs - previous!! > SpeedHistory.GAP_MS) {
-                    if (previous != null) { fill.lineTo(x(previous!!), size.height); fill.lineTo(segmentStartX, size.height); fill.close() }
+                if (previous == null || s.atMs - previous > SpeedHistory.GAP_MS) {
+                    if (previous != null) { fill.lineTo(x(previous), size.height); fill.lineTo(segmentStartX, size.height); fill.close() }
                     line.moveTo(px, py); fill.moveTo(px, size.height); fill.lineTo(px, py); segmentStartX = px
                 } else {
                     line.lineTo(px, py); fill.lineTo(px, py)
