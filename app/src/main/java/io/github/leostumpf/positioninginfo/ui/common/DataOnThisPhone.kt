@@ -4,9 +4,6 @@ package io.github.leostumpf.positioninginfo.ui.common
 import io.github.leostumpf.positioninginfo.domain.counted
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -14,7 +11,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import io.github.leostumpf.positioninginfo.ui.theme.Palette
 
 /** What the app keeps, counted, so the user can see it before clearing it. */
 data class DataInventory(
@@ -48,20 +44,14 @@ fun DataOnThisPhone(inventory: DataInventory, onClearAll: () -> Unit) {
         QuietButton("Clear all data", onClick = { confirming = true }, destructive = true)
     }
     if (confirming) {
-        AlertDialog(
-            onDismissRequest = { confirming = false },
-            containerColor = Palette.Sheet,
-            title = { Text("Clear all data?") },
-            text = {
-                Text(
-                    "Deletes the recorded trip, the first-fix log and the unit setting, and resets " +
-                        "everything collected this session: history, sky paths, signal map, accuracy test, " +
-                        "max/avg speed and calibrations. Export the trip first to keep it.",
-                    color = Palette.TextSecondary,
-                )
-            },
-            confirmButton = { TextButton(onClick = { confirming = false; onClearAll() }) { Text("Clear", color = Palette.Bad) } },
-            dismissButton = { TextButton(onClick = { confirming = false }) { Text("Cancel", color = Palette.TextPrimary) } },
+        ConfirmDialog(
+            title = "Clear all data?",
+            text = "Deletes the recorded trip, the first-fix log and the unit setting, and resets " +
+                "everything collected this session: history, sky paths, signal map, accuracy test, " +
+                "max/avg speed and calibrations. Export the trip first to keep it.",
+            confirmLabel = "Clear",
+            onConfirm = onClearAll,
+            onDismiss = { confirming = false },
         )
     }
 }

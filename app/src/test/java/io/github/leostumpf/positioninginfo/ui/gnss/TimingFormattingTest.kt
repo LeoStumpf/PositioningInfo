@@ -6,13 +6,6 @@ import org.junit.Test
 
 class TimingFormattingTest {
 
-    @Test
-    fun `durations under a minute keep tenths, longer ones use minutes`() {
-        assertEquals("4.2 s", formatDuration(4_249L))
-        assertEquals("59.9 s", formatDuration(59_900L))
-        assertEquals("1:00", formatDuration(60_000L))
-        assertEquals("12:05", formatDuration(725_000L))
-    }
 
     @Test
     fun `first fix shows the time, the search, or nothing`() {
@@ -21,7 +14,7 @@ class TimingFormattingTest {
             TimingUiState(firstFixMs = 4_200L).firstFixText(gpsEnabled = true),
         )
         assertEquals(
-            TimingText("searching… 37.0 s", TimingTone.PENDING),
+            TimingText("searching… 37 s", TimingTone.PENDING),
             TimingUiState(searchingForMs = 37_000L).firstFixText(gpsEnabled = true),
         )
         assertEquals(

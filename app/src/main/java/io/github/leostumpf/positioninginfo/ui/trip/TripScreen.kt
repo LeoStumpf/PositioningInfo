@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.trip
 
+import io.github.leostumpf.positioninginfo.ui.common.ConfirmDialog
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import io.github.leostumpf.positioninginfo.ui.common.grouped
@@ -11,9 +12,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -142,13 +141,12 @@ fun TripScreen(
     }
 
     if (confirmClear) {
-        AlertDialog(
-            onDismissRequest = { confirmClear = false },
-            containerColor = Palette.Sheet,
-            title = { Text("Delete the trip?") },
-            text = { Text("The recorded track is removed from the phone. Export it first to keep it.", color = Palette.TextSecondary) },
-            confirmButton = { TextButton(onClick = { confirmClear = false; onClear() }) { Text("Delete", color = Palette.Bad) } },
-            dismissButton = { TextButton(onClick = { confirmClear = false }) { Text("Cancel", color = Palette.TextPrimary) } },
+        ConfirmDialog(
+            title = "Delete the trip?",
+            text = "The recorded track is removed from the phone. Export it first to keep it.",
+            confirmLabel = "Delete",
+            onConfirm = onClear,
+            onDismiss = { confirmClear = false },
         )
     }
 }

@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.receiver
 
+import io.github.leostumpf.positioninginfo.ui.common.tinted
 import io.github.leostumpf.positioninginfo.domain.InterferenceMonitor
 import io.github.leostumpf.positioninginfo.domain.counted
 import java.util.Locale
 import io.github.leostumpf.positioninginfo.ui.common.grouped
 import io.github.leostumpf.positioninginfo.ui.common.TileRow
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -253,10 +253,7 @@ private fun Verdict(a: InterferenceAssessment) {
     }
     val shape = RoundedCornerShape(16.dp)
     Row(
-        Modifier.fillMaxWidth().clip(shape)
-            .background(if (tone == Tone.NEUTRAL) Palette.Surface else tone.color.copy(alpha = 0.08f))
-            .border(1.dp, if (tone == Tone.NEUTRAL) Palette.CardBorder else tone.color.copy(alpha = 0.3f), shape)
-            .padding(16.dp),
+        Modifier.fillMaxWidth().tinted(tone, shape).padding(16.dp),
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

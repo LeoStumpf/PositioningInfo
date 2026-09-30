@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.common
 
+import androidx.compose.material3.AlertDialog
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.runtime.remember
@@ -170,12 +172,9 @@ fun GlossarySheet(page: Page, onDismiss: () -> Unit) {
     ) {
         LazyColumn(contentPadding = PaddingValues(start = Gutter, end = Gutter, bottom = 32.dp)) {
             item {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text(page.title.uppercase(Locale.ROOT), style = OverlineStyle, color = Palette.TextTertiary)
-                        Text("What am I looking at?", style = TitleStyle.copy(fontSize = 20.sp), color = Palette.TextPrimary)
-                    }
-                    CircleIconButton(AppIcons.Close, contentDescription = "Close", onClick = onDismiss)
+                SheetHeader(onDismiss, Modifier.padding(bottom = 8.dp)) {
+                    Text(page.title.uppercase(Locale.ROOT), style = OverlineStyle, color = Palette.TextTertiary)
+                    Text("What am I looking at?", style = TitleStyle.copy(fontSize = 20.sp), color = Palette.TextPrimary)
                 }
             }
             items(page.glossary) { entry ->
@@ -339,15 +338,50 @@ fun Notice(text: String, tone: Tone = Tone.NEUTRAL) {
     Row(
         Modifier
             .fillMaxWidth()
-            .clip(shape)
-            .background(if (tone == Tone.NEUTRAL) Palette.Surface else tone.color.copy(alpha = 0.08f))
-            .border(1.dp, if (tone == Tone.NEUTRAL) Palette.Outline else tone.color.copy(alpha = 0.3f), shape)
+            .tinted(tone, shape, neutralBorder = Palette.Outline)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Box(Modifier.padding(top = 7.dp).size(6.dp).background(tone.color, CircleShape))
         Text(text, style = CaptionStyle, color = if (tone == Tone.NEUTRAL) Palette.TextSecondary else Palette.TextPrimary)
     }
+}
+
+/**
+ * A card or badge tinted by its tone: plain surface and border when neutral, a wash of the
+ * tone's colour otherwise. Clips to [shape].
+ */
+fun Modifier.tinted(
+    tone: Tone,
+    shape: Shape,
+    neutralFill: Color = Palette.Surface,
+    neutralBorder: Color = Palette.CardBorder,
+    fillAlpha: Float = 0.08f,
+    borderAlpha: Float = 0.3f,
+): Modifier = clip(shape)
+    .background(if (tone == Tone.NEUTRAL) neutralFill else tone.color.copy(alpha = fillAlpha))
+    .border(1.dp, if (tone == Tone.NEUTRAL) neutralBorder else tone.color.copy(alpha = borderAlpha), shape)
+
+/** Title (and whatever goes under it) on the left, a close button on the right: every sheet's top. */
+@Composable
+fun SheetHeader(onClose: () -> Unit, modifier: Modifier = Modifier, title: @Composable ColumnScope.() -> Unit) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp), content = title)
+        CircleIconButton(AppIcons.Close, contentDescription = "Close", onClick = onClose)
+    }
+}
+
+/** Asks before something that cannot be undone; the confirming action is shown in red. */
+@Composable
+fun ConfirmDialog(title: String, text: String, confirmLabel: String, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Palette.Sheet,
+        title = { Text(title) },
+        text = { Text(text, color = Palette.TextSecondary) },
+        confirmButton = { TextButton(onClick = { onDismiss(); onConfirm() }) { Text(confirmLabel, color = Palette.Bad) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = Palette.TextPrimary) } },
+    )
 }
 
 /** Plain explanatory text under a section. */
@@ -362,9 +396,7 @@ fun StatusBadge(text: String, tone: Tone) {
     Row(
         Modifier
             .heightIn(min = 26.dp)
-            .clip(shape)
-            .background(if (tone == Tone.NEUTRAL) Palette.SurfaceRaised else tone.color.copy(alpha = 0.14f))
-            .border(1.dp, if (tone == Tone.NEUTRAL) Palette.Outline else tone.color.copy(alpha = 0.4f), shape)
+            .tinted(tone, shape, Palette.SurfaceRaised, Palette.Outline, fillAlpha = 0.14f, borderAlpha = 0.4f)
             .padding(horizontal = 10.dp, vertical = 3.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp),

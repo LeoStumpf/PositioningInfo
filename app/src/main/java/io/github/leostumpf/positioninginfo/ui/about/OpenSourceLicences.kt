@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.about
 
+import io.github.leostumpf.positioninginfo.ui.common.SheetHeader
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -27,13 +28,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import io.github.leostumpf.positioninginfo.ui.common.AppIcons
-import io.github.leostumpf.positioninginfo.ui.common.CircleIconButton
 import io.github.leostumpf.positioninginfo.ui.common.Gutter
 import io.github.leostumpf.positioninginfo.ui.common.Note
 import io.github.leostumpf.positioninginfo.ui.theme.BodyStyle
@@ -80,12 +78,9 @@ fun OpenSourceLicencesSheet(onDismiss: () -> Unit) {
     ) {
         LazyColumn(contentPadding = PaddingValues(start = Gutter, end = Gutter, bottom = 32.dp)) {
             item {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(bottom = 8.dp)) {
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("Open-source licences", style = TitleStyle.copy(fontSize = 20.sp), color = Palette.TextPrimary)
-                        Text("The libraries this app is built on", style = CaptionStyle, color = Palette.TextSecondary)
-                    }
-                    CircleIconButton(AppIcons.Close, contentDescription = "Close", onClick = onDismiss)
+                SheetHeader(onDismiss, Modifier.padding(bottom = 8.dp)) {
+                    Text("Open-source licences", style = TitleStyle.copy(fontSize = 20.sp), color = Palette.TextPrimary)
+                    Text("The libraries this app is built on", style = CaptionStyle, color = Palette.TextSecondary)
                 }
             }
             item {

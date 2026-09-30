@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.network
 
+import io.github.leostumpf.positioninginfo.domain.formatAgo
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -94,7 +95,7 @@ fun NetworkScreen(state: NetworkUiState, modifier: Modifier = Modifier) {
                     caption = when {
                         !state.providerEnabled -> null
                         state.ageMs == null -> "Waiting for a network position…"
-                        else -> listOfNotNull("Claimed accuracy", state.source?.let { "based on $it" }, formatAge(state.ageMs)).joinToString(" · ")
+                        else -> listOfNotNull("Claimed accuracy", state.source?.let { "based on $it" }, formatAgo(state.ageMs)).joinToString(" · ")
                     },
                 )
                 if (!state.providerEnabled) {
@@ -248,7 +249,7 @@ private fun AccessPointSheet(ap: AccessPoint, onDismiss: () -> Unit) {
         add(DetailRow("Security", ap.security))
         add(DetailRow("Round-trip-time ranging", if (ap.rttResponder) "supported" else "no",
             "802.11mc access points let a phone measure its distance to them to about a metre."))
-        ap.ageMs?.let { add(DetailRow("Last seen", formatAge(it))) }
+        ap.ageMs?.let { add(DetailRow("Last seen", formatAgo(it))) }
     }
     DetailSheet(title = ap.ssid ?: "Hidden network", subtitle = "Wi-Fi access point", rows = rows, onDismiss = onDismiss)
 }
@@ -327,7 +328,7 @@ private fun SourceRowView(source: SourceRow) {
                         source.accuracyM == null -> source.description
                         else -> listOfNotNull(
                             "±${formatDistance(source.accuracyM.toDouble())}",
-                            source.ageMs?.let { formatAge(it) },
+                            source.ageMs?.let { formatAgo(it) },
                             if (source.isMock) "SIMULATED" else null,
                         ).joinToString(" · ")
                     },

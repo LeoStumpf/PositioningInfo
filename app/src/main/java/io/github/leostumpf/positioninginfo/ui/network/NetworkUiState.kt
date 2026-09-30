@@ -75,12 +75,6 @@ data class NetworkUiState(
 internal fun formatDistance(metres: Double): String =
     if (metres < 1_000) "${metres.toInt()} m" else String.format(java.util.Locale.US, "%.1f km", metres / 1_000)
 
-internal fun formatAge(ms: Long): String = when {
-    ms < 2_000 -> "just now"
-    ms < 60_000 -> "${ms / 1_000} s ago"
-    else -> "${ms / 60_000} min ago"
-}
-
 internal fun band(frequencyMhz: Int): String = when (frequencyMhz) {
     in 2_400..2_500 -> "2.4 GHz"
     in 4_900..5_900 -> "5 GHz"

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.sky
 
+import io.github.leostumpf.positioninginfo.domain.formatAgo
 import io.github.leostumpf.positioninginfo.domain.CompassTrust
 import io.github.leostumpf.positioninginfo.domain.Constellation
 import io.github.leostumpf.positioninginfo.domain.ObstructionCell
@@ -116,15 +117,6 @@ private fun SkyEvent.describe(): String {
         SkyEvent.Kind.APPEARED -> if (low) "$name rose above the horizon" else "$name acquired"
         SkyEvent.Kind.LOST -> if (low) "$name set below the horizon" else "$name lost"
     } + " (${elevationDegrees.toInt()}°)"
-}
-
-internal fun formatAgo(ms: Long): String {
-    val minutes = ms / 60_000L
-    return when {
-        minutes < 1 -> "just now"
-        minutes < 60 -> "$minutes min ago"
-        else -> "${minutes / 60} h ${minutes % 60} min ago"
-    }
 }
 
 private const val LOW_ELEVATION_DEGREES = 15f

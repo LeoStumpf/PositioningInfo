@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.speed
 
+import io.github.leostumpf.positioninginfo.ui.common.SheetHeader
+import io.github.leostumpf.positioninginfo.domain.formatDuration
 import androidx.compose.foundation.layout.heightIn
 import io.github.leostumpf.positioninginfo.ui.common.indicatorClearance
 import androidx.compose.foundation.layout.FlowRow
@@ -125,9 +127,8 @@ private fun SettingsSheet(
             Modifier.verticalScroll(rememberScrollState()).padding(start = Gutter, end = Gutter, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Settings", style = TitleStyle.copy(fontSize = 20.sp), color = Palette.TextPrimary, modifier = Modifier.weight(1f))
-                CircleIconButton(AppIcons.Close, contentDescription = "Close", onClick = onDismiss)
+            SheetHeader(onDismiss) {
+                Text("Settings", style = TitleStyle.copy(fontSize = 20.sp), color = Palette.TextPrimary)
             }
             SectionHeader("Speed unit", modifier = Modifier.padding(top = 8.dp))
             SegmentedToggle(
@@ -372,7 +373,7 @@ private fun SpeedChart(state: SpeedUiState, modifier: Modifier = Modifier, heigh
         // breaking mid-phrase.
         FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Text(
-                "since reset · ${elapsedLabel(end - start)}",
+                "since reset · ${formatDuration(end - start)}",
                 style = StatusLineStyle.copy(fontSize = 11.sp), color = Palette.TextTertiary, maxLines = 1,
             )
             Text(
@@ -383,11 +384,4 @@ private fun SpeedChart(state: SpeedUiState, modifier: Modifier = Modifier, heigh
     }
 }
 
-private fun elapsedLabel(ms: Long): String {
-    val min = ms / 60_000
-    return when {
-        min < 1 -> "${ms / 1_000} s"
-        min < 60 -> "$min min"
-        else -> "${min / 60} h ${min % 60} min"
-    }
-}
+

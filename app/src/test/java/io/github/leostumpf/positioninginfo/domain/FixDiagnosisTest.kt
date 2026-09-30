@@ -121,9 +121,9 @@ class FixDiagnosisTest {
 
     @Test
     fun `durations read naturally`() {
-        assertEquals("8.4 s", FixDiagnosis.formatDuration(8_400L))
-        assertEquals("38 s", FixDiagnosis.formatDuration(38_000L))
-        assertEquals("1 min 20 s", FixDiagnosis.formatDuration(80_000L))
-        assertEquals("12 min", FixDiagnosis.formatDuration(720_000L))
+        assertEquals("8.4 s", formatDuration(8_400L))
+        assertEquals("38 s", formatDuration(38_000L))
+        assertEquals("1 min 20 s", formatDuration(80_000L))
+        assertEquals("12 min", formatDuration(720_000L))
     }
 }

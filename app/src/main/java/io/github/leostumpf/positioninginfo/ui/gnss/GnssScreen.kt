@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.gnss
 
+import io.github.leostumpf.positioninginfo.ui.common.SheetHeader
+import io.github.leostumpf.positioninginfo.ui.common.ConfirmDialog
+import io.github.leostumpf.positioninginfo.ui.common.tinted
+import io.github.leostumpf.positioninginfo.domain.formatAgo
+import io.github.leostumpf.positioninginfo.domain.formatDuration
 import androidx.compose.runtime.LaunchedEffect
 import io.github.leostumpf.positioninginfo.ui.theme.signalColour
 import kotlin.math.roundToInt
@@ -23,8 +28,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ModalBottomSheet
 import io.github.leostumpf.positioninginfo.domain.AcquisitionStage
 import io.github.leostumpf.positioninginfo.domain.FixDiagnosis
-import io.github.leostumpf.positioninginfo.ui.common.AppIcons
-import io.github.leostumpf.positioninginfo.ui.common.CircleIconButton
 import io.github.leostumpf.positioninginfo.ui.common.Gutter
 import io.github.leostumpf.positioninginfo.ui.common.SectionHeader
 import io.github.leostumpf.positioninginfo.ui.theme.CaptionStyle
@@ -32,7 +35,6 @@ import io.github.leostumpf.positioninginfo.ui.theme.TitleStyle
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
 import io.github.leostumpf.positioninginfo.domain.CheckStatus
 import io.github.leostumpf.positioninginfo.domain.Diagnosis
 import androidx.compose.foundation.border
@@ -47,10 +49,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -225,7 +225,7 @@ fun GnssScreen(
                 item {
                     ValueRow(
                         rememberLogTimeFormat().format(java.util.Date(e.utcMs)),
-                        FixDiagnosis.formatDuration(e.ttffMs),
+                        formatDuration(e.ttffMs),
                         // Slow is said as well as coloured, for anyone who cannot tell the two apart.
                         detail = when (e.startType) {
                             AlmanacReadiness.HOT -> "hot start"
@@ -278,19 +278,13 @@ fun GnssScreen(
     }
 
     if (confirmColdStart) {
-        AlertDialog(
-            onDismissRequest = { confirmColdStart = false },
-            containerColor = Palette.Sheet,
-            title = { Text("Clear aiding data?") },
-            text = {
-                Text(
-                    "Deletes the receiver's stored almanac, ephemeris, position and time. The next fix " +
-                        "will be slower for every app on this phone until the data is downloaded again.",
-                    color = Palette.TextSecondary,
-                )
-            },
-            confirmButton = { TextButton(onClick = { confirmColdStart = false; onColdStart() }) { Text("Clear", color = Palette.Bad) } },
-            dismissButton = { TextButton(onClick = { confirmColdStart = false }) { Text("Cancel", color = Palette.TextPrimary) } },
+        ConfirmDialog(
+            title = "Clear aiding data?",
+            text = "Deletes the receiver's stored almanac, ephemeris, position and time. The next fix " +
+                "will be slower for every app on this phone until the data is downloaded again.",
+            confirmLabel = "Clear",
+            onConfirm = onColdStart,
+            onDismiss = { confirmColdStart = false },
         )
     }
 }
@@ -466,9 +460,7 @@ private fun DiagnosisCard(d: Diagnosis, modifier: Modifier = Modifier) {
     val tone = d.verdictStatus.tone()
     val shape = RoundedCornerShape(16.dp)
     Column(
-        modifier.fillMaxWidth().clip(shape)
-            .background(if (tone == Tone.NEUTRAL) Palette.Surface else tone.color.copy(alpha = 0.07f))
-            .border(1.dp, if (tone == Tone.NEUTRAL) Palette.CardBorder else tone.color.copy(alpha = 0.3f), shape)
+        modifier.fillMaxWidth().tinted(tone, shape)
             .clickable(onClickLabel = if (expanded) "Hide the checks" else "Show all checks") { expanded = !expanded }
             .semantics { stateDescription = if (expanded) "expanded" else "collapsed" }
             .padding(16.dp),
@@ -552,22 +544,19 @@ private fun SatelliteSheet(row: SignalRow, detail: SignalDetail?, siblings: List
             Modifier.verticalScroll(rememberScrollState()).padding(start = Gutter, end = Gutter, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        "${SatelliteId(sat.constellation, sat.svid).label()} · ${sat.constellation.label} ${sat.svid}",
-                        style = TitleStyle.copy(fontSize = 20.sp), color = color,
-                    )
-                    Text(
-                        when {
-                            sat.usedInFix -> "Used in the fix"
-                            heard -> "Heard, not used in the fix"
-                            else -> "Not heard — position known from the almanac"
-                        },
-                        style = CaptionStyle, color = Palette.TextSecondary,
-                    )
-                }
-                CircleIconButton(AppIcons.Close, contentDescription = "Close", onClick = onDismiss)
+            SheetHeader(onDismiss) {
+                Text(
+                    "${SatelliteId(sat.constellation, sat.svid).label()} · ${sat.constellation.label} ${sat.svid}",
+                    style = TitleStyle.copy(fontSize = 20.sp), color = color,
+                )
+                Text(
+                    when {
+                        sat.usedInFix -> "Used in the fix"
+                        heard -> "Heard, not used in the fix"
+                        else -> "Not heard — position known from the almanac"
+                    },
+                    style = CaptionStyle, color = Palette.TextSecondary,
+                )
             }
 
             SectionHeader("Acquisition", modifier = Modifier.padding(top = 16.dp, bottom = 6.dp))
@@ -612,7 +601,7 @@ private fun SatelliteSheet(row: SignalRow, detail: SignalDetail?, siblings: List
             ValueRow("Ephemeris", if (sat.hasEphemeris) "held" else "missing")
             ValueRow(
                 "First heard",
-                detail?.firstHeardMs?.let { FixDiagnosis.formatDuration(android.os.SystemClock.elapsedRealtime() - it) + " ago" } ?: "—",
+                detail?.firstHeardMs?.let { formatAgo(android.os.SystemClock.elapsedRealtime() - it) } ?: "—",
                 divider = false,
             )
         }

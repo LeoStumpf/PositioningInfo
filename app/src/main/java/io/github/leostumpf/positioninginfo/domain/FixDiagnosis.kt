@@ -249,16 +249,6 @@ object FixDiagnosis {
     }
 
     /** "4.7 s", "38 s", "1 min 20 s", "12 min" — the same precision as the timing section. */
-    fun formatDuration(ms: Long): String {
-        val s = ms / 1_000
-        return when {
-            ms < 10_000 -> String.format(java.util.Locale.US, "%.1f s", ms / 1_000.0)
-            s < 60 -> "$s s"
-            s % 60 == 0L -> "${s / 60} min"
-            else -> "${s / 60} min ${s % 60} s"
-        }
-    }
-
     const val POOR_PDOP = 6.0
     const val NO_SIGNAL_GRACE_MS = 20_000L
 }
