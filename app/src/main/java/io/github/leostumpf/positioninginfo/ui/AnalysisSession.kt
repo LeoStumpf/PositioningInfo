@@ -32,6 +32,7 @@ import io.github.leostumpf.positioninginfo.domain.InterferenceMonitor
 import io.github.leostumpf.positioninginfo.domain.NmeaState
 import io.github.leostumpf.positioninginfo.domain.ObstructionMap
 import io.github.leostumpf.positioninginfo.domain.PositionScatter
+import io.github.leostumpf.positioninginfo.domain.ScatterStats
 import io.github.leostumpf.positioninginfo.domain.SkyPoint
 import io.github.leostumpf.positioninginfo.domain.SpeedUnit
 import io.github.leostumpf.positioninginfo.domain.TripAccumulator
@@ -106,7 +107,14 @@ class AnalysisSession(
     private var magneticUt: Double? = null
     private var headingJob: Job? = null
     private var tracking = false
+    /** Whether the app is on screen; out of sight the pages are not rebuilt. */
+    private var visible = true
     private var trackingStartedAtMs = 0L
+    /** Built from [scatter] only when it changes, not on every tick. */
+    private var scatterStats: ScatterStats? = null
+    private var scatterStatsFor: PositionScatter? = null
+    /** The World Magnetic Model barely changes over a few kilometres; see [geomagnetic]. */
+    private var geomagnetic: Geomagnetic? = null
     private var compassMode = false
     private var mapMode = false
     private var showPaths = true
@@ -249,6 +257,17 @@ class AnalysisSession(
         publishReceiver()
     }
 
+    /** On screen or not; out of sight nothing is published and the compass stops. */
+    fun setVisible(value: Boolean) {
+        visible = value
+        updateHeadingJob()
+        if (value) {
+            publishPosition()
+            publishTrip()
+            publishReceiver()
+        }
+    }
+
     // --- actions ---------------------------------------------------------------------
 
     fun toggleScatter() {
@@ -338,12 +357,8 @@ class AnalysisSession(
 
     fun decorateSky(state: SkyUiState): SkyUiState {
         val fix = lastFix
-        val declination = fix?.let { f ->
-            val lat = f.latitude
-            val lon = f.longitude
-            if (lat == null || lon == null) null
-            else SensorDataSource.declinationDegrees(lat, lon, f.ellipsoidAltitudeM ?: 0.0, System.currentTimeMillis())
-        }
+        val field = fix?.let(::geomagneticAt)
+        val declination = field?.declinationDegrees
         val h = heading
         val trueHeading = h?.let { ((it.magneticAzimuthDegrees + (declination ?: 0f)) % 360f + 360f) % 360f }
         val moving = (fix?.speedMps ?: 0f) > 1f && fix?.bearingDegrees != null
@@ -355,12 +370,7 @@ class AnalysisSession(
             parts += "declination ${abs(declination).fmt(1)}° ${if (declination >= 0) "E" else "W"}"
         }
         if (moving) parts += "course ${fix!!.bearingDegrees!!.roundToInt()}°"
-        val expectedUt = fix?.let { f ->
-            val lat = f.latitude
-            val lon = f.longitude
-            if (lat == null || lon == null) null
-            else SensorDataSource.expectedFieldUt(lat, lon, f.ellipsoidAltitudeM ?: 0.0, System.currentTimeMillis())
-        }
+        val expectedUt = field?.fieldUt
         return state.copy(
             magneticUt = if (compassMode) magneticUt else null,
             compassTrust = if (compassMode) magneticUt?.let { m -> expectedUt?.let { CompassTrust(m, it) } } else null,
@@ -409,6 +419,7 @@ class AnalysisSession(
     // --- publishing --------------------------------------------------------------------
 
     private fun publishPosition() {
+        if (!visible) return
         val fix = lastFix
         val lat = fix?.latitude
         val lon = fix?.longitude
@@ -443,11 +454,12 @@ class AnalysisSession(
             verticalSpeedMps = baro.verticalSpeedMps,
             calibrationSamples = baro.calibrationSamples,
             scatterRunning = scatterRunning,
-            scatter = scatter.stats(),
+            scatter = scatterStatsOf(scatter),
         )
     }
 
     private fun publishTrip() {
+        if (!visible) return
         _tripState.value = TripUiState(
             recording = tripRecording,
             stats = trip.stats,
@@ -459,6 +471,7 @@ class AnalysisSession(
     }
 
     private fun publishReceiver() {
+        if (!visible) return
         _receiverState.value = ReceiverUiState(
             nmea = nmea,
             rawStatus = rawStatus,
@@ -476,6 +489,31 @@ class AnalysisSession(
     }
 
     // --- helpers -----------------------------------------------------------------------
+
+    private fun scatterStatsOf(current: PositionScatter): ScatterStats? {
+        if (current !== scatterStatsFor) {
+            scatterStats = current.stats()
+            scatterStatsFor = current
+        }
+        return scatterStats
+    }
+
+    /** The magnetic model at the fix, re-evaluated only after moving about 10 km. */
+    private class Geomagnetic(val latitude: Double, val longitude: Double, val declinationDegrees: Float, val fieldUt: Double)
+
+    private fun geomagneticAt(fix: SpeedFix): Geomagnetic? {
+        val lat = fix.latitude ?: return null
+        val lon = fix.longitude ?: return null
+        geomagnetic?.let { if (abs(it.latitude - lat) < 0.1 && abs(it.longitude - lon) < 0.1) return it }
+        val alt = fix.ellipsoidAltitudeM ?: 0.0
+        val now = System.currentTimeMillis()
+        return Geomagnetic(
+            latitude = lat,
+            longitude = lon,
+            declinationDegrees = SensorDataSource.declinationDegrees(lat, lon, alt, now),
+            fieldUt = SensorDataSource.expectedFieldUt(lat, lon, alt, now),
+        ).also { geomagnetic = it }
+    }
 
     /**
      * Height above sea level and where it came from. Android reports height above the
@@ -496,7 +534,7 @@ class AnalysisSession(
     }
 
     private fun updateHeadingJob() {
-        val wanted = compassMode && tracking && sensors.hasCompass
+        val wanted = compassMode && tracking && visible && sensors.hasCompass
         if (wanted && headingJob == null) {
             headingJob = scope.launch {
                 launch {

@@ -48,6 +48,7 @@ import io.github.leostumpf.positioninginfo.domain.SpeedHistory
 import io.github.leostumpf.positioninginfo.domain.SpeedUnit
 import io.github.leostumpf.positioninginfo.domain.UpdateRate
 import io.github.leostumpf.positioninginfo.domain.PositioningQuality
+import io.github.leostumpf.positioninginfo.domain.PowerSaveLocation
 import io.github.leostumpf.positioninginfo.domain.SpeedResolver
 import io.github.leostumpf.positioninginfo.settings.UnitPreference
 import io.github.leostumpf.positioninginfo.ui.gnss.GnssUiState
@@ -153,17 +154,33 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     private var systemGnssOffsetMs: Long? = null
     private var phoneSettings = PhoneSettings()
     private var providers = listOf<LocationProviderInfo>()
+
+    // System facts, read once per tick (GPS switch) or once per slow tick (the rest) rather
+    // than by every page's mapping — each read is a binder call on the main thread.
+    private var gpsEnabled = false
+    private var powerSave = PowerSaveLocation.UNRESTRICTED
+    private var airplaneMode = false
+    private var dataConnection: Boolean? = null
+    private var networkProviderEnabled = false
+    private var fusedProviderEnabled = false
+    private var wifiCanScan = false
+    // Fixed for the life of the device.
+    private val hasTelephony by lazy { cellSource.hasTelephony }
+    private val networkProviderExists by lazy { networkLocationSource.exists }
+    private val fusedProviderExists by lazy { fusedLocationSource.exists }
     private var ticks = 0
     private var assistanceMessage: String? = null
     private val trackingJobs = mutableListOf<Job>()
 
     /** Position formats, altitude, accuracy test, trip, receiver internals, compass and signal map. */
-    val analysis = AnalysisSession(
+    val analysis: AnalysisSession = AnalysisSession(
         application = application,
         scope = scope,
         capabilities = capabilities,
         speedUnit = { _speedState.value.unit },
-        onSkyChanged = { publishSky(SystemClock.elapsedRealtime()) },
+        // Heading, compass, map and path toggles only change the decoration; the satellite
+        // tracks underneath stay as built. In compass mode this runs at sensor rate.
+        onSkyChanged = { if (uiVisible) _skyState.update { analysis.decorateSky(it) } },
     )
 
     /** Whether the app keeps running when it leaves the screen; see [BackgroundMode]. */
@@ -218,7 +235,10 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     /** The app came to the front. */
     fun onUiStart() {
         uiVisible = true
+        analysis.setVisible(true)
         startTracking()
+        // Nothing was published while the app was out of sight; catch every page up at once.
+        publishAll()
     }
 
     /**
@@ -227,6 +247,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
      */
     fun onUiStop() {
         uiVisible = false
+        analysis.setVisible(false)
         if (!BackgroundMode.active.value) stopTracking()
     }
 
@@ -254,6 +275,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     fun startTracking() {
         if (trackingJobs.isNotEmpty()) return
         if (!hasLocationPermission()) return
+        gpsEnabled = locationSource.isGpsEnabled
 
         // Each start is a new receiver session, so it gets its own time to first fix. Only
         // a receiver that was really off gets its first fix logged, though: a glance at
@@ -279,7 +301,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
             }
         }
         trackingJobs += scope.launch {
-            gnssSource.snapshots().collect(::publishGnss)
+            gnssSource.snapshots().collect(::onSnapshot)
         }
         // Network positioning runs alongside GNSS for the comparison page. All three are
         // cheap: the network provider does one lookup every few seconds, and the cell and
@@ -287,12 +309,12 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         trackingJobs += scope.launch {
             networkLocationSource.fixes().collect { networkFix = it; publishNetwork() }
         }
-        if (fusedLocationSource.exists) {
+        if (fusedProviderExists) {
             trackingJobs += scope.launch {
                 fusedLocationSource.fixes().collect { fusedFix = it; publishNetwork() }
             }
         }
-        if (cellSource.hasTelephony) {
+        if (hasTelephony) {
             trackingJobs += scope.launch {
                 cellSource.cells().collect { cells = it; publishNetwork() }
             }
@@ -309,10 +331,13 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
                 // Settings, providers and the system clocks change rarely; a few seconds is fresh enough.
                 if (ticks++ % SLOW_TICKS == 0) readPhoneState()
                 delay(FRESHNESS_TICK_MS)
-                publishSpeed(lastFix)
-                publishTiming()
+                gpsEnabled = locationSource.isGpsEnabled
                 val now = SystemClock.elapsedRealtime()
                 skyTracker = skyTracker.onTick(now)
+                // Out of sight (background mode) only the statistics and the timer move on;
+                // the pages are built again when the app returns.
+                publishSpeed(lastFix)
+                publishTiming()
                 publishSky(now)
                 publishNetwork()
                 analysis.onTick()
@@ -323,6 +348,12 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     }
 
     private fun readPhoneState() {
+        powerSave = systemStatus.powerSaveLocation
+        airplaneMode = systemStatus.airplaneMode
+        dataConnection = systemStatus.dataConnection
+        networkProviderEnabled = networkProviderExists && networkLocationSource.isEnabled
+        fusedProviderEnabled = fusedProviderExists && fusedLocationSource.isEnabled
+        wifiCanScan = wifiSource.canScan
         phoneSettings = systemStatus.settings()
         providers = providerSource.read()
         networkOffsetMs = systemStatus.networkTimeOffsetMs()
@@ -385,6 +416,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
             stats = stats.accept(reading.speedMps!!.toDouble(), fix.elapsedRealtimeMs)
             speedHistory = speedHistory.add(fix.elapsedRealtimeMs, reading.speedMps)
         }
+        if (!uiVisible) return
 
         _speedState.update {
             it.copy(
@@ -401,7 +433,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
                     fix?.horizontalAccuracyM ?: it.horizontalAccuracyM
                 },
                 hasEverHadFix = it.hasEverHadFix || reading.speedMps != null,
-                gpsEnabled = locationSource.isGpsEnabled,
+                gpsEnabled = gpsEnabled,
                 speedAccuracyMps = if (reading.freshness == FixFreshness.EXPIRED) null else fix?.speedAccuracyMps,
                 isMock = fix?.isMock == true,
                 speedHistory = speedHistory.samples,
@@ -413,11 +445,19 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         publishSignal()
     }
 
-    private fun publishGnss(snapshot: GnssSnapshot) {
-        val enabled = locationSource.isGpsEnabled
+    private fun onSnapshot(snapshot: GnssSnapshot) {
+        gpsEnabled = locationSource.isGpsEnabled
         lastSnapshot = snapshot
         recordHistory(snapshot)
+        analysis.onSnapshot(snapshot)
+        val now = SystemClock.elapsedRealtime()
+        skyTracker = skyTracker.onSnapshot(snapshot.satellites, now)
+        publishGnss(now)
+    }
 
+    private fun publishGnss(now: Long) {
+        if (!uiVisible) return
+        val snapshot = lastSnapshot
         _speedState.update {
             it.copy(
                 satellitesUsed = snapshot.usedInFixCount,
@@ -427,17 +467,22 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         _gnssState.value = analysis.decorateGnss(GnssUiState.from(
             status = AlmanacStatus.from(snapshot),
             satellites = snapshot.satellites,
-            gpsEnabled = enabled,
+            gpsEnabled = gpsEnabled,
             timing = currentTiming(),
             assistanceMessage = assistanceMessage,
         )).copy(history = history.samples, ttffLog = ttffLog, settings = phoneSettings)
         publishSignal()
-
         publishDiagnosis()
-        analysis.onSnapshot(snapshot)
-        val now = SystemClock.elapsedRealtime()
-        skyTracker = skyTracker.onSnapshot(snapshot.satellites, now)
         publishSky(now)
+    }
+
+    /** Every page at once, e.g. when the app returns from the background. */
+    private fun publishAll() {
+        val now = SystemClock.elapsedRealtime()
+        publishSpeed(lastFix)
+        publishGnss(now)
+        publishTiming()
+        publishNetwork()
     }
 
     /** The same moment seen by the receiver, the network provider and Android's fused provider. */
@@ -445,10 +490,10 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         val now = SystemClock.elapsedRealtime()
         val gnss = lastFix?.takeIf { !it.isCached && it.latitude != null }
         fun offset(lat: Double, lon: Double) = gnss?.let { NetworkComparison.distanceM(it.latitude!!, it.longitude!!, lat, lon) }
-        fun row(name: String, description: String, source: NetworkLocationDataSource, fix: NetworkFix?) = SourceRow(
+        fun row(name: String, description: String, available: Boolean, fix: NetworkFix?) = SourceRow(
             name = name,
             description = description,
-            available = source.exists && source.isEnabled,
+            available = available,
             accuracyM = fix?.accuracyM,
             ageMs = fix?.let { now - it.elapsedRealtimeMs },
             offsetM = fix?.let { offset(it.latitude, it.longitude) },
@@ -458,15 +503,15 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
             SourceRow(
                 name = "GNSS receiver",
                 description = "satellites only; the reference",
-                available = locationSource.isGpsEnabled,
+                available = gpsEnabled,
                 accuracyM = gnss?.horizontalAccuracyM,
                 ageMs = gnss?.let { now - it.elapsedRealtimeMs },
                 offsetM = null,
                 isReference = true,
                 isMock = gnss?.isMock == true,
             ),
-            row("Network", "Wi-Fi and cell towers", networkLocationSource, networkFix),
-            row("Fused", "Android's blend of all sources — what most apps show", fusedLocationSource, fusedFix),
+            row("Network", "Wi-Fi and cell towers", networkProviderEnabled, networkFix),
+            row("Fused", "Android's blend of all sources — what most apps show", fusedProviderEnabled, fusedFix),
         )
     }
 
@@ -498,6 +543,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
 
     /** Re-run on every sweep and tick, so "searching for" and the settings stay current. */
     private fun publishDiagnosis() {
+        if (!uiVisible) return
         val sats = lastSnapshot.satellites
         val status = AlmanacStatus.from(lastSnapshot)
         val used = sats.filter { it.usedInFix && !(it.azimuthDegrees == 0f && it.elevationDegrees == 0f) }
@@ -505,11 +551,11 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         val timing = currentTiming()
         val diagnosis = FixDiagnosis.evaluate(
             DiagnosisInput(
-                gpsEnabled = locationSource.isGpsEnabled,
+                gpsEnabled = gpsEnabled,
                 isMock = lastFix?.isMock == true,
-                powerSave = systemStatus.powerSaveLocation,
-                airplaneMode = systemStatus.airplaneMode,
-                dataConnection = systemStatus.dataConnection,
+                powerSave = powerSave,
+                airplaneMode = airplaneMode,
+                dataConnection = dataConnection,
                 satellitesHeard = sats.countSatellites { it.cn0DbHz > 0f },
                 satellitesStrong = sats.countSatellites { it.cn0DbHz >= DiagnosisInput.STRONG_CN0 },
                 usedInFix = lastSnapshot.usedInFixCount,
@@ -524,14 +570,15 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     }
 
     private fun publishNetwork() {
+        if (!uiVisible) return
         _networkState.value = NetworkUiState.from(
-            providerEnabled = networkLocationSource.isEnabled,
+            providerEnabled = networkProviderEnabled,
             fix = networkFix,
             gnss = lastFix,
             nowMs = SystemClock.elapsedRealtime(),
-            hasTelephony = cellSource.hasTelephony,
+            hasTelephony = hasTelephony,
             cells = cells,
-            wifiAvailable = wifiSource.canScan,
+            wifiAvailable = wifiCanScan,
             accessPoints = accessPoints,
         ).copy(sources = positionSources(), providers = providers)
     }
@@ -543,10 +590,12 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     }
 
     private fun publishSky(nowMs: Long) {
+        if (!uiVisible) return
         _skyState.value = analysis.decorateSky(SkyUiState.from(skyTracker, nowMs))
     }
 
     private fun publishSignal() {
+        if (!uiVisible) return
         val fix = lastFix?.takeIf { _speedState.value.freshness != FixFreshness.EXPIRED }
         _signalState.value = analysis.decorateSignal(
             SignalUiState.from(
@@ -566,13 +615,13 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
 
     /** Re-evaluated on the ticker, so "searching…" counts up while nothing else changes. */
     private fun publishTiming() {
-        val enabled = locationSource.isGpsEnabled
         firstFixTimer = firstFixTimer?.holdWhileDisabled(
             nowMs = SystemClock.elapsedRealtime(),
-            gpsEnabled = enabled,
+            gpsEnabled = gpsEnabled,
         )
+        if (!uiVisible) return
         // No satellite sweeps arrive while location is off, so the switch is picked up here.
-        _gnssState.update { it.copy(timing = currentTiming(), gpsEnabled = enabled) }
+        _gnssState.update { it.copy(timing = currentTiming(), gpsEnabled = gpsEnabled) }
         publishDiagnosis()
     }
 
