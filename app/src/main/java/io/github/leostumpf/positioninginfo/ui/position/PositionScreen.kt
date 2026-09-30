@@ -100,7 +100,7 @@ fun PositionScreen(
                                     Text(value, style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
                                     IconButton(
                                         onClick = { copyText(clipboard, context, value, "$label copied") },
-                                        modifier = Modifier.size(40.dp),
+                                        modifier = Modifier.size(48.dp),
                                     ) {
                                         Icon(AppIcons.Copy, contentDescription = "Copy $label", tint = Palette.TextTertiary, modifier = Modifier.size(18.dp))
                                     }
@@ -182,7 +182,7 @@ fun PositionScreen(
         }
         item {
             Note(
-                "Leave the phone still under open sky. Green holds half the fixes, amber 95 %; " +
+                "Leave the phone still under open sky. The inner circle (green) holds half the fixes, the outer (amber) 95 %; " +
                     "dashed is the ± the receiver claims (68 % expected inside).",
                 modifier = Modifier.padding(top = 12.dp),
             )

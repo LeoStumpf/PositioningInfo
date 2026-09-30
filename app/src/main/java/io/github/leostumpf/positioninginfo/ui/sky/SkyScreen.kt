@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.sky
 
+import io.github.leostumpf.positioninginfo.ui.theme.signalAlpha
+import io.github.leostumpf.positioninginfo.ui.theme.signalColour
 import io.github.leostumpf.positioninginfo.domain.counted
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.contentDescription
@@ -225,9 +227,9 @@ private fun CompassToggle(on: Boolean, onToggle: () -> Unit) {
 private fun Legend(mapMode: Boolean) {
     Row(Modifier.fillMaxWidth().padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(14.dp)) {
         if (mapMode) {
-            LegendSwatch(Palette.Good, "35+ dB-Hz")
-            LegendSwatch(Palette.Degraded, "25–35")
-            LegendSwatch(Palette.Bad, "weaker")
+            LegendSwatch(Palette.Good, "35+ dB-Hz", signalAlpha(35f))
+            LegendSwatch(Palette.Degraded, "25–35", signalAlpha(25f))
+            LegendSwatch(Palette.Bad, "weaker", signalAlpha(0f))
         } else {
             LegendDot(filled = true, "in fix")
             LegendDot(filled = false, "heard")
@@ -247,8 +249,8 @@ private fun LegendDot(filled: Boolean, label: String) = LegendItem(label) {
 }
 
 @Composable
-private fun LegendSwatch(color: Color, label: String) = LegendItem(label) {
-    Box(Modifier.size(10.dp).background(color.copy(alpha = 0.6f), RoundedCornerShape(2.dp)))
+private fun LegendSwatch(color: Color, label: String, alpha: Float = 0.6f) = LegendItem(label) {
+    Box(Modifier.size(10.dp).background(color.copy(alpha = alpha), RoundedCornerShape(2.dp)))
 }
 
 @Composable
@@ -362,7 +364,7 @@ private fun SkyPlot(state: SkyUiState, modifier: Modifier = Modifier) {
                     arcTo(Rect(centre, inner), start + sweep, -sweep, false)
                     close()
                 }
-                drawPath(path, cn0Colour(cell.meanCn0DbHz).copy(alpha = 0.55f))
+                drawPath(path, signalColour(cell.meanCn0DbHz).copy(alpha = signalAlpha(cell.meanCn0DbHz)))
             }
         }
         if (state.compassMode) {
@@ -423,8 +425,4 @@ private fun pathOf(points: List<Offset>) = Path().apply {
     points.drop(1).forEach { lineTo(it.x, it.y) }
 }
 
-private fun cn0Colour(cn0: Float): Color = when {
-    cn0 >= 35f -> Palette.Good
-    cn0 >= 25f -> Palette.Degraded
-    else -> Palette.Bad
-}
+

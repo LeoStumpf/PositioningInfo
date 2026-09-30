@@ -437,7 +437,7 @@ fun CircleIconButton(
     icon: ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
-    size: Dp = 44.dp,
+    size: Dp = 48.dp,
     tint: Color = Palette.TextSecondary,
 ) {
     IconButton(

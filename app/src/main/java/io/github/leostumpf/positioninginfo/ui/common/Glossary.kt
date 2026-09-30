@@ -95,8 +95,8 @@ object Glossary {
         PrimerEntry(
             "C/N₀ (dB-Hz)",
             "Carrier-to-noise density: signal strength against the noise floor, the " +
-                "number in the satellite list. Open sky gives 35–50; below about 20 a " +
-                "signal is barely usable.",
+                "number in the satellite list. Open sky gives 35–50 (green); from 25 (amber) " +
+                "the satellite's data can still be decoded; below that (red) it is barely usable.",
         ),
         PrimerEntry(
             "Constellation table",

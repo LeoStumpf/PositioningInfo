@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.theme
 
+import io.github.leostumpf.positioninginfo.domain.DiagnosisInput
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
@@ -29,7 +30,8 @@ object Palette {
     val TextSecondary = Color(0xFFA6A6A6)
     /** 4.9:1 on black: the dimmest text that still passes WCAG AA. */
     val TextTertiary = Color(0xFF7A7A7A)
-    val Inactive = Color(0xFF5A5A5A)
+    /** Switched-off text; #767676 still clears 4.5:1 against black. */
+    val Inactive = Color(0xFF767676)
 
     val Good = Color(0xFF5ED39A)
     val Degraded = Color(0xFFF3B64A)
@@ -37,10 +39,28 @@ object Palette {
 }
 
 // Names the screens already use, now pointing at the tokens.
-val OkGreen = Palette.Good
-val WarnAmber = Palette.Degraded
-val ErrorRed = Palette.Bad
-val DimGrey = Palette.TextTertiary
+/**
+ * Signal strength (C/N₀) as a colour, the same in the satellite list and the signal map:
+ * strong from 35 dB-Hz (open sky), usable from 25 (strong enough to decode the satellite's
+ * data, as the diagnosis counts it), weak below.
+ */
+fun signalColour(cn0DbHz: Float): Color = when {
+    cn0DbHz >= STRONG_SIGNAL_DB_HZ -> Palette.Good
+    cn0DbHz >= DiagnosisInput.STRONG_CN0 -> Palette.Degraded
+    else -> Palette.Bad
+}
+
+/**
+ * The same tiers as brightness, for areas filled with [signalColour]: strong is brightest,
+ * so the map still reads for anyone who cannot tell its green from its red.
+ */
+fun signalAlpha(cn0DbHz: Float): Float = when {
+    cn0DbHz >= STRONG_SIGNAL_DB_HZ -> 0.75f
+    cn0DbHz >= DiagnosisInput.STRONG_CN0 -> 0.5f
+    else -> 0.28f
+}
+
+const val STRONG_SIGNAL_DB_HZ = 35f
 
 /** Each system's colour; always shown next to its letter (G07, E24), never on its own. */
 fun Constellation.color(): Color = when (this) {

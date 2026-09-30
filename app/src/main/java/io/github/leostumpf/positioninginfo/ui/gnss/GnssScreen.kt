@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.gnss
 
+import io.github.leostumpf.positioninginfo.ui.theme.signalColour
 import kotlin.math.roundToInt
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.stateDescription
@@ -226,12 +227,13 @@ fun GnssScreen(
                     ValueRow(
                         rememberLogTimeFormat().format(java.util.Date(e.utcMs)),
                         FixDiagnosis.formatDuration(e.ttffMs),
+                        // Slow is said as well as coloured, for anyone who cannot tell the two apart.
                         detail = when (e.startType) {
                             AlmanacReadiness.HOT -> "hot start"
                             AlmanacReadiness.WARM -> "warm start"
                             AlmanacReadiness.COLD -> "cold start"
                             AlmanacReadiness.UNKNOWN -> "start type unknown"
-                        },
+                        } + if (e.ttffMs > FixDiagnosis.expectedMs(e.startType)) " · slower than usual" else "",
                         valueColor = if (e.ttffMs <= FixDiagnosis.expectedMs(e.startType)) Palette.Good else Palette.Degraded,
                         divider = i < minOf(5, state.ttffLog.size) - 1,
                     )
@@ -397,11 +399,6 @@ private fun SatelliteInfo.code(): String = SatelliteId(constellation, svid).labe
 private fun SignalBand.shortLabel(): String? =
     if (this == SignalBand.UNKNOWN) null else label.substringBefore(" /")
 
-private fun signalColour(cn0DbHz: Float): Color = when {
-    cn0DbHz >= 30f -> Palette.Good
-    cn0DbHz >= 20f -> Palette.Degraded
-    else -> Palette.Bad
-}
 
 private fun AlmanacReadiness.badge(): String = when (this) {
     AlmanacReadiness.HOT -> "Hot start"
