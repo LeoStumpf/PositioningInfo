@@ -19,10 +19,21 @@ fun signingValue(key: String, env: String): String? =
     keystoreProperties.getProperty(key) ?: System.getenv(env)
 
 // Every build that reaches a phone must carry a higher versionCode than the one installed,
-// or Android refuses the update. The commit count on the branch rises with every merge and
-// is the same on the laptop and in CI (which checks out the full history for it).
-val commitCount: Int = providers.exec { commandLine("git", "rev-list", "--count", "HEAD") }
-    .standardOutput.asText.map { it.trim().toIntOrNull() ?: 1 }.getOrElse(1)
+// or Android refuses the update — and Play refuses any upload not above the last one, for
+// good. The code is the commit time of HEAD, in seconds since 2026-01-01 UTC: it is the same
+// on the laptop and in CI, rises with every new commit, and unlike a commit count it does
+// not fall when history is rebased or squashed (a rebase gives commits a new, later time).
+// It stays below Play's limit of 2 100 000 000 until the 2090s. CI additionally refuses a
+// code that is not above the last tagged build.
+val versionEpochSeconds = 1_767_225_600L  // 2026-01-01T00:00:00Z
+val buildCode: Int = providers.exec { commandLine("git", "log", "-1", "--format=%ct", "HEAD") }
+    .standardOutput.asText.map { it.trim().toLongOrNull() ?: versionEpochSeconds }
+    .map { (it - versionEpochSeconds).coerceIn(1L, 2_100_000_000L).toInt() }
+    .getOrElse(1)
+
+// The version people see, in the store and under About. Raised by hand before a release;
+// every build in between shares it and is told apart by its versionCode.
+val appVersionName: String = providers.gradleProperty("appVersionName").get()
 
 android {
     namespace = "io.github.leostumpf.positioninginfo"
@@ -32,8 +43,8 @@ android {
         applicationId = "io.github.leostumpf.positioninginfo"
         minSdk = 26
         targetSdk = 36
-        versionCode = commitCount
-        versionName = "1.0.$commitCount"
+        versionCode = buildCode
+        versionName = appVersionName
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -71,6 +82,12 @@ android {
             jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
         }
     }
+    lint {
+        // CI runs lintRelease: errors — such as an API newer than minSdk called without a
+        // version check — fail the build; warnings are reported only.
+        abortOnError = true
+        checkReleaseBuilds = true
+    }
     buildFeatures {
         compose = true
         buildConfig = true
@@ -105,6 +122,13 @@ val copyReleaseToShare by tasks.registering(Copy::class) {
     onlyIf { releaseShare.exists() && android.signingConfigs.findByName("release") != null }
     from(layout.buildDirectory.dir("outputs/apk/release")) { include("*-release.apk") }
     into(releaseShare)
-    rename { "positioning-info-1.0.$commitCount.apk" }
+    rename { "positioning-info-$appVersionName-$buildCode.apk" }
 }
 tasks.matching { it.name == "assembleRelease" }.configureEach { finalizedBy(copyReleaseToShare) }
+
+// For CI, which names and tags the build after it: prints "<versionName> <versionCode>".
+tasks.register("printVersion") {
+    description = "Prints the versionName and versionCode this checkout builds."
+    val line = "$appVersionName $buildCode"
+    doLast { println(line) }
+}

@@ -4,15 +4,21 @@
 #
 # Steps, in increasing cost:
 #   1. unit tests                       — the pure domain logic (diagnosis, decoders, maths)
-#   2. a *release* build                — R8 shrinking only happens in release, so a break
-#                                         there would otherwise surface on the phone
-#   3. signed with the upload key       — Gradle falls back to an unsigned build silently
+#   2. lint                             — above all NewApi: a call newer than minSdk without
+#                                         a version check crashes only on old phones
+#   3. a *release* build, APK and AAB   — R8 shrinking only happens in release, so a break
+#                                         there would otherwise surface on the phone; the
+#                                         bundle (AAB) is what Google Play takes, the APK is
+#                                         for installing directly
+#   4. signed with the upload key       — Gradle falls back to an unsigned build silently
 #                                         without the key, so a missing or debug signature
 #                                         fails the run
-#   4. keep the signed APK              — artifact positioning-info-<sha>, 30 days
-#   5. tag the commit v1.0.<n>          — on main only, the same number as the APK's
-#                                         version, so every distributed APK maps to its exact
-#                                         source (the AGPL's corresponding-source requirement)
+#   5. keep the signed APK and AAB      — artifact positioning-info-<sha>, 30 days
+#   6. tag the commit build-<code>      — on main only, the APK's versionCode, so every
+#                                         distributed build maps to its exact source (the
+#                                         AGPL's corresponding-source requirement); a code
+#                                         not above the last tag fails the run, since Play
+#                                         would refuse it
 #
 # Three repository secrets make the release build the installable one. They mirror files
 # that live outside version control, so rotating either side means rotating both:
@@ -54,11 +60,8 @@ jobs:
       HAVE_KEYSTORE: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
 
     steps:
-      # Full history: versionCode is the commit count, so a shallow clone would number
-      # every build 1 and the phone would refuse the update.
+      # A shallow clone is enough: versionCode is HEAD's commit time (app/build.gradle.kts).
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       # 21 because that is the JDK that builds this project on the laptop; the bytecode
       # target is 17 either way (app/build.gradle.kts).
@@ -71,6 +74,25 @@ jobs:
 
       - name: Unit tests
         run: ./gradlew --no-daemon testDebugUnitTest
+
+      - name: Lint
+        run: ./gradlew --no-daemon lintRelease
+
+      - name: Keep the lint report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report-${{ github.sha }}
+          path: app/build/reports/lint-results-release.html
+          if-no-files-found: ignore
+          retention-days: 14
+
+      - name: Version
+        run: |
+          read -r name code <<< "$(./gradlew --no-daemon -q printVersion | tail -1)"
+          echo "VERSION_NAME=$name" >> "$GITHUB_ENV"
+          echo "VERSION_CODE=$code" >> "$GITHUB_ENV"
+          echo "versionName $name, versionCode $code"
 
       # Materialise what app/build.gradle.kts reads. storeFile resolves relative to app/;
       # both files are gitignored (*.jks, keystore.properties) and live only in this run.
@@ -91,7 +113,7 @@ jobs:
           } > keystore.properties
 
       - name: Release build
-        run: ./gradlew --no-daemon assembleRelease
+        run: ./gradlew --no-daemon assembleRelease bundleRelease
 
       # An APK carries a v2/v3 signature that only apksigner reads.
       - name: Signed with the upload key, not debug
@@ -103,19 +125,29 @@ jobs:
           echo "$desc" | grep -E 'DN:|SHA-256' || true
           if [ -z "$desc" ]; then echo "!!! no signing certificate" >&2; exit 1; fi
           if echo "$desc" | grep -q 'CN=Android Debug'; then echo "!!! signed with the debug key" >&2; exit 1; fi
+          # The bundle carries a JAR signature, which keytool reads.
+          aab=app/build/outputs/bundle/release/app-release.aab
+          cert="$(keytool -printcert -jarfile "$aab")"
+          echo "$cert" | grep -E 'Owner:|SHA256:' || true
+          if [ -z "$cert" ] || echo "$cert" | grep -q 'Not a signed jar'; then echo "!!! bundle not signed" >&2; exit 1; fi
+          if echo "$cert" | grep -q 'CN=Android Debug'; then echo "!!! bundle signed with the debug key" >&2; exit 1; fi
 
-      - name: Name the APK after its version
+      - name: Name the builds after their version
         if: env.HAVE_KEYSTORE != ''
         run: |
           mkdir -p dist
-          cp app/build/outputs/apk/release/app-release.apk "dist/positioning-info-1.0.$(git rev-list --count HEAD).apk"
+          base="dist/positioning-info-$VERSION_NAME-$VERSION_CODE"
+          cp app/build/outputs/apk/release/app-release.apk "$base.apk"
+          cp app/build/outputs/bundle/release/app-release.aab "$base.aab"
+          # R8's mapping, to read obfuscated stack traces; the bundle carries it to Play too.
+          cp app/build/outputs/mapping/release/mapping.txt "$base-mapping.txt"
 
       - name: Keep the signed build
         if: env.HAVE_KEYSTORE != ''
         uses: actions/upload-artifact@v4
         with:
           name: positioning-info-${{ github.sha }}
-          path: dist/*.apk
+          path: dist/*
           if-no-files-found: error
           retention-days: 30
 
@@ -123,10 +155,15 @@ jobs:
       - name: Tag the release
         if: env.HAVE_KEYSTORE != '' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         run: |
-          tag="v1.0.$(git rev-list --count HEAD)"
+          tag="build-$VERSION_CODE"
           if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null; then
             echo "$tag already exists"
           else
+            last="$(git ls-remote --tags origin 'refs/tags/build-*' | sed 's|.*refs/tags/build-||' | sort -n | tail -1)"
+            if [ -n "$last" ] && [ "$VERSION_CODE" -le "$last" ]; then
+              echo "!!! versionCode $VERSION_CODE is not above the last build ($last); Play would refuse it" >&2
+              exit 1
+            fi
             git tag "$tag" "$GITHUB_SHA"
             git push origin "refs/tags/$tag"
             echo "tagged $tag"

@@ -210,23 +210,30 @@ Requires JDK 17+ and the Android SDK (compileSdk 36).
 ```sh
 ./gradlew :app:assembleDebug     # build
 ./gradlew :app:test              # unit tests
+./gradlew :app:lintRelease       # lint, as CI runs it
 ./gradlew :app:installDebug      # install to a connected device
+./gradlew :app:bundleRelease     # the bundle (AAB) for Google Play
 ```
 
 The release app ID is `io.github.leostumpf.positioninginfo`; debug builds add `.debug`, so both can
 be installed side by side.
 
-**Versions** are numbered by commit count (`versionCode` = commits on the branch, `versionName` =
-`1.0.<count>`), so every newer build installs over the previous one.
+**Versions:** `versionCode` is the commit time of `HEAD` in seconds since 2026-01-01 UTC, so every
+newer commit installs over the previous build, on the phone and on Google Play alike, and a rebase
+never lowers it (Play refuses any upload not above the last one). `versionName` is set by hand as
+`appVersionName` in `gradle.properties` and raised before each store release. `./gradlew -q
+printVersion` shows both. (Builds up to `1.0.35` were numbered by commit count.)
 
-**CI** (`.github/workflows/ci.yml`) runs the unit tests and builds a signed release on every push to
-`main`; the APK is kept as a workflow artifact for 30 days (Actions → CI → latest run → Artifacts).
+**CI** (`.github/workflows/ci.yml`) runs the unit tests and lint, and builds a signed release on every
+push to `main`: the APK, the bundle (AAB) for Google Play and R8's mapping file are kept as a workflow
+artifact for 30 days (Actions → CI → latest run → Artifacts). Each signed build of `main` is tagged
+`build-<versionCode>`, so every distributed build maps to its exact source.
 It is signed with the upload key from three repository secrets — `ANDROID_KEYSTORE_BASE64`,
 `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_PASSWORD` — which forks never see.
 
 **Local release folder:** if `releases/` exists (gitignored — on the maintainer's laptop a link to a
 local share), `./gradlew assembleRelease` also copies the signed APK there as
-`positioning-info-<version>.apk`.
+`positioning-info-<versionName>-<versionCode>.apk`.
 
 Release builds read signing credentials from a `keystore.properties` at the repo root
 (gitignored) or from the `POSITIONINGINFO_STORE_FILE`, `POSITIONINGINFO_STORE_PASSWORD`,
