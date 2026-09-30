@@ -35,8 +35,9 @@ using your location with the screen off. Swiping the app away or pressing Stop e
 
 Only in the app's private storage, where other apps cannot read it:
 
-- **A recorded trip**, if you record one: for each point the time, coordinates, altitude, speed and
-  accuracy.
+- **A recorded trip**, if you record one: for each point the time, coordinates, altitude, speed,
+  accuracy, and the height used to count ascent and descent with where it came from (barometer or
+  satellites).
 - **The last 20 times to first fix**: date, duration and start type. No coordinates.
 - **Your speed unit** setting.
 

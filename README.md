@@ -4,7 +4,7 @@
 
 Everything your phone's GNSS receiver knows, on eight pages: a glanceable speedometer, trip
 recording, coordinates and altitude, satellite status and a sky plot, accuracy and geometry,
-receiver internals (interference, clock, NMEA), network location, and an About page. No ads, no tracking,
+receiver internals (interference, clock, NMEA), Wi-Fi and mobile-network positioning, and an About page. No ads, no tracking,
 no account, and no network access at all — every figure is measured or computed on the phone.
 
 Started as a speedometer called "GPS Tools", because every speedometer on the Play Store had
@@ -19,8 +19,8 @@ App ID: `io.github.leostumpf.positioninginfo`
 ## Who wrote this
 
 **Claude wrote it** — Anthropic's model (Claude Opus 5.5, working in Claude Code), in
-conversation over a few days in September 2026. All of it: about 11 700 lines of Kotlin
-including the tests, the in-app glossary texts, this README and the commit messages. The
+conversation over a few days in September 2026. All of it: about 19 400 lines of Kotlin
+(15 600 in the app, 3 700 in tests), the in-app glossary texts, this README and the commit messages. The
 visual design ("Instrument Black") was drafted by Claude as well. Some of the maths and parsing
 modules were written by Claude sub-agents working in parallel and then merged. Every commit
 carries `Co-Authored-By: Claude Opus 5.5`.
@@ -32,7 +32,8 @@ result, which is why the git author line is his. **He does not claim to have wri
 code.** That is the reason this section exists — it is here to inform, not to excuse or limit
 anything; using a model to build software is neither novel nor a problem.
 
-What stands behind the code: 202 unit tests; reference values checked independently rather
+What stands behind the code: 289 unit tests and UI tests that walk the app on an emulator; detekt
+and Android lint with no findings, enforced before every commit; reference values checked independently rather
 than recalled (UTM against a separate implementation, GPS navigation-message fields against
 IS-GPS-200); and every feature exercised on a Pixel 4a. What does *not* stand behind it is a
 line-by-line human review, and some paths could not be tried on real hardware — the jamming
@@ -45,17 +46,21 @@ Swipe between eight screens. Each detail screen has a collapsible glossary of th
 
 **Speedometer**
 
-- The receiver's own speed uncertainty under the reading, and SIMULATED when a mock-location app is at work
-- Live speed straight from the GNSS receiver, in km/h (default), mph or knots — chosen under the gear button, so a stray touch never changes it
-- Session maximum and time-weighted average, with a reset button
-- Background mode button: keep running with the screen off, shown by a notification
+- Live speed straight from the GNSS receiver, in km/h (default), mph or knots — chosen under the
+  gear button, so a stray touch never changes it
+- The receiver's own speed uncertainty under the reading, and SIMULATED when a mock-location app
+  is at work
+- Session maximum and time-weighted average, a speed plot since the last reset, and a reset button
 - Honest status line: fix state, horizontal accuracy, satellites used / visible
+- Background mode button: keep running with the screen off, shown by a notification
 
 **Trip**
 
-- Records a track while the app is open (the screen stays on), saved on the phone as it goes
-- Distance, moving time, maximum and moving-average speed, ascent and descent (barometric
-  when the phone has a barometer)
+- Records a track, saved on the phone point by point, so it survives the app being closed. The
+  screen stays on while recording; with background mode on it also records with the screen off
+- Distance, moving time, maximum and moving-average speed, and an elevation profile
+- Ascent and descent from the barometer when the phone has one (else GNSS height), with a
+  hysteresis against altitude noise; a switch of height source is never counted as a climb
 - Exports GPX to a file you choose
 
 **Position**
@@ -84,12 +89,11 @@ Swipe between eight screens. Each detail screen has a collapsible glossary of th
 - The phone settings around positioning, read-only: precise or approximate access, Wi-Fi and cell
   positioning, Wi-Fi and Bluetooth scanning, battery saver, automatic time and time zone
 - Cold start (clear aiding data) and A-GNSS download, to watch the difference assistance makes
-
-- Compass trust: measured magnetic field against the World Magnetic Model, to catch a disturbed compass
-- Sky plot of every satellite, right above the satellite list, with its path so far and a 15-minute projection, estimated
-  offline from its recent motion
+- Sky plot of every satellite, right above the satellite list, with its path so far and a
+  15-minute projection, estimated offline from its recent motion
 - Satellites about to set, and which appeared or were lost
 - Compass mode that turns the plot with the phone, corrected for magnetic declination
+- Compass trust: measured magnetic field against the World Magnetic Model, to catch a disturbed compass
 - Signal map: signal strength by direction over time, showing where buildings block the sky
 
 **Signals and accuracy**
@@ -114,7 +118,7 @@ Swipe between eight screens. Each detail screen has a collapsible glossary of th
 - GPS navigation messages decoded where the chip passes them on: health, week, leap-second
   announcements, ionosphere model, almanac pages
 
-**Network location**
+**Wi-Fi & mobile network**
 
 - GNSS, network and Android's fused position side by side, with each one's distance from the GNSS fix
 - Position from Wi-Fi and cell towers, its claimed accuracy and its real error against GNSS
@@ -135,7 +139,7 @@ state and constellations, set in the fonts every Android phone already has.
 Speed comes from the platform `LocationManager` GPS provider, which reports the receiver's
 own Doppler-derived velocity. The app deliberately avoids Google Play Services' fused
 location provider: it is proprietary, blends in non-GNSS sources, and cannot supply the
-satellite-level detail this app is built to grow into.
+satellite-level detail and raw measurements this app shows.
 
 ### Almanac and ephemeris
 
@@ -204,6 +208,27 @@ Permissions beyond location: `ACCESS_WIFI_STATE` (list access points), `ACCESS_N
 (tell whether a data connection exists for the system's A-GNSS download — read-only, no network
 use), `ACCESS_LOCATION_EXTRA_COMMANDS` (cold start / A-GNSS request), and the foreground-service and
 notification permissions for opt-in background mode. There is no `INTERNET` permission.
+
+## Code
+
+Kotlin with Jetpack Compose, in one Gradle module (`app`) plus `baselineprofile`, which never
+ships. Under `app/src/main/java/io/github/leostumpf/positioninginfo/`:
+
+- `data/` — one class per Android source (location, GNSS status, raw measurements and navigation
+  messages, NMEA, sensors, cells, Wi-Fi, system settings) turning platform callbacks into Kotlin
+  flows, and the two files the app writes (`TripStore`, `TtffLogStore`).
+- `domain/` — the GNSS knowledge as plain, immutable Kotlin with no Android UI: almanac status,
+  "why no fix?", DOP, coordinate formats, NMEA and GPS navigation-message decoding, interference
+  checks, trip statistics, sky tracking. Almost all of the unit tests are here.
+- `ui/` — `PositioningInfoViewModel` owns the one GNSS session and hands the pages' parts to
+  small classes (`SpeedSession`, `NetworkSession`, `FirstFixSession`, `AnalysisSession` with
+  `ReceiverAnalysis`, `SkyAnalysis`, `AccuracyTest` and `TripRecorder`). One package per page, each
+  with a `…UiState` built from the domain and a screen that only draws it; shared components in
+  `ui/common`, colours and type in `ui/theme`.
+- `background/` — the opt-in foreground service; `settings/` — the stored speed unit.
+
+Domain code returns values, not sentences; the pages word them. English only for now: the texts
+are in the code, not yet in string resources (except the notification's).
 
 ## Building
 
