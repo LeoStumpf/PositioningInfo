@@ -89,6 +89,9 @@ import java.util.Locale
 /** Page gutter. */
 val Gutter = 20.dp
 
+/** Widest a page's content gets, so labels and values stay within one glance on a tablet. */
+val MaxContentWidth = 640.dp
+
 /**
  * Room kept free at the bottom for the page indicator: its padding plus one line of its
  * labels, which grows with the system font size.
@@ -106,12 +109,17 @@ fun indicatorClearance(): Dp = with(LocalDensity.current) { maxOf(72.dp, 40.dp +
 @Composable
 fun PageScaffold(page: Page, modifier: Modifier = Modifier, content: LazyListScope.() -> Unit) {
     var glossaryOpen by rememberSaveable { mutableStateOf(false) }
-    LazyColumn(
-        modifier = modifier.fillMaxSize().background(Palette.Background),
-        contentPadding = PaddingValues(start = Gutter, end = Gutter, top = 24.dp, bottom = indicatorClearance()),
-    ) {
-        item { PageHeader(page, onHelp = { glossaryOpen = true }) }
-        content()
+    BoxWithConstraints(modifier.fillMaxSize().background(Palette.Background)) {
+        // On a tablet or in landscape the rows keep a readable width, centred; the list still
+        // scrolls from anywhere on the screen.
+        val side = maxOf(Gutter, (maxWidth - MaxContentWidth) / 2)
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = side, end = side, top = 24.dp, bottom = indicatorClearance()),
+        ) {
+            item { PageHeader(page, onHelp = { glossaryOpen = true }) }
+            content()
+        }
     }
     if (glossaryOpen) GlossarySheet(page, onDismiss = { glossaryOpen = false })
 }

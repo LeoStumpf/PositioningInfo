@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.sky
 
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.ui.platform.LocalConfiguration
 import io.github.leostumpf.positioninginfo.ui.theme.signalAlpha
 import io.github.leostumpf.positioninginfo.ui.theme.signalColour
 import io.github.leostumpf.positioninginfo.domain.counted
@@ -315,9 +318,14 @@ private fun SkyPlot(state: SkyUiState, modifier: Modifier = Modifier) {
     val heard = markers.filter { it.current != null && it.tracked }
     val description = "Sky plot: ${heard.size.counted("satellite")} plotted, ${heard.count { it.usedInFix }} in the fix" +
         if (state.compassMode) ", turned with the phone" else ", north up"
+    // Square, but never taller than most of the screen: in landscape the full width would
+    // put half the plot out of view.
+    val maxSide = (LocalConfiguration.current.screenHeightDp * 0.8f).dp
     Canvas(
         modifier
             .fillMaxWidth()
+            .wrapContentWidth()
+            .widthIn(max = maxSide)
             .aspectRatio(1f)
             .semantics { contentDescription = description },
     ) {

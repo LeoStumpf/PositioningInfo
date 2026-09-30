@@ -206,7 +206,7 @@ private fun Landscape(
         }
         Box(Modifier.width(1.dp).fillMaxHeight().padding(vertical = 24.dp).background(Palette.CardBorder))
         // Spread over the height when it fits; scrolls when a large font makes it taller.
-        BoxWithConstraints(Modifier.width(252.dp).fillMaxHeight()) {
+        BoxWithConstraints(Modifier.width(268.dp).fillMaxHeight()) {
         Column(
             Modifier.verticalScroll(rememberScrollState()).heightIn(min = maxHeight).padding(start = 28.dp, top = 4.dp, bottom = 12.dp),
             verticalArrangement = Arrangement.SpaceBetween,
