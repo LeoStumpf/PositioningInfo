@@ -35,10 +35,7 @@ data class SignalUiState(
     val isMock: Boolean = false,
 ) {
     companion object {
-        fun from(
-            quality: PositioningQuality,
-            measuredAccuracyM: Float?,
-        ) = SignalUiState(
+        fun from(quality: PositioningQuality, measuredAccuracyM: Float?) = SignalUiState(
             resolution = quality.resolution,
             measuredAccuracyM = measuredAccuracyM,
             bandsInUse = quality.bandsInUse,

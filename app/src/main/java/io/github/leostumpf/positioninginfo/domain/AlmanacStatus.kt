@@ -80,13 +80,13 @@ data class AlmanacStatus(
          * A receiver cannot compute a fix without ephemeris, so being told it is doing so
          * with none on record means the flag is not implemented on this device.
          */
-        private fun ephemerisUnavailable(snapshot: GnssSnapshot): Boolean =
-            snapshot.hasReported &&
-                snapshot.usedInFixCount >= SATELLITES_FOR_FIX &&
-                snapshot.ephemerisCount == 0
+        private fun ephemerisUnavailable(snapshot: GnssSnapshot): Boolean = snapshot.hasReported &&
+            snapshot.usedInFixCount >= SATELLITES_FOR_FIX &&
+            snapshot.ephemerisCount == 0
 
         private fun readinessOf(snapshot: GnssSnapshot): AlmanacReadiness = when {
             !snapshot.hasReported -> AlmanacReadiness.UNKNOWN
+
             // Reported, but listing nothing: that says nothing about stored orbits either way.
             snapshot.satellites.isEmpty() -> AlmanacReadiness.UNKNOWN
 
@@ -106,20 +106,21 @@ data class AlmanacStatus(
             else -> AlmanacReadiness.COLD
         }
 
-        private fun summarise(sats: List<SatelliteInfo>): List<ConstellationSummary> =
-            sats.groupBy { it.constellation }
-                .map { (constellation, group) ->
-                    ConstellationSummary(
-                        constellation = constellation,
-                        visible = group.countSatellites(),
-                        almanac = group.countSatellites { it.hasAlmanac },
-                        ephemeris = group.countSatellites { it.hasEphemeris },
-                        usedInFix = group.countSatellites { it.usedInFix },
-                    )
-                }
-                // Busiest constellation first, then by name so the order never jitters
-                // between sweeps when two constellations are tied.
-                .sortedWith(compareByDescending<ConstellationSummary> { it.visible }
-                    .thenBy { it.constellation.label })
+        private fun summarise(sats: List<SatelliteInfo>): List<ConstellationSummary> = sats.groupBy { it.constellation }
+            .map { (constellation, group) ->
+                ConstellationSummary(
+                    constellation = constellation,
+                    visible = group.countSatellites(),
+                    almanac = group.countSatellites { it.hasAlmanac },
+                    ephemeris = group.countSatellites { it.hasEphemeris },
+                    usedInFix = group.countSatellites { it.usedInFix },
+                )
+            }
+            // Busiest constellation first, then by name so the order never jitters
+            // between sweeps when two constellations are tied.
+            .sortedWith(
+                compareByDescending<ConstellationSummary> { it.visible }
+                    .thenBy { it.constellation.label },
+            )
     }
 }

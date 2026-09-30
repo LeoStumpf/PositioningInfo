@@ -8,11 +8,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import io.github.leostumpf.positioninginfo.ui.common.QuietButton
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.unit.dp
@@ -20,6 +19,7 @@ import androidx.compose.ui.unit.sp
 import io.github.leostumpf.positioninginfo.BuildConfig
 import io.github.leostumpf.positioninginfo.ui.common.AppIcons
 import io.github.leostumpf.positioninginfo.ui.common.InfoCard
+import io.github.leostumpf.positioninginfo.ui.common.QuietButton
 import io.github.leostumpf.positioninginfo.ui.common.SecondaryButton
 import io.github.leostumpf.positioninginfo.ui.common.ValueRow
 import io.github.leostumpf.positioninginfo.ui.theme.BodyStyle
@@ -40,13 +40,18 @@ const val PRIVACY_URL = "https://github.com/LeoStumpf/PositioningInfo/blob/main/
  * source; this is that notice. Links open in the browser — the app itself never connects.
  */
 @Composable
-fun AboutSection() {
+fun AboutSection(modifier: Modifier = Modifier) {
     val uriHandler = LocalUriHandler.current
     var showLicences by rememberSaveable { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(14.dp)) {
         InfoCard {
             Row(Modifier.fillMaxWidth()) {
-                Text("Positioning Info", style = TitleStyle.copy(fontSize = 20.sp), color = Palette.TextPrimary, modifier = Modifier.weight(1f))
+                Text(
+                    "Positioning Info",
+                    style = TitleStyle.copy(fontSize = 20.sp),
+                    color = Palette.TextPrimary,
+                    modifier = Modifier.weight(1f),
+                )
                 Text("v${BuildConfig.VERSION_NAME}", style = DataStyle, color = Palette.TextTertiary)
             }
             Text(
@@ -69,13 +74,23 @@ fun AboutSection() {
             )
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            SecondaryButton("Source on GitHub", icon = AppIcons.External, onClick = { uriHandler.openUri(SOURCE_URL) }, modifier = Modifier.weight(1f))
+            SecondaryButton(
+                "Source on GitHub",
+                icon = AppIcons.External,
+                onClick = { uriHandler.openUri(SOURCE_URL) },
+                modifier = Modifier.weight(1f),
+            )
             SecondaryButton("AGPL-3.0", icon = AppIcons.External, onClick = { uriHandler.openUri(LICENSE_URL) })
         }
         Column {
             ValueRow("Source code", SOURCE_URL.removePrefix("https://"))
             ValueRow("Copyright", "© 2026 Leo Stumpf")
-            ValueRow("Written by", "Claude (Anthropic)", detail = "under Leo Stumpf's direction — see the README", divider = false)
+            ValueRow(
+                "Written by",
+                "Claude (Anthropic)",
+                detail = "under Leo Stumpf's direction — see the README",
+                divider = false,
+            )
         }
         QuietButton("Privacy policy", onClick = { uriHandler.openUri(PRIVACY_URL) })
         QuietButton("Open-source licences", onClick = { showLicences = true })

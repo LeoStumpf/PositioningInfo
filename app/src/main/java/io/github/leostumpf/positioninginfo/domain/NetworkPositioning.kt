@@ -67,6 +67,7 @@ data class NetworkComparison(
 object TimingAdvance {
     /** LTE: one step is 16 Ts (≈ 0.52 µs of round trip), about 78 m of distance. */
     const val LTE_METRES_PER_STEP = 78.12
+
     /** GSM: one step is one bit period (3.69 µs of round trip), about 553 m. */
     const val GSM_METRES_PER_STEP = 553.5
     private const val SPEED_OF_LIGHT_M_PER_S = 299_792_458.0

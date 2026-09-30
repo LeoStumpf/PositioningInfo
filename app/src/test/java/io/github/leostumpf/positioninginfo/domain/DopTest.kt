@@ -53,7 +53,13 @@ class DopTest {
     @Test
     fun `hdop and vdop add up to pdop in quadrature`() {
         val dop = DopCalculator.of(
-            listOf(SkyPoint(10f, 70f), SkyPoint(100f, 35f), SkyPoint(200f, 15f), SkyPoint(290f, 50f), SkyPoint(45f, 25f)),
+            listOf(
+                SkyPoint(10f, 70f),
+                SkyPoint(100f, 35f),
+                SkyPoint(200f, 15f),
+                SkyPoint(290f, 50f),
+                SkyPoint(45f, 25f),
+            ),
         )!!
         assertEquals(dop.pdop * dop.pdop, dop.hdop * dop.hdop + dop.vdop * dop.vdop, 1e-9)
     }

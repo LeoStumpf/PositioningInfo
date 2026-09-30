@@ -5,12 +5,16 @@ package io.github.leostumpf.positioninginfo.domain
 enum class PowerSaveLocation {
     /** Battery saver off, or on without touching location. */
     UNRESTRICTED,
+
     /** GNSS switched off while the screen is off. */
     GNSS_OFF_SCREEN_OFF,
+
     /** All location switched off while the screen is off. */
     ALL_OFF_SCREEN_OFF,
+
     /** Location only for apps in the foreground. */
     FOREGROUND_ONLY,
+
     /** Requests slowed down while the screen is off. */
     THROTTLED_SCREEN_OFF,
 }
@@ -44,7 +48,17 @@ data class DiagnosisInput(
 enum class CheckStatus { OK, WARN, FAIL, INFO }
 
 /** One link of the chain a fix depends on, in the order the receiver goes through them. */
-enum class CheckKind { LOCATION, SOURCE, BATTERY_SAVER, DATA, SATELLITES_HEARD, USABLE_SIGNALS, ORBITS, GEOMETRY, TIMING }
+enum class CheckKind {
+    LOCATION,
+    SOURCE,
+    BATTERY_SAVER,
+    DATA,
+    SATELLITES_HEARD,
+    USABLE_SIGNALS,
+    ORBITS,
+    GEOMETRY,
+    TIMING,
+}
 
 /** A link and how it stands; the wording, from the same input, is the page's business. */
 data class DiagnosisCheck(val kind: CheckKind, val status: CheckStatus)
@@ -127,8 +141,15 @@ object FixDiagnosis {
 
     private fun Verdict.status(): CheckStatus = when (this) {
         Verdict.LOCATION_OFF, Verdict.SIMULATED, Verdict.NO_SIGNALS, Verdict.TOO_FEW_HEARD -> CheckStatus.FAIL
-        Verdict.POOR_GEOMETRY, Verdict.SIGNALS_TOO_WEAK, Verdict.LEARNING_ORBITS, Verdict.SLOWER_THAN_EXPECTED -> CheckStatus.WARN
+
+        Verdict.POOR_GEOMETRY,
+        Verdict.SIGNALS_TOO_WEAK,
+        Verdict.LEARNING_ORBITS,
+        Verdict.SLOWER_THAN_EXPECTED,
+        -> CheckStatus.WARN
+
         Verdict.ALL_PASS -> CheckStatus.OK
+
         Verdict.FIX_LOST, Verdict.ACQUIRING -> CheckStatus.INFO
     }
 
@@ -141,8 +162,11 @@ object FixDiagnosis {
                 CheckKind.BATTERY_SAVER,
                 when (i.powerSave) {
                     PowerSaveLocation.UNRESTRICTED -> CheckStatus.OK
+
                     PowerSaveLocation.GNSS_OFF_SCREEN_OFF, PowerSaveLocation.ALL_OFF_SCREEN_OFF,
-                    PowerSaveLocation.FOREGROUND_ONLY -> CheckStatus.WARN
+                    PowerSaveLocation.FOREGROUND_ONLY,
+                    -> CheckStatus.WARN
+
                     PowerSaveLocation.THROTTLED_SCREEN_OFF -> CheckStatus.INFO
                 },
             ),
@@ -158,7 +182,10 @@ object FixDiagnosis {
                     else -> CheckStatus.FAIL
                 },
             ),
-            DiagnosisCheck(CheckKind.USABLE_SIGNALS, if (i.satellitesStrong >= needed) CheckStatus.OK else CheckStatus.WARN),
+            DiagnosisCheck(
+                CheckKind.USABLE_SIGNALS,
+                if (i.satellitesStrong >= needed) CheckStatus.OK else CheckStatus.WARN,
+            ),
             DiagnosisCheck(
                 CheckKind.ORBITS,
                 when (i.readiness) {

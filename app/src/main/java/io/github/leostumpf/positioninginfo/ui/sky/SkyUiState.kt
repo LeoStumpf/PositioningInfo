@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.sky
 
-import io.github.leostumpf.positioninginfo.domain.formatAgo
 import io.github.leostumpf.positioninginfo.domain.CompassTrust
 import io.github.leostumpf.positioninginfo.domain.Constellation
 import io.github.leostumpf.positioninginfo.domain.ObstructionCell
@@ -11,6 +10,7 @@ import io.github.leostumpf.positioninginfo.domain.SkyPoint
 import io.github.leostumpf.positioninginfo.domain.SkyProjection
 import io.github.leostumpf.positioninginfo.domain.SkyTrack
 import io.github.leostumpf.positioninginfo.domain.SkyTracker
+import io.github.leostumpf.positioninginfo.domain.formatAgo
 
 /** Everything the sky view draws. */
 data class SkyUiState(
@@ -37,7 +37,7 @@ data class SkyUiState(
     companion object {
         fun from(tracker: SkyTracker, nowMs: Long) = SkyUiState(
             markers = tracker.tracks.values
-                .sortedBy { it.usedInFix }  // satellites in the fix are drawn on top
+                .sortedBy { it.usedInFix } // satellites in the fix are drawn on top
                 .map { it.toMarker(nowMs) },
             upcoming = tracker.tracks.values
                 .filter { it.visible }
@@ -111,7 +111,6 @@ private fun Constellation.prefix(): String = when (this) {
     Constellation.UNKNOWN -> "?"
 }
 
-/** Low elevation means the horizon was involved; high means an obstruction or acquisition. */
 /** What happened to the satellite, without its name: "set below the horizon (4°)". */
 private fun SkyEvent.describe(): String {
     val low = elevationDegrees < LOW_ELEVATION_DEGREES
@@ -121,4 +120,5 @@ private fun SkyEvent.describe(): String {
     } + " (${elevationDegrees.toInt()}°)"
 }
 
+/** Low elevation means the horizon was involved; high means an obstruction or acquisition. */
 private const val LOW_ELEVATION_DEGREES = 15f

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.common
 
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -23,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -43,8 +43,14 @@ import io.github.leostumpf.positioninginfo.ui.theme.TileValueStyle
 
 /** A page's main reading: big value, lighter unit, caption. */
 @Composable
-fun HeroValue(value: String, unit: String? = null, caption: String? = null, valueColor: Color = Palette.TextPrimary) {
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+fun HeroValue(
+    value: String,
+    modifier: Modifier = Modifier,
+    unit: String? = null,
+    caption: String? = null,
+    valueColor: Color = Palette.TextPrimary,
+) {
+    Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
             buildAnnotatedString {
                 withStyle(SpanStyle(color = valueColor)) { append(value) }
@@ -61,11 +67,12 @@ fun HeroValue(value: String, unit: String? = null, caption: String? = null, valu
 fun ValueRow(
     label: String,
     value: String,
+    modifier: Modifier = Modifier,
     detail: String? = null,
     valueColor: Color? = null,
     divider: Boolean = true,
 ) {
-    Column(Modifier.fillMaxWidth()) {
+    Column(modifier.fillMaxWidth()) {
         Row(
             Modifier.fillMaxWidth().heightIn(min = 44.dp).padding(vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -88,7 +95,6 @@ fun ValueRow(
     }
 }
 
-/** A small tile in a grid of figures. */
 /**
  * Stat tiles side by side, as many as fit: all in one row normally, two per row when the
  * system font is large, so a label such as "ephemeris" is never broken mid-word.
@@ -106,6 +112,7 @@ fun TileRow(tiles: List<@Composable (Modifier) -> Unit>, modifier: Modifier = Mo
     }
 }
 
+/** A small tile in a grid of figures. */
 @Composable
 fun StatTile(
     label: String,
@@ -133,6 +140,12 @@ fun StatTile(
             style = TileValueStyle,
             maxLines = 1,
         )
-        footnote?.let { Text(it, style = OverlineStyle.copy(fontSize = 10.sp, fontWeight = FontWeight.Normal, letterSpacing = 0.sp), color = Palette.Inactive) }
+        footnote?.let {
+            Text(
+                it,
+                style = OverlineStyle.copy(fontSize = 10.sp, fontWeight = FontWeight.Normal, letterSpacing = 0.sp),
+                color = Palette.Inactive,
+            )
+        }
     }
 }

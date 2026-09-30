@@ -1,18 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.sky
 
-import io.github.leostumpf.positioninginfo.domain.SatelliteId
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.layout.wrapContentWidth
-import io.github.leostumpf.positioninginfo.ui.theme.signalAlpha
-import io.github.leostumpf.positioninginfo.ui.theme.signalColour
-import io.github.leostumpf.positioninginfo.domain.counted
-import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -20,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -30,14 +19,19 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -49,6 +43,12 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
@@ -60,24 +60,24 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.leostumpf.positioninginfo.domain.CompassTrust
+import io.github.leostumpf.positioninginfo.domain.SatelliteId
 import io.github.leostumpf.positioninginfo.domain.SkyPoint
+import io.github.leostumpf.positioninginfo.domain.counted
 import io.github.leostumpf.positioninginfo.ui.common.AppIcons
 import io.github.leostumpf.positioninginfo.ui.common.Note
 import io.github.leostumpf.positioninginfo.ui.common.QuietButton
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.material3.Switch
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.ui.semantics.Role
 import io.github.leostumpf.positioninginfo.ui.common.SegmentedToggle
 import io.github.leostumpf.positioninginfo.ui.common.section
 import io.github.leostumpf.positioninginfo.ui.theme.BodyStyle
 import io.github.leostumpf.positioninginfo.ui.theme.CaptionStyle
 import io.github.leostumpf.positioninginfo.ui.theme.DataStyle
-import io.github.leostumpf.positioninginfo.ui.theme.Palette
 import io.github.leostumpf.positioninginfo.ui.theme.MonoFamily
+import io.github.leostumpf.positioninginfo.ui.theme.Palette
 import io.github.leostumpf.positioninginfo.ui.theme.SansFamily
 import io.github.leostumpf.positioninginfo.ui.theme.StatusLineStyle
 import io.github.leostumpf.positioninginfo.ui.theme.color
+import io.github.leostumpf.positioninginfo.ui.theme.signalAlpha
+import io.github.leostumpf.positioninginfo.ui.theme.signalColour
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sin
@@ -133,7 +133,9 @@ fun LazyListScope.skyPlotItems(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Row(
-                    Modifier.weight(1f).toggleable(value = state.showPaths, role = Role.Switch, onValueChange = { onToggleShowPaths() }),
+                    Modifier.weight(
+                        1f,
+                    ).toggleable(value = state.showPaths, role = Role.Switch, onValueChange = { onToggleShowPaths() }),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
@@ -141,8 +143,10 @@ fun LazyListScope.skyPlotItems(
                         checked = state.showPaths,
                         onCheckedChange = null,
                         colors = SwitchDefaults.colors(
-                            checkedThumbColor = Palette.Background, checkedTrackColor = Palette.TextPrimary,
-                            uncheckedThumbColor = Palette.TextTertiary, uncheckedTrackColor = Palette.SurfaceRaised,
+                            checkedThumbColor = Palette.Background,
+                            checkedTrackColor = Palette.TextPrimary,
+                            uncheckedThumbColor = Palette.TextTertiary,
+                            uncheckedTrackColor = Palette.SurfaceRaised,
                             uncheckedBorderColor = Palette.Outline,
                         ),
                     )
@@ -189,13 +193,23 @@ fun LazyListScope.skyEventItems(state: SkyUiState) {
 @Composable
 private fun CompassTrustLine(measuredUt: Double, trust: CompassTrust?) {
     val (text, color) = when (trust?.level) {
-        null -> "Magnetic field ${measuredUt.roundToInt()} µT · needs a fix to compare with the model" to Palette.TextSecondary
+        null -> "Magnetic field ${measuredUt.roundToInt()} µT · needs a fix to compare with the model" to
+            Palette.TextSecondary
+
         CompassTrust.Level.RELIABLE ->
-            "Magnetic field ${measuredUt.roundToInt()} µT, expected ${trust.expectedUt.roundToInt()} · compass reliable" to Palette.Good
+            "Magnetic field ${measuredUt.roundToInt()} µT, expected ${trust.expectedUt.roundToInt()} · compass " +
+                "reliable" to
+                Palette.Good
+
         CompassTrust.Level.SUSPECT ->
-            "Magnetic field ${measuredUt.roundToInt()} µT, expected ${trust.expectedUt.roundToInt()} · something magnetic nearby, heading may be off" to Palette.Degraded
+            "Magnetic field ${measuredUt.roundToInt()} µT, expected ${trust.expectedUt.roundToInt()} · " +
+                "something magnetic nearby, heading may be off" to
+                Palette.Degraded
+
         CompassTrust.Level.DISTURBED ->
-            "Magnetic field ${measuredUt.roundToInt()} µT, expected ${trust.expectedUt.roundToInt()} · compass disturbed, heading is wrong" to Palette.Bad
+            "Magnetic field ${measuredUt.roundToInt()} µT, expected ${trust.expectedUt.roundToInt()} · compass " +
+                "disturbed, heading is wrong" to
+                Palette.Bad
     }
     Text(text, style = StatusLineStyle, color = color, modifier = Modifier.padding(top = 6.dp))
 }
@@ -239,7 +253,14 @@ private fun Legend(mapMode: Boolean) {
 private fun LegendDot(filled: Boolean, label: String) = LegendItem(label) {
     Box(
         Modifier.size(10.dp).then(
-            if (filled) Modifier.background(Palette.TextPrimary, CircleShape) else Modifier.border(2.dp, Palette.TextPrimary, CircleShape),
+            if (filled) {
+                Modifier.background(
+                    Palette.TextPrimary,
+                    CircleShape,
+                )
+            } else {
+                Modifier.border(2.dp, Palette.TextPrimary, CircleShape)
+            },
         ),
     )
 }
@@ -253,7 +274,10 @@ private fun LegendSwatch(color: Color, label: String, alpha: Float = 0.6f) = Leg
 private fun LegendLine(dashed: Boolean, label: String) = LegendItem(label) {
     Canvas(Modifier.size(18.dp, 2.dp)) {
         drawLine(
-            Palette.TextSecondary, Offset(0f, size.height / 2), Offset(size.width, size.height / 2), strokeWidth = size.height,
+            Palette.TextSecondary,
+            Offset(0f, size.height / 2),
+            Offset(size.width, size.height / 2),
+            strokeWidth = size.height,
             pathEffect = if (dashed) PathEffect.dashPathEffect(floatArrayOf(1.5.dp.toPx(), 1.dp.toPx())) else null,
         )
     }
@@ -280,13 +304,19 @@ private fun EventRow(id: SatelliteId, text: String?, trailing: String, dataValue
         ) {
             Text(
                 buildAnnotatedString {
-                    withStyle(SpanStyle(fontFamily = MonoFamily, fontWeight = FontWeight.Medium, color = color)) { append(code) }
+                    withStyle(
+                        SpanStyle(fontFamily = MonoFamily, fontWeight = FontWeight.Medium, color = color),
+                    ) { append(code) }
                     text?.let { withStyle(SpanStyle(color = Palette.TextPrimary)) { append(" $it") } }
                 },
                 style = BodyStyle,
                 modifier = Modifier.weight(1f),
             )
-            Text(trailing, style = if (dataValue) DataStyle else CaptionStyle, color = if (dataValue) Palette.TextPrimary else Palette.TextTertiary)
+            Text(
+                trailing,
+                style = if (dataValue) DataStyle else CaptionStyle,
+                color = if (dataValue) Palette.TextPrimary else Palette.TextTertiary,
+            )
         }
         HorizontalDivider(color = Palette.Divider)
     }
@@ -302,7 +332,9 @@ private fun SkyPlot(state: SkyUiState, modifier: Modifier = Modifier) {
     val ringColour = Palette.Hairline
     val labelColour = Palette.TextTertiary
     val heard = markers.filter { it.current != null && it.tracked }
-    val description = "Sky plot: ${heard.size.counted("satellite")} plotted, ${heard.count { it.usedInFix }} in the fix" +
+    val description = "Sky plot: ${heard.size.counted(
+        "satellite",
+    )} plotted, ${heard.count { it.usedInFix }} in the fix" +
         if (state.compassMode) ", turned with the phone" else ", north up"
     // Square, but never taller than most of the screen: in landscape the full width would
     // put half the plot out of view.
@@ -333,7 +365,9 @@ private fun SkyPlot(state: SkyUiState, modifier: Modifier = Modifier) {
         drawLine(ringColour, Offset(centre.x, centre.y - radius), Offset(centre.x, centre.y + radius))
         listOf("N" to 0f, "E" to 90f, "S" to 180f, "W" to 270f).forEach { (text, az) ->
             val style = TextStyle(
-                fontFamily = SansFamily, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                fontFamily = SansFamily,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium,
                 color = if (text == "N") Palette.TextPrimary else labelColour,
             )
             val layout = measurer.measure(text, style)
@@ -387,7 +421,10 @@ private fun SkyPlot(state: SkyUiState, modifier: Modifier = Modifier) {
                 drawPath(
                     pathOf(marker.projection.map(::at)),
                     colour.copy(alpha = 0.8f),
-                    style = Stroke(stroke, pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 3.dp.toPx()))),
+                    style = Stroke(
+                        stroke,
+                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 3.dp.toPx())),
+                    ),
                 )
             }
         }
@@ -409,7 +446,11 @@ private fun DrawScope.drawSatellite(position: Offset, marker: SkyMarker, measure
     }
     val layout = measurer.measure(
         marker.label,
-        TextStyle(fontFamily = MonoFamily, color = colour.copy(alpha = if (marker.tracked) 1f else 0.5f), fontSize = 10.sp),
+        TextStyle(
+            fontFamily = MonoFamily,
+            color = colour.copy(alpha = if (marker.tracked) 1f else 0.5f),
+            fontSize = 10.sp,
+        ),
     )
     drawText(layout, topLeft = position + Offset(dot + 2.dp.toPx(), -layout.size.height / 2f))
 }
@@ -418,5 +459,3 @@ private fun pathOf(points: List<Offset>) = Path().apply {
     moveTo(points[0].x, points[0].y)
     points.drop(1).forEach { lineTo(it.x, it.y) }
 }
-
-

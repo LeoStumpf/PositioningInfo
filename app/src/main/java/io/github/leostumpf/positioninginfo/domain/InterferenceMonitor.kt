@@ -35,7 +35,10 @@ data class RawEpoch(
  * range, so the evidence has to be judged per band: an L1 jammer leaves L5 untouched.
  */
 enum class Band {
-    L1_E1_B1, L5_E5A_B2A, OTHER;
+    L1_E1_B1,
+    L5_E5A_B2A,
+    OTHER,
+    ;
 
     companion object {
         /**
@@ -46,7 +49,9 @@ enum class Band {
         fun of(carrierHz: Double): Band = when (carrierHz / 1e6) {
             // The same edges as SignalBand, so a signal sits on the same band on every page.
             in 1555.0..1610.0 -> L1_E1_B1
+
             in 1164.0..1192.0 -> L5_E5A_B2A
+
             else -> OTHER
         }
     }
@@ -68,7 +73,8 @@ data class BandStatus(
 /** Something in the signals that a spoofer could cause, though other things can too. */
 sealed interface SpoofingIndicator {
     /** At least six signals on [band] within a narrow spread of strength, all strong. */
-    data class UniformStrength(val band: Band, val signals: Int, val meanDbHz: Double, val spreadDb: Double) : SpoofingIndicator
+    data class UniformStrength(val band: Band, val signals: Int, val meanDbHz: Double, val spreadDb: Double) :
+        SpoofingIndicator
 
     /** More power in [band] (the gain turned down by [agcDropDb]) while the signals got stronger. */
     data class PowerWithStrongerSignals(val band: Band, val agcDropDb: Double) : SpoofingIndicator
@@ -240,7 +246,10 @@ data class InterferenceMonitor(
             )
         }
 
-    private fun spoofingIndicators(statuses: List<BandStatus>, current: Map<Band, BandMeasurement>): List<SpoofingIndicator> {
+    private fun spoofingIndicators(
+        statuses: List<BandStatus>,
+        current: Map<Band, BandMeasurement>,
+    ): List<SpoofingIndicator> {
         val out = mutableListOf<SpoofingIndicator>()
         for ((band, m) in current) {
             if (m.cn0s.size >= SPOOF_UNIFORM_MIN_SIGNALS) {
@@ -252,12 +261,7 @@ data class InterferenceMonitor(
             }
         }
         for (s in statuses) {
-            val drop = s.agcDropDb ?: continue
-            val mean = s.meanCn0DbHz ?: continue
-            val baseline = s.cn0BaselineDbHz ?: continue
-            if (drop >= SPOOF_AGC_SHIFT_DB && mean - baseline >= SPOOF_CN0_RISE_DB) {
-                out += SpoofingIndicator.PowerWithStrongerSignals(s.band, drop)
-            }
+            s.strongerSourceDropDb()?.let { out += SpoofingIndicator.PowerWithStrongerSignals(s.band, it) }
         }
         val jumpAt = lastDriftJumpMs
         val now = lastEpoch?.atMs
@@ -267,10 +271,21 @@ data class InterferenceMonitor(
         return out
     }
 
+    /**
+     * The AGC drop when the band has more power while its signals got clearly stronger — a
+     * source stronger than the sky — or null when it has not.
+     */
+    private fun BandStatus.strongerSourceDropDb(): Double? {
+        val drop = agcDropDb ?: return null
+        val rise = meanCn0DbHz?.let { mean -> cn0BaselineDbHz?.let { mean - it } } ?: return null
+        return drop.takeIf { it >= SPOOF_AGC_SHIFT_DB && rise >= SPOOF_CN0_RISE_DB }
+    }
+
     private fun BandStatus.looksJammed(): Boolean {
         val drop = agcDropDb ?: return false
         if (drop < JAM_AGC_DROP_DB) return false
-        val cn0Fell = cn0BaselineDbHz != null && (meanCn0DbHz == null || cn0BaselineDbHz - meanCn0DbHz >= JAM_CN0_DROP_DB)
+        val cn0Fell =
+            cn0BaselineDbHz != null && (meanCn0DbHz == null || cn0BaselineDbHz - meanCn0DbHz >= JAM_CN0_DROP_DB)
         // Losing signals counts only against a band that had plenty: L5 is often tracked on
         // two or three satellites, and few signals there is normal, not a sign of jamming.
         val base = signalsBaseline
@@ -295,9 +310,11 @@ data class InterferenceMonitor(
         const val SPOOF_UNIFORM_MAX_STDDEV = 1.5
         const val SPOOF_UNIFORM_MIN_MEAN = 40.0
         const val SPOOF_AGC_SHIFT_DB = 4.0
+
         /** Signals must have got clearly stronger, not by the odd tenth of a dB. */
         const val SPOOF_CN0_RISE_DB = 3.0
         const val DRIFT_JUMP_PPM = 0.5
+
         /** Epochs further apart than this are not compared for a drift jump. */
         const val DRIFT_JUMP_MAX_GAP_MS = 2_000L
 
@@ -319,24 +336,23 @@ data class InterferenceMonitor(
         private fun bandStatuses(
             current: Map<Band, BandMeasurement>,
             baseline: Map<Band, BandBaselineSamples>,
-        ): List<BandStatus> =
-            (current.keys + baseline.keys).sorted().map { band ->
-                val m = current[band]
-                val b = baseline[band]
-                val agcBaseline = b?.agcDb?.takeIf { it.isNotEmpty() }?.let(::median)
-                val cn0Baseline = b?.meanCn0DbHz?.takeIf { it.isNotEmpty() }?.let(::median)
-                val agc = m?.agcDb
-                BandStatus(
-                    band = band,
-                    agcDb = agc,
-                    agcBaselineDb = agcBaseline,
-                    agcDropDb = if (agc != null && agcBaseline != null) agcBaseline - agc else null,
-                    meanCn0DbHz = m?.meanCn0,
-                    cn0BaselineDbHz = cn0Baseline,
-                    signals = m?.cn0s?.size ?: 0,
-                    signalsBaseline = b?.signals?.takeIf { it.isNotEmpty() }?.let(::median),
-                )
-            }
+        ): List<BandStatus> = (current.keys + baseline.keys).sorted().map { band ->
+            val m = current[band]
+            val b = baseline[band]
+            val agcBaseline = b?.agcDb?.takeIf { it.isNotEmpty() }?.let(::median)
+            val cn0Baseline = b?.meanCn0DbHz?.takeIf { it.isNotEmpty() }?.let(::median)
+            val agc = m?.agcDb
+            BandStatus(
+                band = band,
+                agcDb = agc,
+                agcBaselineDb = agcBaseline,
+                agcDropDb = if (agc != null && agcBaseline != null) agcBaseline - agc else null,
+                meanCn0DbHz = m?.meanCn0,
+                cn0BaselineDbHz = cn0Baseline,
+                signals = m?.cn0s?.size ?: 0,
+                signalsBaseline = b?.signals?.takeIf { it.isNotEmpty() }?.let(::median),
+            )
+        }
 
         private fun median(values: List<Double>): Double {
             val s = values.sorted()

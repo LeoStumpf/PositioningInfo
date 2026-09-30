@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.common
 
-import androidx.compose.material3.AlertDialog
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -17,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -26,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.unit.dp
 import io.github.leostumpf.positioninginfo.ui.theme.CaptionStyle
 import io.github.leostumpf.positioninginfo.ui.theme.OverlineStyle
@@ -35,7 +35,13 @@ import java.util.Locale
 // --- Containers ------------------------------------------------------------------------
 
 @Composable
-fun InfoCard(modifier: Modifier = Modifier, padding: PaddingValues = PaddingValues(16.dp), content: @Composable ColumnScope.() -> Unit) {
+fun InfoCard(
+    modifier: Modifier = Modifier,
+    padding: PaddingValues = PaddingValues(
+        16.dp,
+    ),
+    content: @Composable ColumnScope.() -> Unit,
+) {
     Column(
         modifier
             .fillMaxWidth()
@@ -56,17 +62,21 @@ enum class Tone(val color: Color) {
 
 /** A short explanatory box; tinted when it reports a state, dashed when it only explains. */
 @Composable
-fun Notice(text: String, tone: Tone = Tone.NEUTRAL) {
+fun Notice(text: String, modifier: Modifier = Modifier, tone: Tone = Tone.NEUTRAL) {
     val shape = RoundedCornerShape(12.dp)
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
             .tinted(tone, shape, neutralBorder = Palette.Outline)
             .padding(horizontal = 14.dp, vertical = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Box(Modifier.padding(top = 7.dp).size(6.dp).background(tone.color, CircleShape))
-        Text(text, style = CaptionStyle, color = if (tone == Tone.NEUTRAL) Palette.TextSecondary else Palette.TextPrimary)
+        Text(
+            text,
+            style = CaptionStyle,
+            color = if (tone == Tone.NEUTRAL) Palette.TextSecondary else Palette.TextPrimary,
+        )
     }
 }
 
@@ -102,7 +112,14 @@ fun ConfirmDialog(title: String, text: String, confirmLabel: String, onConfirm: 
         containerColor = Palette.Sheet,
         title = { Text(title) },
         text = { Text(text, color = Palette.TextSecondary) },
-        confirmButton = { TextButton(onClick = { onDismiss(); onConfirm() }) { Text(confirmLabel, color = Palette.Bad) } },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onDismiss()
+                    onConfirm()
+                },
+            ) { Text(confirmLabel, color = Palette.Bad) }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = Palette.TextPrimary) } },
     )
 }
@@ -114,10 +131,10 @@ fun Note(text: String, modifier: Modifier = Modifier, color: Color = Palette.Tex
 }
 
 @Composable
-fun StatusBadge(text: String, tone: Tone) {
+fun StatusBadge(text: String, tone: Tone, modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(13.dp)
     Row(
-        Modifier
+        modifier
             .heightIn(min = 26.dp)
             .tinted(tone, shape, Palette.SurfaceRaised, Palette.Outline, fillAlpha = 0.14f, borderAlpha = 0.4f)
             .padding(horizontal = 10.dp, vertical = 3.dp),

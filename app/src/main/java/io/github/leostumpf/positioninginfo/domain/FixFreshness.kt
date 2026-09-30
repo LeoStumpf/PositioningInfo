@@ -15,15 +15,17 @@ enum class FixFreshness {
     STALE,
 
     /** Too old to mean anything; the reading is withdrawn. */
-    EXPIRED;
+    EXPIRED,
+
+    ;
 
     companion object {
-        const val staleAfterMs: Long = 3_000L
-        const val expiredAfterMs: Long = 10_000L
+        const val STALE_AFTER_MS: Long = 3_000L
+        const val EXPIRED_AFTER_MS: Long = 10_000L
 
         fun ofAge(ageMs: Long): FixFreshness = when {
-            ageMs >= expiredAfterMs -> EXPIRED
-            ageMs >= staleAfterMs -> STALE
+            ageMs >= EXPIRED_AFTER_MS -> EXPIRED
+            ageMs >= STALE_AFTER_MS -> STALE
             else -> FRESH
         }
     }

@@ -84,7 +84,7 @@ class TripTest {
     fun `inaccurate fixes contribute no distance`() {
         val trip = TripAccumulator()
             .add(point(0, 0.0, 0.0, speed = 5f), null)
-            .add(point(1_000, 500.0, 0.0, speed = 5f, accuracy = 80f), null)  // wild outlier
+            .add(point(1_000, 500.0, 0.0, speed = 5f, accuracy = 80f), null) // wild outlier
             .add(point(2_000, 0.0, 10.0, speed = 5f), null)
         assertEquals(10.0, trip.stats.distanceM, 0.1)
     }
@@ -94,7 +94,7 @@ class TripTest {
         val trip = TripAccumulator()
             .add(point(0, 0.0, 0.0, speed = 10f), null)
             .add(point(1_000, 0.0, 10.0, speed = 10f), null)
-            .add(point(121_000, 0.0, 1_210.0, speed = 10f), null)  // two minutes in a tunnel
+            .add(point(121_000, 0.0, 1_210.0, speed = 10f), null) // two minutes in a tunnel
             .add(point(122_000, 0.0, 1_220.0, speed = 10f), null)
         assertEquals(122_000L, trip.stats.durationMs)
         assertEquals(122_000L, trip.stats.movingTimeMs)
@@ -106,7 +106,7 @@ class TripTest {
         val trip = TripAccumulator()
             .add(point(0, 0.0, 0.0, speed = 10f), null)
             .add(point(1_000, 0.0, 10.0, speed = 10f), null)
-            .add(point(601_000, 0.0, 10.0, speed = 0f), null)  // ten minutes parked, app closed
+            .add(point(601_000, 0.0, 10.0, speed = 0f), null) // ten minutes parked, app closed
             .add(point(602_000, 0.0, 20.0, speed = 10f), null)
         assertEquals(2_000L, trip.stats.movingTimeMs)
         assertEquals(10.0, trip.stats.avgMovingSpeedMps!!, 0.5)

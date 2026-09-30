@@ -3,10 +3,10 @@ package io.github.leostumpf.positioninginfo.domain
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Test
 import kotlin.math.cos
 import kotlin.math.sin
 import kotlin.math.sqrt
-import org.junit.Test
 
 class PositionScatterTest {
 
@@ -14,16 +14,14 @@ class PositionScatterTest {
     private val baseLon = 11.575
     private val metresPerDegLat = Math.toRadians(1.0) * 6_371_000.0
 
-    private fun at(eastM: Double, northM: Double, alt: Double? = null, claimed: Float? = null) =
-        PositionScatter.Sample(
-            latitude = baseLat + northM / metresPerDegLat,
-            longitude = baseLon + eastM / (metresPerDegLat * cos(Math.toRadians(baseLat))),
-            altitudeM = alt,
-            claimedAccuracyM = claimed,
-        )
+    private fun at(eastM: Double, northM: Double, alt: Double? = null, claimed: Float? = null) = PositionScatter.Sample(
+        latitude = baseLat + northM / metresPerDegLat,
+        longitude = baseLon + eastM / (metresPerDegLat * cos(Math.toRadians(baseLat))),
+        altitudeM = alt,
+        claimedAccuracyM = claimed,
+    )
 
-    private fun scatterOf(samples: List<PositionScatter.Sample>) =
-        samples.fold(PositionScatter()) { s, x -> s.add(x) }
+    private fun scatterOf(samples: List<PositionScatter.Sample>) = samples.fold(PositionScatter()) { s, x -> s.add(x) }
 
     @Test
     fun `no statistics below two samples`() {
@@ -78,10 +76,10 @@ class PositionScatterTest {
     @Test
     fun `fraction within claimed compares each fix to its own radius`() {
         val samples = listOf(
-            at(10.0, 0.0, claimed = 5f),   // 10 m off, claims 5: outside
+            at(10.0, 0.0, claimed = 5f), // 10 m off, claims 5: outside
             at(-10.0, 0.0, claimed = 15f), // inside
-            at(0.0, 10.0, claimed = 15f),  // inside
-            at(0.0, -10.0, claimed = null),// not counted either way
+            at(0.0, 10.0, claimed = 15f), // inside
+            at(0.0, -10.0, claimed = null), // not counted either way
         )
         val stats = scatterOf(samples).stats()!!
         assertEquals(35.0 / 3, stats.meanClaimedAccuracyM!!, 1e-9)

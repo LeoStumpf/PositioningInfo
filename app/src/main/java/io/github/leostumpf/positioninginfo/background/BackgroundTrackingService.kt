@@ -42,16 +42,23 @@ class BackgroundTrackingService : Service() {
                 buildNotification(),
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION else 0,
             )
-        } catch (e: RuntimeException) {
-            // Refused — the app left the screen before the service came up, or location
-            // access was withdrawn. Background mode ends; the app is unaffected.
-            Log.w("PositioningInfo", "Background mode refused by the system", e)
-            BackgroundMode.setActive(false)
-            stopSelf()
-            return START_NOT_STICKY
+        } catch (e: IllegalStateException) {
+            // The app left the screen before the service came up.
+            return refused(e)
+        } catch (e: SecurityException) {
+            // Location access was withdrawn.
+            return refused(e)
         }
         BackgroundMode.setActive(true)
         // Not sticky: if Android kills the process, the session it served is gone too.
+        return START_NOT_STICKY
+    }
+
+    /** Background mode ends when Android refuses the service; the app itself is unaffected. */
+    private fun refused(e: Exception): Int {
+        Log.w("PositioningInfo", "Background mode refused by the system", e)
+        BackgroundMode.setActive(false)
+        stopSelf()
         return START_NOT_STICKY
     }
 
@@ -68,7 +75,11 @@ class BackgroundTrackingService : Service() {
 
     private fun createChannel() {
         getSystemService<NotificationManager>()?.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, getString(R.string.background_channel_name), NotificationManager.IMPORTANCE_LOW).apply {
+            NotificationChannel(
+                CHANNEL_ID,
+                getString(R.string.background_channel_name),
+                NotificationManager.IMPORTANCE_LOW,
+            ).apply {
                 description = getString(R.string.background_channel_description)
                 setShowBadge(false)
             },

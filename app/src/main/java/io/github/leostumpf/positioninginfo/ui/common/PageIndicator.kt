@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.common
 
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -19,6 +18,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.leostumpf.positioninginfo.ui.theme.CaptionStyle
@@ -48,7 +48,10 @@ fun PageIndicator(current: Int, modifier: Modifier = Modifier) {
             pages.indices.forEach { i ->
                 Box(
                     Modifier.size(width = if (i == current) 22.dp else 8.dp, height = 3.dp)
-                        .background(if (i == current) Palette.TextPrimary else Palette.Outline, RoundedCornerShape(2.dp)),
+                        .background(
+                            if (i == current) Palette.TextPrimary else Palette.Outline,
+                            RoundedCornerShape(2.dp),
+                        ),
                 )
             }
         }

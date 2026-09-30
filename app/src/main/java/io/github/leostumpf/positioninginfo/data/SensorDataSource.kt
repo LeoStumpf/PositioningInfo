@@ -91,7 +91,12 @@ class SensorDataSource(context: Context) {
     companion object {
         /** The field strength the World Magnetic Model expects here, in µT. */
         fun expectedFieldUt(latitude: Double, longitude: Double, altitudeM: Double, timeMs: Long): Double =
-            GeomagneticField(latitude.toFloat(), longitude.toFloat(), altitudeM.toFloat(), timeMs).fieldStrength / 1_000.0
+            GeomagneticField(
+                latitude.toFloat(),
+                longitude.toFloat(),
+                altitudeM.toFloat(),
+                timeMs,
+            ).fieldStrength / 1_000.0
 
         /**
          * Magnetic declination (true minus magnetic north) from the World Magnetic Model the

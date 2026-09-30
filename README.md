@@ -213,10 +213,16 @@ Requires JDK 17+ and the Android SDK (compileSdk 37; targetSdk 36, the level Goo
 ./gradlew :app:assembleDebug     # build
 ./gradlew :app:test              # unit tests
 ./gradlew :app:connectedDebugAndroidTest  # UI tests on a connected device or emulator
-./gradlew :app:lintRelease       # lint, as CI runs it
+./gradlew detekt lintRelease     # the linters, as CI and the pre-commit hook run them
+./gradlew detekt -PdetektAutoCorrect  # let detekt fix formatting findings itself
 ./gradlew :app:installDebug      # install to a connected device
 ./gradlew :app:bundleRelease     # the bundle (AAB) for Google Play
 ```
+
+**Linting:** detekt (Kotlin style via ktlint, complexity, naming, documentation and Compose
+conventions; `config/detekt/detekt.yml`, `.editorconfig`) and Android lint. A pre-commit hook in
+`.githooks/` runs both and refuses the commit while they report anything; the first Gradle build
+installs it (`git config core.hooksPath .githooks`). Findings are fixed, not baselined.
 
 **Baseline profile:** `app/src/release/generated/baselineProfiles/baseline-prof.txt` tells Android
 which code to compile ahead of time (startup and the first page swipes), so the first launches are

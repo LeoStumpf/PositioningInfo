@@ -8,7 +8,8 @@ package io.github.leostumpf.positioninginfo.domain
 enum class SpeedUnit(val symbol: String, private val factorFromMps: Double) {
     KMH("km/h", 3.6),
     MPH("mph", 2.236936),
-    KNOTS("kn", 1.943844);
+    KNOTS("kn", 1.943844),
+    ;
 
     fun fromMps(mps: Double): Double = mps * factorFromMps
 
@@ -17,7 +18,6 @@ enum class SpeedUnit(val symbol: String, private val factorFromMps: Double) {
     companion object {
         val DEFAULT = KMH
 
-        fun fromName(name: String?): SpeedUnit =
-            entries.firstOrNull { it.name == name } ?: DEFAULT
+        fun fromName(name: String?): SpeedUnit = entries.firstOrNull { it.name == name } ?: DEFAULT
     }
 }

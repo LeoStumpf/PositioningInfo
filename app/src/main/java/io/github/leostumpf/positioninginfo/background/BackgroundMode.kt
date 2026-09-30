@@ -37,13 +37,19 @@ object BackgroundMode {
         return try {
             ContextCompat.startForegroundService(context, Intent(context, BackgroundTrackingService::class.java))
             true
-        } catch (e: RuntimeException) {
-            // ForegroundServiceStartNotAllowedException (an IllegalStateException) when the
-            // app is no longer in front, or a SecurityException without location access.
-            Log.w("PositioningInfo", "Background mode could not start", e)
-            _active.value = false
-            false
+        } catch (e: IllegalStateException) {
+            // ForegroundServiceStartNotAllowedException: the app is no longer in front.
+            refused(e)
+        } catch (e: SecurityException) {
+            // No location access any more.
+            refused(e)
         }
+    }
+
+    private fun refused(e: Exception): Boolean {
+        Log.w("PositioningInfo", "Background mode could not start", e)
+        _active.value = false
+        return false
     }
 
     fun stop(context: Context) {

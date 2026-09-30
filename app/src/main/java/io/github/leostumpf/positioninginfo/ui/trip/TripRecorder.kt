@@ -37,12 +37,15 @@ class TripRecorder(
     val state: StateFlow<TripUiState> = _state.asStateFlow()
 
     private var trip = TripAccumulator()
+
     /** Appended in place: copying the list on every fix cost O(n²) over a long trip. */
     private val altitudes = ArrayList<Double>()
     var recording = false
         private set
+
     /** Recording waits until the saved trip is loaded, so the load cannot overwrite new points. */
     private var loaded = false
+
     /** Bumped by every delete, so a load that was already under way cannot bring a trip back. */
     private var generation = 0
     private var message: String? = null
@@ -135,6 +138,7 @@ class TripRecorder(
 
     private companion object {
         const val PROFILE_POINTS = 300
+
         /** About 55 hours at one fix a second, some 12 MB on disk; the whole file is read at start. */
         const val MAX_POINTS = 200_000
     }

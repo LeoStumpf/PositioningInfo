@@ -10,28 +10,28 @@ class SignalBandTest {
 
     @Test
     fun `identifies the L1 family across constellations`() {
-        assertEquals(SignalBand.L1, mhz(1575.42))   // GPS L1 C/A, Galileo E1, SBAS L1
-        assertEquals(SignalBand.L1, mhz(1561.098))  // BeiDou B1I
-        assertEquals(SignalBand.L1, mhz(1602.0))    // GLONASS L1, centre of the FDMA spread
+        assertEquals(SignalBand.L1, mhz(1575.42)) // GPS L1 C/A, Galileo E1, SBAS L1
+        assertEquals(SignalBand.L1, mhz(1561.098)) // BeiDou B1I
+        assertEquals(SignalBand.L1, mhz(1602.0)) // GLONASS L1, centre of the FDMA spread
         assertEquals(SignalBand.L1, mhz(1598.0625)) // GLONASS L1, lowest channel
-        assertEquals(SignalBand.L1, mhz(1605.375))  // GLONASS L1, highest channel
+        assertEquals(SignalBand.L1, mhz(1605.375)) // GLONASS L1, highest channel
     }
 
     @Test
     fun `identifies the high-precision L5 family`() {
-        assertEquals(SignalBand.L5, mhz(1176.45))   // GPS L5, Galileo E5a, BeiDou B2a
-        assertEquals(SignalBand.L5, mhz(1191.795))  // Galileo E5 AltBOC centre
+        assertEquals(SignalBand.L5, mhz(1176.45)) // GPS L5, Galileo E5a, BeiDou B2a
+        assertEquals(SignalBand.L5, mhz(1191.795)) // Galileo E5 AltBOC centre
     }
 
     @Test
     fun `separates E5b from L5`() {
-        assertEquals(SignalBand.E5B, mhz(1207.14))  // Galileo E5b, BeiDou B2I
+        assertEquals(SignalBand.E5B, mhz(1207.14)) // Galileo E5b, BeiDou B2I
     }
 
     @Test
     fun `identifies the L2 band`() {
-        assertEquals(SignalBand.L2, mhz(1227.60))   // GPS L2C
-        assertEquals(SignalBand.L2, mhz(1246.0))    // GLONASS L2
+        assertEquals(SignalBand.L2, mhz(1227.60)) // GPS L2C
+        assertEquals(SignalBand.L2, mhz(1246.0)) // GLONASS L2
     }
 
     @Test
@@ -56,8 +56,8 @@ class SignalBandTest {
 
     @Test
     fun `the precise-positioning and GLONASS L3 bands are recognised`() {
-        assertEquals(SignalBand.E6, SignalBand.fromCarrierFrequencyHz(1268.52e6f))  // BeiDou B3I
-        assertEquals(SignalBand.E6, SignalBand.fromCarrierFrequencyHz(1278.75e6f))  // Galileo E6, QZSS L6
+        assertEquals(SignalBand.E6, SignalBand.fromCarrierFrequencyHz(1268.52e6f)) // BeiDou B3I
+        assertEquals(SignalBand.E6, SignalBand.fromCarrierFrequencyHz(1278.75e6f)) // Galileo E6, QZSS L6
         assertEquals(SignalBand.E5B, SignalBand.fromCarrierFrequencyHz(1202.025e6f)) // GLONASS L3
     }
 

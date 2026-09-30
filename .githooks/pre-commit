@@ -1,0 +1,13 @@
+#!/bin/sh
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Runs the linters before every commit and refuses the commit while they find anything:
+# detekt (Kotlin style, complexity, naming, documentation, Compose) and Android lint.
+# Installed by the first Gradle build (task installGitHooks sets core.hooksPath).
+# Formatting findings can be fixed automatically: ./gradlew detekt -PdetektAutoCorrect
+set -e
+cd "$(git rev-parse --show-toplevel)"
+echo "pre-commit: detekt and Android lint…"
+if ! ./gradlew --quiet detekt lintRelease; then
+    echo "pre-commit: fix the findings above, then commit again." >&2
+    exit 1
+fi

@@ -21,10 +21,15 @@ enum class AcquisitionStage(val step: Int, val label: String, val meaning: Strin
     companion object {
         const val STEPS = 4
 
-        private const val CODE_LOCK_BITS = 1 or 1024 or 2048 or 65536          // CODE_LOCK, GAL_E1BC_CODE_LOCK, GAL_E1C_2ND_CODE_LOCK, 2ND_CODE_LOCK
-        private const val BIT_SYNC_BITS = 2 or 32 or 256                        // BIT_SYNC, SYMBOL_SYNC, BDS_D2_BIT_SYNC
-        private const val FRAME_SYNC_BITS = 4 or 64 or 512 or 4096 or 8192      // SUBFRAME_SYNC, GLO_STRING_SYNC, BDS_D2_SUBFRAME_SYNC, GAL_E1B_PAGE_SYNC, SBAS_SYNC
-        private const val TIME_BITS = 8 or 128 or 16384 or 32768                // TOW_DECODED, GLO_TOD_DECODED, TOW_KNOWN, GLO_TOD_KNOWN
+        // CODE_LOCK, GAL_E1BC_CODE_LOCK, GAL_E1C_2ND_CODE_LOCK, 2ND_CODE_LOCK
+        private const val CODE_LOCK_BITS = 1 or 1024 or 2048 or 65536
+        private const val BIT_SYNC_BITS = 2 or 32 or 256 // BIT_SYNC, SYMBOL_SYNC, BDS_D2_BIT_SYNC
+
+        // SUBFRAME_SYNC, GLO_STRING_SYNC, BDS_D2_SUBFRAME_SYNC, GAL_E1B_PAGE_SYNC, SBAS_SYNC
+        private const val FRAME_SYNC_BITS = 4 or 64 or 512 or 4096 or 8192
+
+        // TOW_DECODED, GLO_TOD_DECODED, TOW_KNOWN, GLO_TOD_KNOWN
+        private const val TIME_BITS = 8 or 128 or 16384 or 32768
 
         /** The highest stage the state flags show. */
         fun from(state: Int): AcquisitionStage = when {
@@ -38,6 +43,7 @@ enum class AcquisitionStage(val step: Int, val label: String, val meaning: Strin
         private const val SPEED_OF_LIGHT = 299_792_458.0
 
         /** Doppler shift from the pseudorange rate: approaching satellites raise the frequency. */
-        fun dopplerHz(pseudorangeRateMps: Double, carrierHz: Double): Double = -pseudorangeRateMps * carrierHz / SPEED_OF_LIGHT
+        fun dopplerHz(pseudorangeRateMps: Double, carrierHz: Double): Double =
+            -pseudorangeRateMps * carrierHz / SPEED_OF_LIGHT
     }
 }

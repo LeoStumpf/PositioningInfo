@@ -20,16 +20,27 @@ class NetworkUiStateTest {
         lat: Double? = 48.137,
         lon: Double? = 11.575,
     ) = SpeedFix(
-        speedMps = 0f, speedAccuracyMps = null, horizontalAccuracyM = accuracy,
-        elapsedRealtimeMs = now - ageMs, isCached = cached, latitude = lat, longitude = lon,
+        speedMps = 0f,
+        speedAccuracyMps = null,
+        horizontalAccuracyM = accuracy,
+        elapsedRealtimeMs = now - ageMs,
+        isCached = cached,
+        latitude = lat,
+        longitude = lon,
     )
 
     private fun network(ageMs: Long = 1_000, lat: Double = 48.138, source: String? = "wifi") =
         NetworkFix(lat, 11.575, 25f, now - ageMs, source)
 
     private fun state(fix: NetworkFix?, gnss: SpeedFix?) = NetworkUiState.from(
-        providerEnabled = true, fix = fix, gnss = gnss, nowMs = now, hasTelephony = true,
-        cells = emptyList(), wifiAvailable = true, accessPoints = emptyList(),
+        providerEnabled = true,
+        fix = fix,
+        gnss = gnss,
+        nowMs = now,
+        hasTelephony = true,
+        cells = emptyList(),
+        wifiAvailable = true,
+        accessPoints = emptyList(),
     )
 
     @Test
@@ -45,15 +56,22 @@ class NetworkUiStateTest {
     fun `each reason for no comparison is named`() {
         assertEquals("No network position yet.", state(null, gnss()).comparisonUnavailableReason)
         assertTrue(state(network(), null).comparisonUnavailableReason.startsWith("Needs a current GNSS fix"))
-        assertTrue(state(network(), gnss(cached = true)).comparisonUnavailableReason.startsWith("Needs a current GNSS fix"))
+        assertTrue(
+            state(network(), gnss(cached = true)).comparisonUnavailableReason.startsWith("Needs a current GNSS fix"),
+        )
         assertTrue(state(network(), gnss(accuracy = 80f)).comparisonUnavailableReason.startsWith("GNSS is only ±80 m"))
     }
 
     @Test
     fun `position sources measure against GNSS, never against a cached fix`() {
         val rows = positionSources(
-            gnss = gnss(), network = network(lat = 48.138), fused = null,
-            gpsEnabled = true, networkEnabled = true, fusedEnabled = false, nowMs = now,
+            gnss = gnss(),
+            network = network(lat = 48.138),
+            fused = null,
+            gpsEnabled = true,
+            networkEnabled = true,
+            fusedEnabled = false,
+            nowMs = now,
         )
         assertEquals(listOf("GNSS receiver", "Network", "Fused"), rows.map { it.name })
         assertTrue(rows[0].isReference)
@@ -64,8 +82,13 @@ class NetworkUiStateTest {
         assertNull(rows[2].accuracyM)
 
         val cachedRows = positionSources(
-            gnss = gnss(cached = true), network = network(), fused = null,
-            gpsEnabled = true, networkEnabled = true, fusedEnabled = true, nowMs = now,
+            gnss = gnss(cached = true),
+            network = network(),
+            fused = null,
+            gpsEnabled = true,
+            networkEnabled = true,
+            fusedEnabled = true,
+            nowMs = now,
         )
         assertNull(cachedRows[0].accuracyM)
         assertNull(cachedRows[1].offsetM)

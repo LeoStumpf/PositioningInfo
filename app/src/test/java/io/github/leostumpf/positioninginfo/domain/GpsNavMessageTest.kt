@@ -91,15 +91,15 @@ class GpsNavMessageTest {
     }
 
     private fun page18(deltaTls: Int, deltaTlsf: Int) = subframe(4) {
-        it[2] = put(put(put(put(0, 1, 2, 1), 3, 6, 56), 9, 8, 12), 17, 8, 1)       // α0, α1
-        it[3] = put(put(put(0, 1, 8, -1), 9, 8, -1), 17, 8, 44)                    // α2, α3, β0
-        it[4] = put(put(put(0, 1, 8, -7), 9, 8, -3), 17, 8, 6)                     // β1, β2, β3
-        it[5] = 5 and 0xFFFFFF                                                     // A1
+        it[2] = put(put(put(put(0, 1, 2, 1), 3, 6, 56), 9, 8, 12), 17, 8, 1) // α0, α1
+        it[3] = put(put(put(0, 1, 8, -1), 9, 8, -1), 17, 8, 44) // α2, α3, β0
+        it[4] = put(put(put(0, 1, 8, -7), 9, 8, -3), 17, 8, 6) // β1, β2, β3
+        it[5] = 5 and 0xFFFFFF // A1
         val a0 = -3
-        it[6] = (a0 shr 8) and 0xFFFFFF                                            // A0 MSBs
-        it[7] = put(put(put(0, 1, 8, a0 and 0xFF), 9, 8, 144), 17, 8, 137)         // A0 LSBs, tot, WNt
-        it[8] = put(put(put(0, 1, 8, deltaTls), 9, 8, 137), 17, 8, 7)              // ΔtLS, WNLSF, DN
-        it[9] = put(0, 1, 8, deltaTlsf)                                            // ΔtLSF
+        it[6] = (a0 shr 8) and 0xFFFFFF // A0 MSBs
+        it[7] = put(put(put(0, 1, 8, a0 and 0xFF), 9, 8, 144), 17, 8, 137) // A0 LSBs, tot, WNt
+        it[8] = put(put(put(0, 1, 8, deltaTls), 9, 8, 137), 17, 8, 7) // ΔtLS, WNLSF, DN
+        it[9] = put(0, 1, 8, deltaTlsf) // ΔtLSF
     }
 
     // --- Tests ---
@@ -223,11 +223,16 @@ class GpsNavMessageTest {
     @Test
     fun `almanac pages are collected from subframes 4 and 5`() {
         val state = listOf(
-            almanacPage(5, 1), almanacPage(5, 24), almanacPage(5, 7),
-            almanacPage(4, 25), almanacPage(4, 32),
+            almanacPage(5, 1),
+            almanacPage(5, 24),
+            almanacPage(5, 7),
+            almanacPage(4, 25),
+            almanacPage(4, 32),
             // Subframe 5 page 25 (SV ID 51) is the health page, subframe 4 SV ID 57 a
             // reserved page, and SV IDs 1..24 in subframe 4 are not almanac pages.
-            almanacPage(5, 51), almanacPage(4, 57), almanacPage(4, 3),
+            almanacPage(5, 51),
+            almanacPage(4, 57),
+            almanacPage(4, 3),
         ).fold(GpsNavState()) { acc, sf -> acc.onSubframe(9, encode(sf)) }
         assertEquals(setOf(1, 7, 24, 25, 32), state.almanacSvids)
         assertEquals(8, state.subframesDecoded)

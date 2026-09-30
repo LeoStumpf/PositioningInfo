@@ -8,21 +8,19 @@ import org.junit.Test
 
 class SignalRowTest {
 
-    private fun signal(svid: Int, carrierHz: Float?, constellation: Constellation = Constellation.GPS) =
-        SatelliteInfo(
-            svid = svid,
-            constellation = constellation,
-            cn0DbHz = 30f,
-            elevationDegrees = 45f,
-            azimuthDegrees = 180f,
-            usedInFix = true,
-            hasAlmanac = true,
-            hasEphemeris = true,
-            carrierFrequencyHz = carrierHz,
-        )
+    private fun signal(svid: Int, carrierHz: Float?, constellation: Constellation = Constellation.GPS) = SatelliteInfo(
+        svid = svid,
+        constellation = constellation,
+        cn0DbHz = 30f,
+        elevationDegrees = 45f,
+        azimuthDegrees = 180f,
+        usedInFix = true,
+        hasAlmanac = true,
+        hasEphemeris = true,
+        carrierFrequencyHz = carrierHz,
+    )
 
-    private fun List<SignalRow>.assertKeysUnique() =
-        assertEquals(map { it.key }.distinct().size, size)
+    private fun List<SignalRow>.assertKeysUnique() = assertEquals(map { it.key }.distinct().size, size)
 
     @Test
     fun `one satellite on two bands gets two distinct keys`() {

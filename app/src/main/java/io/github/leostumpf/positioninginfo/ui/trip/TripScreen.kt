@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.trip
 
-import io.github.leostumpf.positioninginfo.ui.common.ConfirmDialog
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import io.github.leostumpf.positioninginfo.ui.common.grouped
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -23,8 +19,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.github.leostumpf.positioninginfo.ui.common.BackgroundModeSwitch
+import io.github.leostumpf.positioninginfo.ui.common.ConfirmDialog
 import io.github.leostumpf.positioninginfo.ui.common.DASH
 import io.github.leostumpf.positioninginfo.ui.common.HeroValue
 import io.github.leostumpf.positioninginfo.ui.common.InfoCard
@@ -39,6 +38,7 @@ import io.github.leostumpf.positioninginfo.ui.common.StatusBadge
 import io.github.leostumpf.positioninginfo.ui.common.Tone
 import io.github.leostumpf.positioninginfo.ui.common.duration
 import io.github.leostumpf.positioninginfo.ui.common.fmt
+import io.github.leostumpf.positioninginfo.ui.common.grouped
 import io.github.leostumpf.positioninginfo.ui.common.section
 import io.github.leostumpf.positioninginfo.ui.speed.formatSpeed
 import io.github.leostumpf.positioninginfo.ui.theme.Palette
@@ -67,26 +67,52 @@ fun TripScreen(
     PageScaffold(Page.TRIP, modifier) {
         item {
             Column(Modifier.padding(top = 16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     when {
                         state.recording -> StatusBadge("Recording", Tone.BAD)
                         points > 0 -> StatusBadge("Paused", Tone.DEGRADED)
                         else -> StatusBadge("Not recording", Tone.NEUTRAL)
                     }
-                    if (points > 0) Text(duration(stats!!.durationMs), style = StatusLineStyle, color = Palette.TextSecondary)
+                    if (points > 0) {
+                        Text(
+                            duration(stats!!.durationMs),
+                            style = StatusLineStyle,
+                            color = Palette.TextSecondary,
+                        )
+                    }
                 }
                 val km = (stats?.distanceM ?: 0.0) >= 1_000
                 HeroValue(
-                    value = if (km) (stats!!.distanceM / 1_000).fmt(2) else (stats?.distanceM ?: 0.0).roundToInt().toString(),
+                    value = if (km) {
+                        (stats!!.distanceM / 1_000).fmt(
+                            2,
+                        )
+                    } else {
+                        (stats?.distanceM ?: 0.0).roundToInt().toString()
+                    },
                     unit = if (km) "km" else "m",
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 4.dp)) {
                     PrimaryButton(
-                        text = if (state.recording) "Pause" else if (points > 0) "Resume" else "Start recording",
+                        text = if (state.recording) {
+                            "Pause"
+                        } else if (points > 0) {
+                            "Resume"
+                        } else {
+                            "Start recording"
+                        },
                         onClick = onToggleRecording,
                         modifier = Modifier.weight(1f),
                     )
-                    SecondaryButton("Export GPX", onClick = onExport, enabled = points > 1, modifier = Modifier.weight(1f))
+                    SecondaryButton(
+                        "Export GPX",
+                        onClick = onExport,
+                        enabled = points > 1,
+                        modifier = Modifier.weight(1f),
+                    )
                 }
                 state.message?.let { Note(it) }
             }
@@ -97,10 +123,17 @@ fun TripScreen(
             item { ElevationProfile(state.elevationProfile) }
             item {
                 Row(Modifier.fillMaxWidth().padding(top = 8.dp)) {
-                    Text("↑ ${stats?.ascentM?.roundToInt() ?: 0} m", style = StatusLineStyle, color = Palette.TextTertiary, modifier = Modifier.weight(1f))
                     Text(
-                        "↓ ${stats?.descentM?.roundToInt() ?: 0} m · ${if (state.climbFromBarometer) "barometric" else "from GNSS"}",
-                        style = StatusLineStyle, color = Palette.TextTertiary,
+                        "↑ ${stats?.ascentM?.roundToInt() ?: 0} m",
+                        style = StatusLineStyle,
+                        color = Palette.TextTertiary,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        "↓ ${stats?.descentM?.roundToInt() ?: 0} m · " +
+                            if (state.climbFromBarometer) "barometric" else "from GNSS",
+                        style = StatusLineStyle,
+                        color = Palette.TextTertiary,
                     )
                 }
             }
@@ -111,10 +144,20 @@ fun TripScreen(
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     StatTile("Moving time", stats?.let { duration(it.movingTimeMs) } ?: DASH, Modifier.weight(1f))
-                    StatTile("Max speed", stats?.maxSpeedMps?.let { formatSpeed(it, unit) } ?: DASH, Modifier.weight(1f), unit = unit.symbol)
+                    StatTile(
+                        "Max speed",
+                        stats?.maxSpeedMps?.let { formatSpeed(it, unit) } ?: DASH,
+                        Modifier.weight(1f),
+                        unit = unit.symbol,
+                    )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    StatTile("Average moving", stats?.avgMovingSpeedMps?.let { formatSpeed(it, unit) } ?: DASH, Modifier.weight(1f), unit = unit.symbol)
+                    StatTile(
+                        "Average moving",
+                        stats?.avgMovingSpeedMps?.let { formatSpeed(it, unit) } ?: DASH,
+                        Modifier.weight(1f),
+                        unit = unit.symbol,
+                    )
                     StatTile("Track points", points.grouped(), Modifier.weight(1f))
                 }
                 if (state.elevationProfile.size <= 1) {
@@ -136,7 +179,14 @@ fun TripScreen(
             )
         }
         if (points > 0 && !state.recording) {
-            item { QuietButton("Delete this trip", onClick = { confirmClear = true }, destructive = true, modifier = Modifier.padding(top = 16.dp)) }
+            item {
+                QuietButton(
+                    "Delete this trip",
+                    onClick = { confirmClear = true },
+                    destructive = true,
+                    modifier = Modifier.padding(top = 16.dp),
+                )
+            }
         }
     }
 
@@ -156,7 +206,8 @@ private fun ElevationProfile(heights: List<Double>) {
     InfoCard(padding = androidx.compose.foundation.layout.PaddingValues(12.dp)) {
         Canvas(
             Modifier.fillMaxWidth().height(72.dp).semantics {
-                contentDescription = "Elevation profile, from ${heights.min().roundToInt()} to ${heights.max().roundToInt()} metres"
+                contentDescription =
+                    "Elevation profile, from ${heights.min().roundToInt()} to ${heights.max().roundToInt()} metres"
             },
         ) {
             val min = heights.min()

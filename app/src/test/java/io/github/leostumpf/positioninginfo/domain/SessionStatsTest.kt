@@ -55,8 +55,8 @@ class SessionStatsTest {
     fun `a sample after a gap still re-anchors the clock`() {
         val stats = SessionStats()
             .accept(20.0, atElapsedMs = 0)
-            .accept(4.0, atElapsedMs = 60_000)  // gap: no weight
-            .accept(4.0, atElapsedMs = 61_000)  // 1 s at 4 m/s: counts
+            .accept(4.0, atElapsedMs = 60_000) // gap: no weight
+            .accept(4.0, atElapsedMs = 61_000) // 1 s at 4 m/s: counts
 
         assertEquals(4.0, stats.averageMps!!, 0.0001)
         assertEquals(1_000L, stats.weightedTimeMs)
@@ -76,7 +76,7 @@ class SessionStatsTest {
     fun `non-monotonic timestamps are ignored rather than corrupting the average`() {
         val stats = SessionStats()
             .accept(10.0, atElapsedMs = 5_000)
-            .accept(10.0, atElapsedMs = 4_000)   // clock went backwards
+            .accept(10.0, atElapsedMs = 4_000) // clock went backwards
             .accept(10.0, atElapsedMs = 5_000)
 
         assertEquals(1_000L, stats.weightedTimeMs)
@@ -89,7 +89,7 @@ class SessionStatsTest {
             .accept(0.0, atElapsedMs = 0)
             .accept(10.0, atElapsedMs = 2_000)
 
-        assertEquals(20.0, stats.distanceM, 0.0001)  // 10 m/s over 2 s
+        assertEquals(20.0, stats.distanceM, 0.0001) // 10 m/s over 2 s
         assertEquals(10.0, stats.averageMps!!, 0.0001)
     }
 }

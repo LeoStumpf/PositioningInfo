@@ -10,18 +10,14 @@ import org.junit.Test
 
 class SpeedResolverTest {
 
-    private fun fix(
-        speed: Float? = 20f,
-        accuracy: Float? = 0.5f,
-        atMs: Long = 100_000,
-        cached: Boolean = false,
-    ) = SpeedFix(
-        speedMps = speed,
-        speedAccuracyMps = accuracy,
-        horizontalAccuracyM = 4f,
-        elapsedRealtimeMs = atMs,
-        isCached = cached,
-    )
+    private fun fix(speed: Float? = 20f, accuracy: Float? = 0.5f, atMs: Long = 100_000, cached: Boolean = false) =
+        SpeedFix(
+            speedMps = speed,
+            speedAccuracyMps = accuracy,
+            horizontalAccuracyM = 4f,
+            elapsedRealtimeMs = atMs,
+            isCached = cached,
+        )
 
     @Test
     fun `a recent fix reads through at full confidence`() {

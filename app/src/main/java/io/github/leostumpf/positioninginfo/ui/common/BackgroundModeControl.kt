@@ -1,11 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.common
 
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -21,11 +16,14 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedButton
@@ -40,6 +38,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -79,7 +79,13 @@ fun BackgroundModeGate(
                 val needsAsk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                     ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
                     PackageManager.PERMISSION_GRANTED
-                if (needsAsk) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS) else onSetActive(true)
+                if (needsAsk) {
+                    notificationPermission.launch(
+                        Manifest.permission.POST_NOTIFICATIONS,
+                    )
+                } else {
+                    onSetActive(true)
+                }
             },
         )
     }
@@ -87,11 +93,11 @@ fun BackgroundModeGate(
 
 /** The compact pill used in the speed page's header. */
 @Composable
-fun BackgroundModeButton(active: Boolean, onSetActive: (Boolean) -> Unit) {
+fun BackgroundModeButton(active: Boolean, onSetActive: (Boolean) -> Unit, modifier: Modifier = Modifier) {
     BackgroundModeGate(active, onSetActive) { toggle ->
         OutlinedButton(
             onClick = toggle,
-            modifier = Modifier.heightIn(min = 48.dp).semantics { stateDescription = if (active) "on" else "off" },
+            modifier = modifier.heightIn(min = 48.dp).semantics { stateDescription = if (active) "on" else "off" },
             shape = RoundedCornerShape(22.dp),
             contentPadding = PaddingValues(horizontal = 14.dp),
             border = BorderStroke(1.dp, if (active) Palette.Good.copy(alpha = 0.4f) else Palette.Outline),
@@ -142,16 +148,22 @@ private fun BackgroundModeDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Icon(AppIcons.Pin, contentDescription = null, tint = Palette.TextPrimary, modifier = Modifier.size(32.dp))
-            Text("Keep running in the background?", style = BodyStyle.copy(fontSize = 22.sp, lineHeight = 28.sp), color = Palette.TextPrimary)
+            Text(
+                "Keep running in the background?",
+                style = BodyStyle.copy(fontSize = 22.sp, lineHeight = 28.sp),
+                color = Palette.TextPrimary,
+            )
             Text(
                 "Normally Positioning Info releases the receiver the moment you leave it — it never tracks " +
                     "you unnoticed and costs no battery while unused.",
-                style = BodyStyle, color = Palette.TextSecondary,
+                style = BodyStyle,
+                color = Palette.TextSecondary,
             )
             Text(
                 "Background mode keeps using your location with the screen off or while you are in " +
                     "other apps: for recording a trip, the accuracy test, or letting the signal map fill in.",
-                style = BodyStyle, color = Palette.TextSecondary,
+                style = BodyStyle,
+                color = Palette.TextSecondary,
             )
             Column(
                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Palette.Background)
@@ -174,7 +186,12 @@ private fun BackgroundModeDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
 @Composable
 private fun Consequence(icon: ImageVector, text: String) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top) {
-        Icon(icon, contentDescription = null, tint = Palette.TextSecondary, modifier = Modifier.padding(top = 1.dp).size(18.dp))
+        Icon(
+            icon,
+            contentDescription = null,
+            tint = Palette.TextSecondary,
+            modifier = Modifier.padding(top = 1.dp).size(18.dp),
+        )
         Text(text, style = CaptionStyle, color = Palette.TextPrimary)
     }
 }

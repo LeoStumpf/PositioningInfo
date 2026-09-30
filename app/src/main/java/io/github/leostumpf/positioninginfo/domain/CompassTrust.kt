@@ -11,10 +11,7 @@ import kotlin.math.abs
  * more or less is being disturbed — a magnet in a car mount, a laptop, steel nearby — and
  * its heading is then wrong by an unknown amount.
  */
-data class CompassTrust(
-    val measuredUt: Double,
-    val expectedUt: Double,
-) {
+data class CompassTrust(val measuredUt: Double, val expectedUt: Double) {
     /** Relative difference, 0.12 for 12 %; infinite when no field is expected at all. */
     val deviation: Double
         get() = if (expectedUt > 0.0) abs(measuredUt - expectedUt) / expectedUt else Double.POSITIVE_INFINITY
@@ -33,7 +30,6 @@ data class CompassTrust(
         const val SUSPECT = 0.25
 
         /** Field strength from the three axes, in µT. */
-        fun magnitude(x: Float, y: Float, z: Float): Double =
-            kotlin.math.sqrt((x * x + y * y + z * z).toDouble())
+        fun magnitude(x: Float, y: Float, z: Float): Double = kotlin.math.sqrt((x * x + y * y + z * z).toDouble())
     }
 }

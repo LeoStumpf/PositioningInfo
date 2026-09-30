@@ -89,11 +89,8 @@ data class BaroAltimeter(
 
     fun onGnssAltitude(mslM: Double, verticalAccuracyM: Float?, atMs: Long): BaroAltimeter {
         val p = pressureHpa ?: return this
-        if (verticalAccuracyM == null || verticalAccuracyM.isNaN() ||
-            verticalAccuracyM > MAX_VERTICAL_ACCURACY_M || !mslM.isFinite()
-        ) {
-            return this
-        }
+        val preciseEnough = verticalAccuracyM != null && verticalAccuracyM <= MAX_VERTICAL_ACCURACY_M
+        if (!preciseEnough || !mslM.isFinite()) return this
 
         val implied = seaLevelPressureHpa(p, mslM)
         // Beyond the formula's range (≥ 44 330 m) it gives NaN, which would spoil the sum for good.
@@ -115,6 +112,7 @@ data class BaroAltimeter(
     companion object {
         const val STANDARD_PRESSURE_HPA = 1013.25
         const val SMOOTHING_MS = 2_000.0
+
         /** Calibration weights decay with this time constant (~10 min) to follow the weather. */
         const val CALIBRATION_DECAY_MS = 600_000.0
         const val MAX_VERTICAL_ACCURACY_M = 10f

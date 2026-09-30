@@ -130,5 +130,9 @@ private fun Location.toSpeedFix(): SpeedFix = SpeedFix(
 )
 
 /** Android 12 renamed the flag; older releases only have the deprecated spelling. */
-internal fun Location.isMockCompat(): Boolean =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) isMock else @Suppress("DEPRECATION") isFromMockProvider
+internal fun Location.isMockCompat(): Boolean = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    isMock
+} else {
+    @Suppress("DEPRECATION")
+    isFromMockProvider
+}

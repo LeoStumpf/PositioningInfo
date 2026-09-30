@@ -17,8 +17,7 @@ data class ObstructionCell(
 
 /** Running totals for one bin: enough for a mean and a maximum without keeping every sample. */
 data class ObstructionBin(val sumCn0: Double = 0.0, val maxCn0: Float = 0f, val count: Int = 0) {
-    fun add(cn0: Float): ObstructionBin =
-        ObstructionBin(sumCn0 + cn0, maxOf(maxCn0, cn0), count + 1)
+    fun add(cn0: Float): ObstructionBin = ObstructionBin(sumCn0 + cn0, maxOf(maxCn0, cn0), count + 1)
 }
 
 /**
@@ -34,9 +33,7 @@ data class ObstructionBin(val sumCn0: Double = 0.0, val maxCn0: Float = 0f, val 
  *
  * Immutable, like [SkyTracker]: every event returns a new instance.
  */
-data class ObstructionMap(
-    val bins: Map<Pair<Int, Int>, ObstructionBin> = emptyMap(),
-) {
+data class ObstructionMap(val bins: Map<Pair<Int, Int>, ObstructionBin> = emptyMap()) {
 
     /**
      * One snapshot's worth: every tracked signal (cn0 > 0, located) contributes to its
@@ -45,10 +42,9 @@ data class ObstructionMap(
      */
     fun onSnapshot(satellites: List<SatelliteInfo>): ObstructionMap {
         val updated = bins.toMutableMap()
-        for (sat in satellites) {
-            if (sat.cn0DbHz <= 0f) continue
-            // GnssStatus has no "unknown" flag: an unlocated satellite reads as 0°/0°.
-            if (sat.azimuthDegrees == 0f && sat.elevationDegrees == 0f) continue
+        // GnssStatus has no "unknown" flag: an unlocated satellite reads as 0°/0°.
+        val located = satellites.filter { it.cn0DbHz > 0f && !(it.azimuthDegrees == 0f && it.elevationDegrees == 0f) }
+        for (sat in located) {
             val key = binOf(sat.azimuthDegrees, sat.elevationDegrees)
             updated[key] = (updated[key] ?: ObstructionBin()).add(sat.cn0DbHz)
         }

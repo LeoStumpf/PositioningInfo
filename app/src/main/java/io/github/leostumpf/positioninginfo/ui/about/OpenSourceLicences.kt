@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.about
 
-import io.github.leostumpf.positioninginfo.ui.common.SheetHeader
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -34,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.leostumpf.positioninginfo.ui.common.Gutter
 import io.github.leostumpf.positioninginfo.ui.common.Note
+import io.github.leostumpf.positioninginfo.ui.common.SheetHeader
 import io.github.leostumpf.positioninginfo.ui.theme.BodyStyle
 import io.github.leostumpf.positioninginfo.ui.theme.CaptionStyle
 import io.github.leostumpf.positioninginfo.ui.theme.DataStyle
@@ -54,10 +54,21 @@ private val LIBRARIES = listOf(
         "AndroidX / Jetpack",
         "Compose UI, foundation, animation, runtime and Material 3; Activity, Lifecycle, SavedState, " +
             "DataStore, Core, Collection, Annotation and other support libraries",
-        "© The Android Open Source Project", Licence.APACHE,
+        "© The Android Open Source Project",
+        Licence.APACHE,
     ),
-    Library("Kotlin standard library", "the language runtime", "© JetBrains s.r.o. and Kotlin Programming Language contributors", Licence.APACHE),
-    Library("kotlinx.coroutines", "background work and live data streams", "© JetBrains s.r.o. and contributors", Licence.APACHE),
+    Library(
+        "Kotlin standard library",
+        "the language runtime",
+        "© JetBrains s.r.o. and Kotlin Programming Language contributors",
+        Licence.APACHE,
+    ),
+    Library(
+        "kotlinx.coroutines",
+        "background work and live data streams",
+        "© JetBrains s.r.o. and contributors",
+        Licence.APACHE,
+    ),
     Library("kotlinx.serialization", "used inside AndroidX", "© JetBrains s.r.o. and contributors", Licence.APACHE),
     Library("JetBrains Java Annotations", "code annotations", "© JetBrains s.r.o.", Licence.APACHE),
     Library("Okio", "file access for DataStore", "© Square, Inc.", Licence.APACHE),
@@ -92,7 +103,9 @@ fun OpenSourceLicencesSheet(onDismiss: () -> Unit) {
             }
             items(LIBRARIES) { lib ->
                 Column(
-                    Modifier.fillMaxWidth().clickable(onClickLabel = "Show the ${lib.licence.label}") { shown = lib.licence }
+                    Modifier.fillMaxWidth().clickable(
+                        onClickLabel = "Show the ${lib.licence.label}",
+                    ) { shown = lib.licence }
                         .padding(vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
@@ -114,7 +127,11 @@ fun OpenSourceLicencesSheet(onDismiss: () -> Unit) {
 private fun LicenceTextDialog(licence: Licence, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val text = remember(licence) {
-        runCatching { context.assets.open(licence.asset).bufferedReader().use { reflow(it.readText()) } }.getOrDefault(licence.label)
+        runCatching {
+            context.assets.open(
+                licence.asset,
+            ).bufferedReader().use { reflow(it.readText()) }
+        }.getOrDefault(licence.label)
     }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -138,8 +155,7 @@ private fun LicenceTextDialog(licence: Licence, onDismiss: () -> Unit) {
  * Licence files are hard-wrapped at 80 columns with centred headings, which wraps badly on a
  * phone. Joins each paragraph into one line and drops the indentation; the wording is unchanged.
  */
-private fun reflow(text: String): String =
-    text.replace("\r", "").split(Regex("\n\\s*\n"))
-        .map { para -> para.lines().joinToString(" ") { it.trim() }.replace(Regex(" {2,}"), " ").trim() }
-        .filter { it.isNotEmpty() }
-        .joinToString("\n\n")
+private fun reflow(text: String): String = text.replace("\r", "").split(Regex("\n\\s*\n"))
+    .map { para -> para.lines().joinToString(" ") { it.trim() }.replace(Regex(" {2,}"), " ").trim() }
+    .filter { it.isNotEmpty() }
+    .joinToString("\n\n")

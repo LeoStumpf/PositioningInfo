@@ -32,8 +32,7 @@ class AlmanacStatusTest {
         carrierFrequencyHz = carrierHz,
     )
 
-    private fun snapshot(vararg sats: SatelliteInfo) =
-        GnssSnapshot(satellites = sats.toList(), hasReported = true)
+    private fun snapshot(vararg sats: SatelliteInfo) = GnssSnapshot(satellites = sats.toList(), hasReported = true)
 
     @Test
     fun `a report listing no satellites is unknown, not a cold start`() {

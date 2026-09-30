@@ -63,7 +63,11 @@ class DiagnosisTextTest {
         val d = diagnose(data = false, powerSave = PowerSaveLocation.FOREGROUND_ONLY)
         val hints = d.checks.associate { it.kind to it.hint(d.input, d.expectedMs) }
         assertTrue(hints.getValue(io.github.leostumpf.positioninginfo.domain.CheckKind.DATA)!!.contains("A-GNSS"))
-        assertTrue(hints.getValue(io.github.leostumpf.positioninginfo.domain.CheckKind.BATTERY_SAVER)!!.contains("Background mode"))
+        assertTrue(
+            hints.getValue(
+                io.github.leostumpf.positioninginfo.domain.CheckKind.BATTERY_SAVER,
+            )!!.contains("Background mode"),
+        )
         assertNull(hints.getValue(io.github.leostumpf.positioninginfo.domain.CheckKind.LOCATION))
     }
 }

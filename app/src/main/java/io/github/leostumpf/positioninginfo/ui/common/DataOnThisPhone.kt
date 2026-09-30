@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.common
 
-import io.github.leostumpf.positioninginfo.domain.counted
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
@@ -11,29 +10,30 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-
-/** What the app keeps, counted, so the user can see it before clearing it. */
-data class DataInventory(
-    val tripPoints: Int = 0,
-    val firstFixEntries: Int = 0,
-    val unitChanged: Boolean = false,
-    val historySamples: Int = 0,
-)
+import io.github.leostumpf.positioninginfo.domain.counted
 
 /**
  * Everything the app keeps, and one button to remove it. Nothing ever leaves the phone;
  * this is about being able to see and wipe what stays on it.
  */
 @Composable
-fun DataOnThisPhone(inventory: DataInventory, onClearAll: () -> Unit) {
+fun DataOnThisPhone(inventory: DataInventory, onClearAll: () -> Unit, modifier: Modifier = Modifier) {
     var confirming by rememberSaveable { mutableStateOf(false) }
-    Column {
+    Column(modifier) {
         Note(
             "Nothing ever leaves this phone — the app has no internet access. This is what it keeps:",
             modifier = Modifier.padding(bottom = 6.dp),
         )
-        ValueRow("Recorded trip", if (inventory.tripPoints > 0) inventory.tripPoints.counted("point") else "none", detail = "on the phone")
-        ValueRow("Recent first fixes", if (inventory.firstFixEntries > 0) inventory.firstFixEntries.counted("entry", "entries") else "none", detail = "on the phone")
+        ValueRow(
+            "Recorded trip",
+            if (inventory.tripPoints > 0) inventory.tripPoints.counted("point") else "none",
+            detail = "on the phone",
+        )
+        ValueRow(
+            "Recent first fixes",
+            if (inventory.firstFixEntries > 0) inventory.firstFixEntries.counted("entry", "entries") else "none",
+            detail = "on the phone",
+        )
         ValueRow("Speed unit", if (inventory.unitChanged) "changed" else "default", detail = "on the phone")
         ValueRow(
             "Session data",

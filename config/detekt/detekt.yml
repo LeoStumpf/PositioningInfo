@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Detekt rules on top of the defaults. Every deviation is explained where it is made; the aim
+# is code a reader understands without its author, not a number to satisfy.
+
+naming:
+  FunctionNaming:
+    # Composables are named like types (SpeedScreen): the Compose convention.
+    ignoreAnnotated: ['Composable']
+
+style:
+  ReturnCount:
+    # STAGED: switched on with the complexity rules below.
+    active: false
+  MagicNumber:
+    # STAGED: switched on once every number in the logic is named.
+    active: false
+    # Layout sizes (12.dp, 0.55f alpha) inside composables are the design itself; naming each
+    # would only move it away from where it is used. Numbers in logic get names.
+    ignoreAnnotated: ['Composable']
+    # A property or enum entry already names its number.
+    ignorePropertyDeclaration: true
+    ignoreEnums: true
+
+comments:
+  # Every public class and function says what it is for: the app is maintained by reading it.
+  # STAGED: switched on once every public class and function is documented.
+  UndocumentedPublicClass:
+    active: false
+  UndocumentedPublicFunction:
+    active: false
+
+complexity:
+  # STAGED: switched on once the long and branchy functions are split.
+  CyclomaticComplexMethod:
+    active: false
+  LongMethod:
+    active: false
+  TooManyFunctions:
+    active: false

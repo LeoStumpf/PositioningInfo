@@ -36,7 +36,14 @@ class FixDiagnosisTest {
     @Test
     fun `a lost fix with signals is reacquiring, not learning orbits`() {
         val d = FixDiagnosis.evaluate(
-            input(heard = 8, strong = 6, readiness = AlmanacReadiness.COLD, data = false, searchingMs = null, firstFixMs = 4_000L),
+            input(
+                heard = 8,
+                strong = 6,
+                readiness = AlmanacReadiness.COLD,
+                data = false,
+                searchingMs = null,
+                firstFixMs = 4_000L,
+            ),
         )
         assertEquals(Verdict.FIX_LOST, d.verdict)
     }
@@ -75,9 +82,15 @@ class FixDiagnosisTest {
 
     @Test
     fun `nothing heard after the grace period means no sky`() {
-        assertEquals(Verdict.NO_SIGNALS, FixDiagnosis.evaluate(input(heard = 0, strong = 0, searchingMs = 30_000L)).verdict)
+        assertEquals(
+            Verdict.NO_SIGNALS,
+            FixDiagnosis.evaluate(input(heard = 0, strong = 0, searchingMs = 30_000L)).verdict,
+        )
         // Right after starting, silence is normal.
-        assertEquals(Verdict.ACQUIRING, FixDiagnosis.evaluate(input(heard = 0, strong = 0, searchingMs = 2_000L)).verdict)
+        assertEquals(
+            Verdict.ACQUIRING,
+            FixDiagnosis.evaluate(input(heard = 0, strong = 0, searchingMs = 2_000L)).verdict,
+        )
     }
 
     @Test
@@ -107,7 +120,8 @@ class FixDiagnosisTest {
         assertEquals(
             listOf(
                 CheckKind.LOCATION, CheckKind.SOURCE, CheckKind.BATTERY_SAVER, CheckKind.DATA,
-                CheckKind.SATELLITES_HEARD, CheckKind.USABLE_SIGNALS, CheckKind.ORBITS, CheckKind.GEOMETRY, CheckKind.TIMING,
+                CheckKind.SATELLITES_HEARD, CheckKind.USABLE_SIGNALS, CheckKind.ORBITS, CheckKind.GEOMETRY,
+                CheckKind.TIMING,
             ),
             kinds,
         )

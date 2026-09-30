@@ -30,28 +30,46 @@ private const val TABULAR = "tnum"
 
 /** The speed itself. */
 val ReadoutStyle = TextStyle(
-    fontFamily = CondensedFamily, fontWeight = FontWeight.Light, fontSize = 168.sp,
-    lineHeight = 160.sp, letterSpacing = (-0.04).em, fontFeatureSettings = TABULAR,
+    fontFamily = CondensedFamily,
+    fontWeight = FontWeight.Light,
+    fontSize = 168.sp,
+    lineHeight = 160.sp,
+    letterSpacing = (-0.04).em,
+    fontFeatureSettings = TABULAR,
 )
 
 /** A page's main measurement: accuracy, altitude, distance. */
 val HeroStyle = TextStyle(
-    fontFamily = CondensedFamily, fontWeight = FontWeight.Light, fontSize = 56.sp,
-    lineHeight = 60.sp, fontFeatureSettings = TABULAR,
+    fontFamily = CondensedFamily,
+    fontWeight = FontWeight.Light,
+    fontSize = 56.sp,
+    lineHeight = 60.sp,
+    fontFeatureSettings = TABULAR,
 )
 
 /** Values in stat tiles. */
 val TileValueStyle = TextStyle(
-    fontFamily = CondensedFamily, fontWeight = FontWeight.Normal, fontSize = 26.sp,
-    lineHeight = 30.sp, fontFeatureSettings = TABULAR,
+    fontFamily = CondensedFamily,
+    fontWeight = FontWeight.Normal,
+    fontSize = 26.sp,
+    lineHeight = 30.sp,
+    fontFeatureSettings = TABULAR,
 )
 
 val PageTitleStyle = TextStyle(
-    fontFamily = SansFamily, fontWeight = FontWeight.Medium, fontSize = 24.sp,
-    lineHeight = 30.sp, letterSpacing = (-0.01).em,
+    fontFamily = SansFamily,
+    fontWeight = FontWeight.Medium,
+    fontSize = 24.sp,
+    lineHeight = 30.sp,
+    letterSpacing = (-0.01).em,
 )
 
-val TitleStyle = TextStyle(fontFamily = SansFamily, fontWeight = FontWeight.Medium, fontSize = 18.sp, lineHeight = 24.sp)
+val TitleStyle = TextStyle(
+    fontFamily = SansFamily,
+    fontWeight = FontWeight.Medium,
+    fontSize = 18.sp,
+    lineHeight = 24.sp,
+)
 
 val BodyStyle = TextStyle(fontFamily = SansFamily, fontSize = 15.sp, lineHeight = 22.sp)
 
@@ -62,12 +80,20 @@ val DataStyle = TextStyle(fontFamily = MonoFamily, fontSize = 14.sp, lineHeight 
 
 /** Section labels and small caps markers. */
 val OverlineStyle = TextStyle(
-    fontFamily = MonoFamily, fontWeight = FontWeight.Medium, fontSize = 11.sp,
-    lineHeight = 14.sp, letterSpacing = 0.08.em,
+    fontFamily = MonoFamily,
+    fontWeight = FontWeight.Medium,
+    fontSize = 11.sp,
+    lineHeight = 14.sp,
+    letterSpacing = 0.08.em,
 )
 
 /** Small monospaced detail, e.g. the speed page's status line. */
-val StatusLineStyle = TextStyle(fontFamily = MonoFamily, fontSize = 13.sp, lineHeight = 18.sp, fontFeatureSettings = TABULAR)
+val StatusLineStyle = TextStyle(
+    fontFamily = MonoFamily,
+    fontSize = 13.sp,
+    lineHeight = 18.sp,
+    fontFeatureSettings = TABULAR,
+)
 
 /** Material's roles in the same families, so dialogs and sheets match the pages. */
 val PositioningInfoTypography = Typography().run {

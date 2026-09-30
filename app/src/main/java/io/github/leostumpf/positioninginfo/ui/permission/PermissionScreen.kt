@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.permission
 
-import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -20,24 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-
-/** Why the app cannot show a speed yet, and the one action that fixes it. */
-enum class PermissionState {
-    /** Never asked, or asked and dismissed without a decision. */
-    NEEDS_REQUEST,
-
-    /** Denied once; the system will still show the dialog again. */
-    DENIED,
-
-    /** Only approximate location; the system can still offer the upgrade to precise. */
-    APPROXIMATE_ONLY,
-
-    /** Only approximate location, and the upgrade was declined: app settings only. */
-    APPROXIMATE_NEEDS_SETTINGS,
-
-    /** Denied permanently: app settings only. */
-    NEEDS_SETTINGS,
-}
 
 private val PermissionState.needsSettings: Boolean
     get() = this == PermissionState.NEEDS_SETTINGS || this == PermissionState.APPROXIMATE_NEEDS_SETTINGS
@@ -83,7 +65,11 @@ fun PermissionScreen(
                 Text(
                     when (state) {
                         PermissionState.APPROXIMATE_ONLY -> "Allow precise location"
-                        PermissionState.NEEDS_SETTINGS, PermissionState.APPROXIMATE_NEEDS_SETTINGS -> "Open app settings"
+
+                        PermissionState.NEEDS_SETTINGS,
+                        PermissionState.APPROXIMATE_NEEDS_SETTINGS,
+                        -> "Open app settings"
+
                         else -> "Grant access"
                     },
                 )

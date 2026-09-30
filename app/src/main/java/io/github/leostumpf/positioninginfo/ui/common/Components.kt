@@ -1,13 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.common
 
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.foundation.layout.BoxWithConstraints
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -17,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
@@ -35,6 +31,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -90,22 +89,36 @@ fun PageScaffold(page: Page, modifier: Modifier = Modifier, content: LazyListSco
 }
 
 @Composable
-fun PageHeader(page: Page, onHelp: () -> Unit, actions: @Composable RowScope.() -> Unit = {}) {
+fun PageHeader(
+    page: Page,
+    onHelp: () -> Unit,
+    modifier: Modifier = Modifier,
+    actions: @Composable RowScope.() -> Unit = {},
+) {
     val title: @Composable () -> Unit = {
         Text(page.number, style = OverlineStyle, color = Palette.TextTertiary)
-        Text(page.title, style = PageTitleStyle, color = Palette.TextPrimary, modifier = Modifier.semantics { heading() })
+        Text(
+            page.title,
+            style = PageTitleStyle,
+            color = Palette.TextPrimary,
+            modifier = Modifier.semantics { heading() },
+        )
     }
     val buttons: @Composable RowScope.() -> Unit = {
         actions()
         CircleIconButton(AppIcons.Help, contentDescription = "What am I looking at?", onClick = onHelp)
     }
-    BoxWithConstraints(Modifier.fillMaxWidth().padding(bottom = 8.dp)) {
+    BoxWithConstraints(modifier.fillMaxWidth().padding(bottom = 8.dp)) {
         // With large text or on a narrow screen the buttons would squeeze the title into a
         // column a few letters wide, so they move above it instead.
         val stacked = LocalDensity.current.fontScale > 1.3f || maxWidth < 320.dp
         if (stacked) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End), content = buttons)
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+                    content = buttons,
+                )
                 title()
             }
         } else {
@@ -137,7 +150,11 @@ fun GlossarySheet(page: Page, onDismiss: () -> Unit) {
             item {
                 SheetHeader(onDismiss, Modifier.padding(bottom = 8.dp)) {
                     Text(page.title.uppercase(Locale.ROOT), style = OverlineStyle, color = Palette.TextTertiary)
-                    Text("What am I looking at?", style = TitleStyle.copy(fontSize = 20.sp), color = Palette.TextPrimary)
+                    Text(
+                        "What am I looking at?",
+                        style = TitleStyle.copy(fontSize = 20.sp),
+                        color = Palette.TextPrimary,
+                    )
                 }
             }
             items(page.glossary) { entry ->
@@ -145,8 +162,16 @@ fun GlossarySheet(page: Page, onDismiss: () -> Unit) {
                     Modifier.fillMaxWidth().padding(vertical = 12.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Text(entry.term, style = BodyStyle.copy(fontWeight = FontWeight.Medium), color = Palette.TextPrimary)
-                    Text(entry.meaning, style = BodyStyle.copy(fontSize = 14.sp, lineHeight = 21.sp), color = Palette.TextSecondary)
+                    Text(
+                        entry.term,
+                        style = BodyStyle.copy(fontWeight = FontWeight.Medium),
+                        color = Palette.TextPrimary,
+                    )
+                    Text(
+                        entry.meaning,
+                        style = BodyStyle.copy(fontSize = 14.sp, lineHeight = 21.sp),
+                        color = Palette.TextSecondary,
+                    )
                 }
                 HorizontalDivider(color = Palette.CardBorder)
             }
@@ -166,8 +191,17 @@ fun SectionHeader(
     trailing: String? = null,
     trailingColor: Color = Palette.TextTertiary,
 ) {
-    Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(title.uppercase(Locale.ROOT), style = OverlineStyle, color = Palette.TextTertiary, modifier = Modifier.semantics { heading() })
+    Row(
+        modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Text(
+            title.uppercase(Locale.ROOT),
+            style = OverlineStyle,
+            color = Palette.TextTertiary,
+            modifier = Modifier.semantics { heading() },
+        )
         Box(Modifier.weight(1f).height(1.dp).background(Palette.Hairline))
         trailing?.let { Text(it, style = OverlineStyle.copy(fontWeight = FontWeight.Normal), color = trailingColor) }
     }

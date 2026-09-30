@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui
 
-import io.github.leostumpf.positioninginfo.ui.position.CoordinateFormat
-import io.github.leostumpf.positioninginfo.ui.trip.TripRecorder
 import android.annotation.SuppressLint
 import android.app.Application
 import android.hardware.SensorManager
@@ -17,15 +15,13 @@ import io.github.leostumpf.positioninginfo.data.model.NavigationUpdate
 import io.github.leostumpf.positioninginfo.data.model.RawMeasurementEpoch
 import io.github.leostumpf.positioninginfo.data.model.RawMeasurementUpdate
 import io.github.leostumpf.positioninginfo.data.model.RawStreamStatus
-import io.github.leostumpf.positioninginfo.data.model.SpeedFix
 import io.github.leostumpf.positioninginfo.data.model.SignalMeasurement
+import io.github.leostumpf.positioninginfo.data.model.SpeedFix
 import io.github.leostumpf.positioninginfo.domain.AcquisitionStage
 import io.github.leostumpf.positioninginfo.domain.BaroAltimeter
+import io.github.leostumpf.positioninginfo.domain.ClimbSource
 import io.github.leostumpf.positioninginfo.domain.CompassTrust
 import io.github.leostumpf.positioninginfo.domain.Constellation
-import io.github.leostumpf.positioninginfo.domain.SignalBand
-import io.github.leostumpf.positioninginfo.ui.gnss.GnssUiState
-import io.github.leostumpf.positioninginfo.ui.gnss.SignalDetail
 import io.github.leostumpf.positioninginfo.domain.CoordinateFormats
 import io.github.leostumpf.positioninginfo.domain.DopCalculator
 import io.github.leostumpf.positioninginfo.domain.GpsNavState
@@ -34,15 +30,19 @@ import io.github.leostumpf.positioninginfo.domain.NmeaState
 import io.github.leostumpf.positioninginfo.domain.ObstructionMap
 import io.github.leostumpf.positioninginfo.domain.PositionScatter
 import io.github.leostumpf.positioninginfo.domain.ScatterStats
+import io.github.leostumpf.positioninginfo.domain.SignalBand
 import io.github.leostumpf.positioninginfo.domain.SkyPoint
 import io.github.leostumpf.positioninginfo.domain.SpeedUnit
-import io.github.leostumpf.positioninginfo.domain.ClimbSource
 import io.github.leostumpf.positioninginfo.domain.TripPoint
 import io.github.leostumpf.positioninginfo.ui.common.fmt
+import io.github.leostumpf.positioninginfo.ui.gnss.GnssUiState
+import io.github.leostumpf.positioninginfo.ui.gnss.SignalDetail
+import io.github.leostumpf.positioninginfo.ui.position.CoordinateFormat
 import io.github.leostumpf.positioninginfo.ui.position.PositionUiState
 import io.github.leostumpf.positioninginfo.ui.receiver.ReceiverUiState
 import io.github.leostumpf.positioninginfo.ui.signal.SignalUiState
 import io.github.leostumpf.positioninginfo.ui.sky.SkyUiState
+import io.github.leostumpf.positioninginfo.ui.trip.TripRecorder
 import io.github.leostumpf.positioninginfo.ui.trip.TripUiState
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -91,6 +91,7 @@ class AnalysisSession(
     private var rawEpochs = 0
     private var lastRaw: RawMeasurementEpoch? = null
     private var interference = InterferenceMonitor()
+
     /** Latest raw values per signal, and when each satellite was first heard this session. */
     private var signalDetails = mapOf<String, SignalMeasurement>()
     private val firstHeardMs = mutableMapOf<Pair<Constellation, Int>, Long>()
@@ -100,16 +101,20 @@ class AnalysisSession(
 
     private var baro = BaroAltimeter()
     private var heading: HeadingReading? = null
+
     /** Smoothed magnetometer field strength, while compass mode runs. */
     private var magneticUt: Double? = null
     private var headingJob: Job? = null
     private var tracking = false
+
     /** Whether the app is on screen; out of sight the pages are not rebuilt. */
     private var visible = true
     private var trackingStartedAtMs = 0L
+
     /** Built from [scatter] only when it changes, not on every tick. */
     private var scatterStats: ScatterStats? = null
     private var scatterStatsFor: PositionScatter? = null
+
     /** The World Magnetic Model barely changes over a few kilometres; see [geomagnetic]. */
     private var geomagnetic: Geomagnetic? = null
     private var compassMode = false
@@ -120,10 +125,8 @@ class AnalysisSession(
     private var scatter = PositionScatter()
     private var scatterRunning = false
 
-
-
     /** Starts the raw streams and sensors; the returned jobs are cancelled by the owner. */
-    @SuppressLint("MissingPermission")  // only called by startTracking, after its permission check
+    @SuppressLint("MissingPermission") // only called by startTracking, after its permission check
     fun start(): List<Job> {
         tracking = true
         trackingStartedAtMs = SystemClock.elapsedRealtime()
@@ -139,6 +142,7 @@ class AnalysisSession(
             rawSource.measurements().collect { update ->
                 when (update) {
                     is RawMeasurementUpdate.Status -> rawStatus = update.status
+
                     is RawMeasurementUpdate.Epoch -> {
                         rawStatus = RawStreamStatus.READY
                         rawEpochs++
@@ -156,6 +160,7 @@ class AnalysisSession(
             rawSource.navigationMessages().collect { update ->
                 when (update) {
                     is NavigationUpdate.Status -> navStatus = update.status
+
                     is NavigationUpdate.Frame -> {
                         navStatus = RawStreamStatus.READY
                         val frame = update.value
@@ -219,7 +224,12 @@ class AnalysisSession(
     fun onSnapshot(snapshot: GnssSnapshot) {
         lastSnapshot = snapshot
         val now = SystemClock.elapsedRealtime()
-        snapshot.satellites.filter { it.cn0DbHz > 0f }.forEach { firstHeardMs.putIfAbsent(it.constellation to it.svid, now) }
+        snapshot.satellites.filter { it.cn0DbHz > 0f }.forEach {
+            firstHeardMs.putIfAbsent(
+                it.constellation to it.svid,
+                now,
+            )
+        }
         obstruction = obstruction.onSnapshot(snapshot.satellites)
     }
 
@@ -310,7 +320,14 @@ class AnalysisSession(
         val moving = (fix?.speedMps ?: 0f) > 1f && fix?.bearingDegrees != null
         val parts = mutableListOf<String>()
         if (compassMode && trueHeading != null) {
-            parts += if (declination != null) "Heading ${trueHeading.roundToInt()}° true" else "Heading ${trueHeading.roundToInt()}° magnetic"
+            parts +=
+                if (declination !=
+                    null
+                ) {
+                    "Heading ${trueHeading.roundToInt()}° true"
+                } else {
+                    "Heading ${trueHeading.roundToInt()}° magnetic"
+                }
         }
         if (declination != null && (compassMode || moving)) {
             parts += "declination ${abs(declination).fmt(1)}° ${if (declination >= 0) "E" else "W"}"
@@ -340,7 +357,12 @@ class AnalysisSession(
                 stage = m?.let { AcquisitionStage.from(it.state) }
                     ?: AcquisitionStage.TIME_DECODED.takeIf { row.satellite.usedInFix },
                 stageInferred = m == null && row.satellite.usedInFix,
-                dopplerHz = m?.let { AcquisitionStage.dopplerHz(it.pseudorangeRateMps, it.carrierFrequencyHz ?: L1_HZ) },
+                dopplerHz = m?.let {
+                    AcquisitionStage.dopplerHz(
+                        it.pseudorangeRateMps,
+                        it.carrierFrequencyHz ?: L1_HZ,
+                    )
+                },
                 multipath = m?.multipath,
                 firstHeardMs = firstHeardMs[row.satellite.constellation to row.satellite.svid],
                 raw = m,
@@ -418,7 +440,13 @@ class AnalysisSession(
             gps = gpsNav,
             currentGpsWeek = ((System.currentTimeMillis() - GPS_EPOCH_MS) / WEEK_MS).toInt(),
             capabilities = capabilities,
-            navSilentMs = if (navFrames.isEmpty() && tracking) SystemClock.elapsedRealtime() - trackingStartedAtMs else 0L,
+            navSilentMs = if (navFrames.isEmpty() &&
+                tracking
+            ) {
+                SystemClock.elapsedRealtime() - trackingStartedAtMs
+            } else {
+                0L
+            },
         )
     }
 
@@ -433,7 +461,12 @@ class AnalysisSession(
     }
 
     /** The magnetic model at the fix, re-evaluated only after moving about 10 km. */
-    private class Geomagnetic(val latitude: Double, val longitude: Double, val declinationDegrees: Float, val fieldUt: Double)
+    private class Geomagnetic(
+        val latitude: Double,
+        val longitude: Double,
+        val declinationDegrees: Float,
+        val fieldUt: Double,
+    )
 
     private fun geomagneticAt(fix: SpeedFix): Geomagnetic? {
         val lat = fix.latitude ?: return null
@@ -463,7 +496,11 @@ class AnalysisSession(
         fix.mslAltitudeM?.let { return it to "Android geoid model" }
         val separation = gga?.geoidSeparationM
         val ellipsoid = fix.ellipsoidAltitudeM
-        if (separation != null && ellipsoid != null) return (ellipsoid - separation) to "ellipsoid − chip's geoid height"
+        if (separation != null &&
+            ellipsoid != null
+        ) {
+            return (ellipsoid - separation) to "ellipsoid − chip's geoid height"
+        }
         return null
     }
 

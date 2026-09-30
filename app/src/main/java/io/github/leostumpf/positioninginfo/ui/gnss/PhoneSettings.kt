@@ -17,19 +17,41 @@ import io.github.leostumpf.positioninginfo.ui.theme.Palette
 /** What the user has switched on or off around positioning; all read-only. */
 @Composable
 internal fun PhoneSettingsRows(s: PhoneSettings) {
-    fun onOff(v: Boolean?) = when (v) { true -> "on"; false -> "off"; null -> "not readable" }
+    fun onOff(v: Boolean?) = when (v) {
+        true -> "on"
+        false -> "off"
+        null -> "not readable"
+    }
     Column {
         ValueRow("Location", onOff(s.locationOn), valueColor = if (s.locationOn == false) Palette.Bad else null)
         ValueRow(
-            "Location access", when (s.preciseLocation) { true -> "precise"; false -> "approximate"; null -> "—" },
+            "Location access",
+            when (s.preciseLocation) {
+                true -> "precise"
+                false -> "approximate"
+                null -> "—"
+            },
             detail = "approximate access hides the GNSS receiver entirely".takeIf { s.preciseLocation == false },
             valueColor = if (s.preciseLocation == false) Palette.Degraded else null,
         )
-        ValueRow("Wi-Fi & cell positioning", onOff(s.networkLocation), detail = "the network provider; faster, rougher fixes")
-        ValueRow("Wi-Fi scanning", onOff(s.wifiScanning), detail = "finds access points for positioning even with Wi-Fi off")
-        ValueRow("Bluetooth scanning", onOff(s.bluetoothScanning), detail = "finds beacons for positioning even with Bluetooth off")
         ValueRow(
-            "Battery saver", when (s.powerSave) {
+            "Wi-Fi & cell positioning",
+            onOff(s.networkLocation),
+            detail = "the network provider; faster, rougher fixes",
+        )
+        ValueRow(
+            "Wi-Fi scanning",
+            onOff(s.wifiScanning),
+            detail = "finds access points for positioning even with Wi-Fi off",
+        )
+        ValueRow(
+            "Bluetooth scanning",
+            onOff(s.bluetoothScanning),
+            detail = "finds beacons for positioning even with Bluetooth off",
+        )
+        ValueRow(
+            "Battery saver",
+            when (s.powerSave) {
                 PowerSaveLocation.UNRESTRICTED -> "no effect"
                 PowerSaveLocation.GNSS_OFF_SCREEN_OFF -> "GNSS off with screen off"
                 PowerSaveLocation.ALL_OFF_SCREEN_OFF -> "location off with screen off"

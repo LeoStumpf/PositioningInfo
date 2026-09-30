@@ -35,6 +35,7 @@ data class SpeedHistory(
     companion object {
         const val INTERVAL_MS = 1_000L
         const val MAX_SAMPLES = 600
+
         /** Longer than this without a sample (app closed) breaks the line. */
         const val GAP_MS = 15_000L
     }

@@ -1,9 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.common
 
-import androidx.core.content.getSystemService
-import android.content.ClipboardManager
 import android.content.ClipData
+import android.content.ClipboardManager
 import android.os.Build
 import android.widget.Toast
 import androidx.compose.foundation.layout.PaddingValues
@@ -21,12 +20,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.getSystemService
 import io.github.leostumpf.positioninginfo.ui.theme.CaptionStyle
 import io.github.leostumpf.positioninginfo.ui.theme.Palette
 import io.github.leostumpf.positioninginfo.ui.theme.TitleStyle
-
-/** One line of a detail sheet: what it is, its value, and what the value means. */
-data class DetailRow(val label: String, val value: String, val explanation: String? = null)
 
 /**
  * Everything known about one item — a cell tower, an access point — in a sheet whose text

@@ -132,9 +132,11 @@ data class SkyTracker(
         return copy(tracks = updated).withEvents(newEvents)
     }
 
-    private fun withEvents(newEvents: List<SkyEvent>): SkyTracker =
-        if (newEvents.isEmpty()) this
-        else copy(events = (newEvents.sortedByDescending { it.atMs } + events).take(MAX_EVENTS))
+    private fun withEvents(newEvents: List<SkyEvent>): SkyTracker = if (newEvents.isEmpty()) {
+        this
+    } else {
+        copy(events = (newEvents.sortedByDescending { it.atMs } + events).take(MAX_EVENTS))
+    }
 
     companion object {
         const val SAMPLE_EVERY_MS = 10_000L
@@ -155,6 +157,7 @@ data class SkyProjection(
         const val FIT_WINDOW_MS = 10 * 60_000L
         const val MIN_SPAN_MS = 2 * 60_000L
         const val HORIZON_MINUTES = 15
+
         /** Below this the satellite is effectively still (a geostationary SBAS or BeiDou GEO). */
         const val MIN_RATE_DEG_PER_MIN = 0.05
 
@@ -182,7 +185,7 @@ data class SkyProjection(
                 val mean = vs.sumOf { it[axis] } / vs.size
                 val slope = ts.indices.sumOf { (ts[it] - tMean) * (vs[it][axis] - mean) } / denom
                 rate[axis] = slope
-                start[axis] = mean - slope * tMean  // fitted value at the newest sample
+                start[axis] = mean - slope * tMean // fitted value at the newest sample
             }
             val degPerMin = Math.toDegrees(sqrt(rate.sumOf { it * it }))
             if (degPerMin < MIN_RATE_DEG_PER_MIN) return null

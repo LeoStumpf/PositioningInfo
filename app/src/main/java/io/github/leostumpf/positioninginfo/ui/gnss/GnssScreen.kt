@@ -1,13 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.gnss
 
-import io.github.leostumpf.positioninginfo.ui.common.ConfirmDialog
-import io.github.leostumpf.positioninginfo.domain.formatDuration
-import androidx.compose.runtime.LaunchedEffect
-import io.github.leostumpf.positioninginfo.domain.counted
-import io.github.leostumpf.positioninginfo.ui.common.rememberLogTimeFormat
-import io.github.leostumpf.positioninginfo.ui.common.TileRow
-import io.github.leostumpf.positioninginfo.domain.FixDiagnosis
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -26,6 +20,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.leostumpf.positioninginfo.domain.AlmanacReadiness
 import io.github.leostumpf.positioninginfo.domain.AlmanacStatus
+import io.github.leostumpf.positioninginfo.domain.FixDiagnosis
+import io.github.leostumpf.positioninginfo.domain.counted
+import io.github.leostumpf.positioninginfo.domain.formatDuration
+import io.github.leostumpf.positioninginfo.ui.common.ConfirmDialog
 import io.github.leostumpf.positioninginfo.ui.common.Note
 import io.github.leostumpf.positioninginfo.ui.common.Notice
 import io.github.leostumpf.positioninginfo.ui.common.Page
@@ -34,17 +32,19 @@ import io.github.leostumpf.positioninginfo.ui.common.QuietButton
 import io.github.leostumpf.positioninginfo.ui.common.SecondaryButton
 import io.github.leostumpf.positioninginfo.ui.common.StatTile
 import io.github.leostumpf.positioninginfo.ui.common.StatusBadge
+import io.github.leostumpf.positioninginfo.ui.common.TileRow
 import io.github.leostumpf.positioninginfo.ui.common.Tone
 import io.github.leostumpf.positioninginfo.ui.common.ValueRow
+import io.github.leostumpf.positioninginfo.ui.common.rememberLogTimeFormat
 import io.github.leostumpf.positioninginfo.ui.common.section
 import io.github.leostumpf.positioninginfo.ui.sky.SkyUiState
 import io.github.leostumpf.positioninginfo.ui.sky.label
 import io.github.leostumpf.positioninginfo.ui.sky.skyEventItems
 import io.github.leostumpf.positioninginfo.ui.sky.skyPlotItems
 import io.github.leostumpf.positioninginfo.ui.theme.BodyStyle
+import io.github.leostumpf.positioninginfo.ui.theme.PageTitleStyle
 import io.github.leostumpf.positioninginfo.ui.theme.Palette
 import io.github.leostumpf.positioninginfo.ui.theme.color
-import io.github.leostumpf.positioninginfo.ui.theme.PageTitleStyle
 
 /**
  * What orbital data the receiver is holding, and therefore how quickly it can fix.
@@ -80,8 +80,16 @@ fun GnssScreen(
                     if (fixed) StatusBadge("Fix", Tone.GOOD) else StatusBadge("No fix", Tone.NEUTRAL)
                     StatusBadge("Next start: ${state.readiness.badge()}", state.readiness.tone())
                 }
-                Text(headline(state), style = PageTitleStyle.copy(fontSize = 28.sp, lineHeight = 34.sp), color = Palette.TextPrimary)
-                Text(explanationFor(state), style = BodyStyle.copy(fontSize = 14.sp, lineHeight = 20.sp), color = Palette.TextSecondary)
+                Text(
+                    headline(state),
+                    style = PageTitleStyle.copy(fontSize = 28.sp, lineHeight = 34.sp),
+                    color = Palette.TextPrimary,
+                )
+                Text(
+                    explanationFor(state),
+                    style = BodyStyle.copy(fontSize = 14.sp, lineHeight = 20.sp),
+                    color = Palette.TextSecondary,
+                )
             }
         }
         state.diagnosis?.let { d -> item { DiagnosisCard(d, Modifier.padding(top = 16.dp)) } }
@@ -90,8 +98,21 @@ fun GnssScreen(
                 listOf(
                     { m -> StatTile("visible", state.visible.toString(), m) },
                     { m -> StatTile("almanac", state.withAlmanac.toString(), m) },
-                    { m -> StatTile("ephemeris", if (state.ephemerisUnavailable) "—" else state.withEphemeris.toString(), m) },
-                    { m -> StatTile("in fix", state.usedInFix.toString(), m, tone = if (state.usedInFix > 0) Tone.GOOD else null) },
+                    { m ->
+                        StatTile(
+                            "ephemeris",
+                            if (state.ephemerisUnavailable) "—" else state.withEphemeris.toString(),
+                            m,
+                        )
+                    },
+                    { m ->
+                        StatTile(
+                            "in fix",
+                            state.usedInFix.toString(),
+                            m,
+                            tone = if (state.usedInFix > 0) Tone.GOOD else null,
+                        )
+                    },
                 ),
                 Modifier.padding(top = 16.dp),
             )
@@ -102,7 +123,7 @@ fun GnssScreen(
                     Notice(
                         "This phone computes fixes while reporting no ephemeris at all, which cannot be " +
                             "true — its driver does not publish that flag, so the count is withheld.",
-                        Tone.DEGRADED,
+                        tone = Tone.DEGRADED,
                     )
                 }
             }
@@ -126,12 +147,24 @@ fun GnssScreen(
 
         if (state.signals.isNotEmpty()) {
             section("Satellites · ${state.visible}", trailing = "C/N₀ · A E")
-            items(heard, key = { it.key }) { SatelliteRow(it.satellite, state.details[it.baseKey]) { selectedKey = it.baseKey } }
+            items(
+                heard,
+                key = { it.key },
+            ) { SatelliteRow(it.satellite, state.details[it.baseKey]) { selectedKey = it.baseKey } }
             if (unheard.isNotEmpty()) {
-                if (showUnheard) items(unheard, key = { it.key }) { SatelliteRow(it.satellite, state.details[it.baseKey]) { selectedKey = it.baseKey } }
+                if (showUnheard) {
+                    items(
+                        unheard,
+                        key = { it.key },
+                    ) { SatelliteRow(it.satellite, state.details[it.baseKey]) { selectedKey = it.baseKey } }
+                }
                 item {
                     QuietButton(
-                        if (showUnheard) "Hide the ${unheard.size} not heard" else "Show ${unheard.size} not heard (almanac only)",
+                        if (showUnheard) {
+                            "Hide the ${unheard.size} not heard"
+                        } else {
+                            "Show ${unheard.size} not heard (almanac only)"
+                        },
                         onClick = { showUnheard = !showUnheard },
                     )
                 }
@@ -179,7 +212,14 @@ fun GnssScreen(
                             AlmanacReadiness.COLD -> "cold start"
                             AlmanacReadiness.UNKNOWN -> "start type unknown"
                         } + if (e.ttffMs > FixDiagnosis.expectedMs(e.startType)) " · slower than usual" else "",
-                        valueColor = if (e.ttffMs <= FixDiagnosis.expectedMs(e.startType)) Palette.Good else Palette.Degraded,
+                        valueColor = if (e.ttffMs <= FixDiagnosis.expectedMs(
+                                e.startType,
+                            )
+                        ) {
+                            Palette.Good
+                        } else {
+                            Palette.Degraded
+                        },
                         divider = i < minOf(5, state.ttffLog.size) - 1,
                     )
                 }
@@ -217,10 +257,18 @@ fun GnssScreen(
     selectedKey?.let { key ->
         val row = state.signals.firstOrNull { it.baseKey == key }
         // Gone from the list: close the sheet, from an effect rather than mid-composition.
-        if (row == null) LaunchedEffect(key) { selectedKey = null }
-        else SatelliteSheet(row, state.details[key], siblings = state.signals.filter {
-            it.satellite.constellation == row.satellite.constellation && it.satellite.svid == row.satellite.svid
-        }, onDismiss = { selectedKey = null })
+        if (row == null) {
+            LaunchedEffect(key) { selectedKey = null }
+        } else {
+            SatelliteSheet(
+                row,
+                state.details[key],
+                siblings = state.signals.filter {
+                    it.satellite.constellation == row.satellite.constellation && it.satellite.svid == row.satellite.svid
+                },
+                onDismiss = { selectedKey = null },
+            )
+        }
     }
 
     if (confirmColdStart) {
@@ -282,25 +330,32 @@ private fun headline(state: GnssUiState): String = when {
 private fun explanationFor(state: GnssUiState): String = when {
     state.isFixed() -> when {
         state.ephemerisUnavailable -> "The receiver is computing a position right now."
+
         state.readiness == AlmanacReadiness.HOT ->
             "The receiver is computing a position right now. It also holds precise orbits for " +
                 "${state.withEphemeris.counted("satellite")}, so after a restart it would fix again within seconds."
+
         state.readiness == AlmanacReadiness.WARM ->
             "The receiver is computing a position right now, but holds precise orbits for only a " +
                 "few satellites; a restart would take about half a minute."
+
         else ->
             "The receiver is computing a position right now."
     }
+
     else -> when (state.readiness) {
         AlmanacReadiness.HOT ->
             "Precise orbits (ephemeris) are held for at least ${AlmanacStatus.SATELLITES_FOR_FIX} satellites. " +
                 "A fix should follow within seconds of hearing them."
+
         AlmanacReadiness.WARM ->
             "Coarse orbits (almanac) are held, but not enough precise ones. The receiver knows where to " +
                 "look and needs about half a minute."
+
         AlmanacReadiness.COLD ->
             "Too little orbital data to fix quickly. The receiver must search blindly; a full almanac " +
                 "takes up to 12 minutes."
+
         AlmanacReadiness.UNKNOWN -> "No report from the GNSS receiver yet."
     }
 }

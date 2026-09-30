@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.data
 
-import androidx.annotation.RequiresApi
 import android.content.Context
 import android.location.LocationManager
 import android.location.provider.ProviderProperties
 import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.core.content.getSystemService
 import io.github.leostumpf.positioninginfo.domain.LocationProviderInfo
 import io.github.leostumpf.positioninginfo.domain.ProviderAccuracy

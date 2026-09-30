@@ -6,7 +6,6 @@ import org.junit.Test
 
 class TimingFormattingTest {
 
-
     @Test
     fun `first fix shows the time, the search, or nothing`() {
         assertEquals(

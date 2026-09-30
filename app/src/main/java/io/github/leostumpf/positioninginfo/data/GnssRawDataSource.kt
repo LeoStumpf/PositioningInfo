@@ -43,7 +43,10 @@ class GnssRawDataSource(context: Context) {
 
     @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     fun nmea(): Flow<String> = callbackFlow {
-        val manager = locationManager ?: run { close(); return@callbackFlow }
+        val manager = locationManager ?: run {
+            close()
+            return@callbackFlow
+        }
         val listener = OnNmeaMessageListener { message, _ -> trySend(message) }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             manager.addNmeaListener(appContext.mainExecutor, listener)
@@ -55,7 +58,10 @@ class GnssRawDataSource(context: Context) {
 
     @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     fun measurements(): Flow<RawMeasurementUpdate> = callbackFlow {
-        val manager = locationManager ?: run { close(); return@callbackFlow }
+        val manager = locationManager ?: run {
+            close()
+            return@callbackFlow
+        }
         val callback = object : GnssMeasurementsEvent.Callback() {
             override fun onGnssMeasurementsReceived(event: GnssMeasurementsEvent) {
                 trySend(RawMeasurementUpdate.Epoch(event.toEpoch()))
@@ -78,7 +84,10 @@ class GnssRawDataSource(context: Context) {
 
     @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     fun navigationMessages(): Flow<NavigationUpdate> = callbackFlow {
-        val manager = locationManager ?: run { close(); return@callbackFlow }
+        val manager = locationManager ?: run {
+            close()
+            return@callbackFlow
+        }
         val callback = object : GnssNavigationMessage.Callback() {
             override fun onGnssNavigationMessageReceived(event: GnssNavigationMessage) {
                 trySend(
@@ -119,19 +128,27 @@ class GnssRawDataSource(context: Context) {
     }
 }
 
-@Suppress("DEPRECATION")  // the status constants, see onStatusChanged
+@Suppress("DEPRECATION") // the status constants, see onStatusChanged
 private fun Int.toStreamStatus(): RawStreamStatus = when (this) {
     GnssMeasurementsEvent.Callback.STATUS_READY -> RawStreamStatus.READY
+
     GnssMeasurementsEvent.Callback.STATUS_NOT_SUPPORTED,
-    GnssMeasurementsEvent.Callback.STATUS_NOT_ALLOWED -> RawStreamStatus.NOT_SUPPORTED
+    GnssMeasurementsEvent.Callback.STATUS_NOT_ALLOWED,
+    -> RawStreamStatus.NOT_SUPPORTED
+
     GnssMeasurementsEvent.Callback.STATUS_LOCATION_DISABLED -> RawStreamStatus.LOCATION_DISABLED
+
     else -> RawStreamStatus.UNKNOWN
 }
 
 private fun GnssMeasurementsEvent.toEpoch(): RawMeasurementEpoch {
     val agc = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         gnssAutomaticGainControls.map {
-            AgcReading(Constellation.fromAndroidType(it.constellationType), it.carrierFrequencyHz.toDouble(), it.levelDb)
+            AgcReading(
+                Constellation.fromAndroidType(it.constellationType),
+                it.carrierFrequencyHz.toDouble(),
+                it.levelDb,
+            )
         }
     } else {
         emptyList()
@@ -188,12 +205,26 @@ private fun GnssMeasurementsEvent.toEpoch(): RawMeasurementEpoch {
                     GnssMeasurement.MULTIPATH_INDICATOR_NOT_DETECTED -> false
                     else -> null
                 },
-                codeType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && it.hasCodeType()) it.codeType else null,
-                basebandCn0DbHz = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && it.hasBasebandCn0DbHz()) it.basebandCn0DbHz else null,
+                codeType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+                    it.hasCodeType()
+                ) {
+                    it.codeType
+                } else {
+                    null
+                },
+                basebandCn0DbHz = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+                    it.hasBasebandCn0DbHz()
+                ) {
+                    it.basebandCn0DbHz
+                } else {
+                    null
+                },
                 snrDb = if (it.hasSnrInDb()) it.snrInDb else null,
                 receivedSvTimeUncertaintyNs = it.receivedSvTimeUncertaintyNanos.takeIf { u -> u > 0 },
                 carrierPhaseState = it.accumulatedDeltaRangeState,
-                interSignalBiasNs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && it.hasFullInterSignalBiasNanos()) {
+                interSignalBiasNs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+                    it.hasFullInterSignalBiasNanos()
+                ) {
                     it.fullInterSignalBiasNanos
                 } else {
                     null

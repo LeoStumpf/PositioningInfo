@@ -48,6 +48,5 @@ object SpeedResolver {
     }
 
     /** Clamped at zero: a fix timestamped in the future is a clock artefact, not a new fix. */
-    fun ageMs(fix: SpeedFix, nowElapsedMs: Long): Long =
-        (nowElapsedMs - fix.elapsedRealtimeMs).coerceAtLeast(0L)
+    fun ageMs(fix: SpeedFix, nowElapsedMs: Long): Long = (nowElapsedMs - fix.elapsedRealtimeMs).coerceAtLeast(0L)
 }

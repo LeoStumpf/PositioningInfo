@@ -1,22 +1,22 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.gnss
 
-import io.github.leostumpf.positioninginfo.domain.SkyPoint
-import io.github.leostumpf.positioninginfo.domain.DopCalculator
-import io.github.leostumpf.positioninginfo.domain.DiagnosisInput
-import io.github.leostumpf.positioninginfo.domain.PowerSaveLocation
-import io.github.leostumpf.positioninginfo.data.model.countSatellites
-import io.github.leostumpf.positioninginfo.data.model.SpeedFix
 import io.github.leostumpf.positioninginfo.data.model.GnssSnapshot
 import io.github.leostumpf.positioninginfo.data.model.PhoneSettings
 import io.github.leostumpf.positioninginfo.data.model.SatelliteInfo
 import io.github.leostumpf.positioninginfo.data.model.SignalMeasurement
+import io.github.leostumpf.positioninginfo.data.model.SpeedFix
+import io.github.leostumpf.positioninginfo.data.model.countSatellites
 import io.github.leostumpf.positioninginfo.domain.AcquisitionStage
 import io.github.leostumpf.positioninginfo.domain.AlmanacReadiness
 import io.github.leostumpf.positioninginfo.domain.AlmanacStatus
 import io.github.leostumpf.positioninginfo.domain.ConstellationSummary
 import io.github.leostumpf.positioninginfo.domain.Diagnosis
+import io.github.leostumpf.positioninginfo.domain.DiagnosisInput
+import io.github.leostumpf.positioninginfo.domain.DopCalculator
 import io.github.leostumpf.positioninginfo.domain.HistorySample
+import io.github.leostumpf.positioninginfo.domain.PowerSaveLocation
+import io.github.leostumpf.positioninginfo.domain.SkyPoint
 import io.github.leostumpf.positioninginfo.domain.TtffEntry
 import io.github.leostumpf.positioninginfo.domain.band
 

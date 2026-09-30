@@ -12,14 +12,14 @@ package io.github.leostumpf.positioninginfo.domain
 object SpeedFilter {
 
     /** Used when the receiver reports no speed accuracy of its own (below API 26 data). */
-    const val fallbackNoiseFloorMps: Float = 0.5f
+    const val FALLBACK_NOISE_FLOOR_MPS: Float = 0.5f
 
     /** Never treat an implausibly large accuracy figure as licence to zero real motion. */
-    const val maxNoiseFloorMps: Float = 2.0f
+    const val MAX_NOISE_FLOOR_MPS: Float = 2.0f
 
     fun apply(speedMps: Float, speedAccuracyMps: Float?): Float {
-        val floor = (speedAccuracyMps ?: fallbackNoiseFloorMps)
-            .coerceIn(fallbackNoiseFloorMps, maxNoiseFloorMps)
+        val floor = (speedAccuracyMps ?: FALLBACK_NOISE_FLOOR_MPS)
+            .coerceIn(FALLBACK_NOISE_FLOOR_MPS, MAX_NOISE_FLOOR_MPS)
         return if (speedMps < floor) 0f else speedMps
     }
 }

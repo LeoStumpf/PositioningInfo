@@ -18,7 +18,8 @@ enum class SbasSystem(val label: String, val region: String) {
     BDSBAS("BDSBAS", "China"),
     KASS("KASS", "South Korea"),
     SOUTHPAN("SouthPAN", "Australia / New Zealand"),
-    UNKNOWN_SBAS("SBAS", "Unidentified");
+    UNKNOWN_SBAS("SBAS", "Unidentified"),
+    ;
 
     companion object {
         /**

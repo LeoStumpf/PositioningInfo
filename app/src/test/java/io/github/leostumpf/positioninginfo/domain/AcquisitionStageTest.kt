@@ -23,10 +23,10 @@ class AcquisitionStageTest {
 
     @Test
     fun `constellation specific flags count too`() {
-        assertEquals(AcquisitionStage.CODE_LOCK, AcquisitionStage.from(1024))       // Galileo E1BC code lock
-        assertEquals(AcquisitionStage.FRAME_SYNC, AcquisitionStage.from(64))        // GLONASS string sync
-        assertEquals(AcquisitionStage.TIME_DECODED, AcquisitionStage.from(128))     // GLONASS time of day
-        assertEquals(AcquisitionStage.TIME_DECODED, AcquisitionStage.from(16384))   // time of week known
+        assertEquals(AcquisitionStage.CODE_LOCK, AcquisitionStage.from(1024)) // Galileo E1BC code lock
+        assertEquals(AcquisitionStage.FRAME_SYNC, AcquisitionStage.from(64)) // GLONASS string sync
+        assertEquals(AcquisitionStage.TIME_DECODED, AcquisitionStage.from(128)) // GLONASS time of day
+        assertEquals(AcquisitionStage.TIME_DECODED, AcquisitionStage.from(16384)) // time of week known
     }
 
     @Test

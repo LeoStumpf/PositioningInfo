@@ -16,7 +16,12 @@ class SpoofingTextTest {
                 "different elevations usually differ more; one transmitter could make them alike.",
             SpoofingIndicator.UniformStrength(Band.L1_E1_B1, 8, 45.2, 0.25).describe(),
         )
-        assertTrue(SpoofingIndicator.PowerWithStrongerSignals(Band.L5_E5A_B2A, 5.0).describe().startsWith("L5/E5a/B2a: more power"))
+        assertTrue(
+            SpoofingIndicator.PowerWithStrongerSignals(
+                Band.L5_E5A_B2A,
+                5.0,
+            ).describe().startsWith("L5/E5a/B2a: more power"),
+        )
         assertTrue(SpoofingIndicator.DriftJump(0.5).describe().contains("0.5 ppm"))
     }
 }

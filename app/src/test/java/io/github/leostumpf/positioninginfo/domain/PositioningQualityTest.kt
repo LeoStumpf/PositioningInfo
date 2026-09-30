@@ -29,8 +29,7 @@ class PositioningQualityTest {
         carrierFrequencyHz = carrierMhz?.let { (it * 1_000_000).toFloat() },
     )
 
-    private fun snapshot(vararg sats: SatelliteInfo) =
-        GnssSnapshot(satellites = sats.toList(), hasReported = true)
+    private fun snapshot(vararg sats: SatelliteInfo) = GnssSnapshot(satellites = sats.toList(), hasReported = true)
 
     @Test
     fun `too few satellites in the fix means no positioning at all`() {
@@ -103,7 +102,9 @@ class PositioningQualityTest {
     fun `augmentation used in the fix is recognised and upgrades the estimate`() {
         val quality = PositioningQuality.from(
             snapshot(
-                sat(), sat(), sat(),
+                sat(),
+                sat(),
+                sat(),
                 sat(Constellation.SBAS, svid = 123),
             ),
         )
@@ -131,7 +132,10 @@ class PositioningQualityTest {
         // Seeing EGNOS overhead is not the same as applying its corrections.
         val quality = PositioningQuality.from(
             snapshot(
-                sat(), sat(), sat(), sat(),
+                sat(),
+                sat(),
+                sat(),
+                sat(),
                 sat(Constellation.SBAS, svid = 123, used = false),
             ),
         )
@@ -146,8 +150,10 @@ class PositioningQualityTest {
         // in their own right, so they must not inflate the constellation count.
         val quality = PositioningQuality.from(
             snapshot(
-                sat(Constellation.GPS), sat(Constellation.GPS),
-                sat(Constellation.GPS), sat(Constellation.SBAS, svid = 123),
+                sat(Constellation.GPS),
+                sat(Constellation.GPS),
+                sat(Constellation.GPS),
+                sat(Constellation.SBAS, svid = 123),
             ),
         )
         assertEquals(listOf(Constellation.GPS), quality.constellationsInUse)
@@ -179,8 +185,10 @@ class PositioningQualityTest {
     fun `four signals from two dual-frequency satellites are not a fix`() {
         val quality = PositioningQuality.from(
             snapshot(
-                sat(svid = 1, carrierMhz = 1575.42), sat(svid = 1, carrierMhz = 1176.45),
-                sat(svid = 2, carrierMhz = 1575.42), sat(svid = 2, carrierMhz = 1176.45),
+                sat(svid = 1, carrierMhz = 1575.42),
+                sat(svid = 1, carrierMhz = 1176.45),
+                sat(svid = 2, carrierMhz = 1575.42),
+                sat(svid = 2, carrierMhz = 1176.45),
             ),
         )
         assertEquals(ResolutionClass.NO_FIX, quality.resolution)

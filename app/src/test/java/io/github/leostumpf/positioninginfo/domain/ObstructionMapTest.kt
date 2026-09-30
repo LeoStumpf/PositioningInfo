@@ -8,13 +8,7 @@ import org.junit.Test
 
 class ObstructionMapTest {
 
-    private fun sat(
-        svid: Int,
-        az: Float,
-        el: Float,
-        cn0: Float = 30f,
-        freq: Float? = null,
-    ) = SatelliteInfo(
+    private fun sat(svid: Int, az: Float, el: Float, cn0: Float = 30f, freq: Float? = null) = SatelliteInfo(
         svid = svid,
         constellation = Constellation.GPS,
         cn0DbHz = cn0,

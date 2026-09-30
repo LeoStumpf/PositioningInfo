@@ -12,7 +12,10 @@ class RawSignalTest {
         assertEquals("not tracked", RawSignal.carrierPhase(null))
         assertEquals("not tracked", RawSignal.carrierPhase(0))
         assertEquals("valid", RawSignal.carrierPhase(RawSignal.ADR_VALID))
-        assertEquals("valid, half-cycle resolved", RawSignal.carrierPhase(RawSignal.ADR_VALID or RawSignal.ADR_HALF_CYCLE_RESOLVED))
+        assertEquals(
+            "valid, half-cycle resolved",
+            RawSignal.carrierPhase(RawSignal.ADR_VALID or RawSignal.ADR_HALF_CYCLE_RESOLVED),
+        )
         // A reset or slip outweighs the valid bit: the accumulated range just broke.
         assertEquals("reset", RawSignal.carrierPhase(RawSignal.ADR_VALID or RawSignal.ADR_RESET))
         assertEquals("cycle slip", RawSignal.carrierPhase(RawSignal.ADR_VALID or RawSignal.ADR_CYCLE_SLIP))
@@ -32,5 +35,4 @@ class RawSignalTest {
     fun `time uncertainty converts to metres at the speed of light`() {
         assertEquals(29.98, RawSignal.timeUncertaintyM(100), 0.01)
     }
-
 }

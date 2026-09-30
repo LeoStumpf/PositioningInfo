@@ -29,10 +29,10 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
-import io.github.leostumpf.positioninginfo.ui.permission.PermissionScreen
-import io.github.leostumpf.positioninginfo.ui.permission.PermissionState
 import io.github.leostumpf.positioninginfo.ui.PositioningInfoApp
 import io.github.leostumpf.positioninginfo.ui.PositioningInfoViewModel
+import io.github.leostumpf.positioninginfo.ui.permission.PermissionScreen
+import io.github.leostumpf.positioninginfo.ui.permission.PermissionState
 import io.github.leostumpf.positioninginfo.ui.theme.PositioningInfoTheme
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
+
 @Composable
 private fun PositioningInfoRoot() {
     val context = LocalContext.current
@@ -115,9 +116,9 @@ private fun PositioningInfoRoot() {
         },
     )
 }
+
 @Composable
-private fun SpeedRoute() {
-    val viewModel: PositioningInfoViewModel = viewModel()
+private fun SpeedRoute(viewModel: PositioningInfoViewModel = viewModel()) {
     val lifecycleOwner = LocalLifecycleOwner.current
     // Tracking is bound to STARTED, so the receiver is released the moment the app is no
     // longer in front — unless the user has switched background mode on.
@@ -135,7 +136,8 @@ private fun SpeedRoute() {
             viewModel.onUiStop()
         }
     }
-    PositioningInfoApp(viewModel = viewModel)
+    // The pages get the same activity-scoped ViewModel for themselves.
+    PositioningInfoApp()
 }
 private fun android.content.Context.hasFineLocation(): Boolean =
     ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) ==

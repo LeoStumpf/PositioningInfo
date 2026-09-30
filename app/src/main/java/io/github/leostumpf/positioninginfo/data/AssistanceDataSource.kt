@@ -4,6 +4,7 @@ package io.github.leostumpf.positioninginfo.data
 import android.content.Context
 import android.location.LocationManager
 import android.os.Build
+import android.util.Log
 import androidx.core.content.getSystemService
 
 /**
@@ -37,14 +38,17 @@ class AssistanceDataSource(context: Context) {
         return try {
             manager.sendExtraCommand(LocationManager.GPS_PROVIDER, command, null)
         } catch (e: SecurityException) {
+            Log.w(TAG, "Assistance command $command not allowed", e)
             false
         } catch (e: IllegalArgumentException) {
             // Thrown when the device has no GPS provider.
+            Log.w(TAG, "Assistance command $command: no GPS provider", e)
             false
         }
     }
 
     private companion object {
+        const val TAG = "PositioningInfo"
         const val DELETE_AIDING_DATA = "delete_aiding_data"
         const val FORCE_PSDS = "force_psds_injection"
         const val FORCE_XTRA = "force_xtra_injection"

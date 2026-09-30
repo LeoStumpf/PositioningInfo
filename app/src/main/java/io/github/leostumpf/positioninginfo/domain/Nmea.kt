@@ -14,6 +14,7 @@ package io.github.leostumpf.positioninginfo.domain
 sealed interface NmeaSentence {
     /** "GP", "GN", "GL", ... or "P" for a proprietary sentence. */
     val talker: String
+
     /** "GGA", "GSV", ... or, for a proprietary sentence, the rest of the address field. */
     val type: String
 }
@@ -67,12 +68,8 @@ data class Gst(
 }
 
 /** Recommended minimum data. [valid] is the status field: 'A' valid, 'V' warning. */
-data class Rmc(
-    override val talker: String,
-    val valid: Boolean,
-    val speedKnots: Double?,
-    val courseDeg: Double?,
-) : NmeaSentence {
+data class Rmc(override val talker: String, val valid: Boolean, val speedKnots: Double?, val courseDeg: Double?) :
+    NmeaSentence {
     override val type get() = "RMC"
 }
 
@@ -81,6 +78,17 @@ data class OtherSentence(override val talker: String, override val type: String)
 object NmeaParser {
 
     private class Malformed : Exception()
+
+    /** Fewer fields than the sentence type always carries: the line was cut off. */
+    private fun List<String>.requireFields(count: Int) {
+        if (size < count) throw Malformed()
+    }
+
+    /** Fields, counting the address, that each decoded sentence type always carries. */
+    private const val GGA_FIELDS = 12
+    private const val GSA_FIELDS = 18
+    private const val GST_FIELDS = 9
+    private const val RMC_FIELDS = 10
 
     /**
      * Null when malformed or the checksum is wrong. A `*hh` checksum is required: a chip
@@ -119,7 +127,7 @@ object NmeaParser {
         return try {
             when (type) {
                 "GGA" -> {
-                    if (f.size < 12) throw Malformed()
+                    f.requireFields(GGA_FIELDS)
                     Gga(
                         talker = talker,
                         latitude = coordinate(f[2], f[3], 'N', 'S', maxDegrees = 90.0),
@@ -131,8 +139,9 @@ object NmeaParser {
                         geoidSeparationM = double(f[11]),
                     )
                 }
+
                 "GSA" -> {
-                    if (f.size < 18) throw Malformed()
+                    f.requireFields(GSA_FIELDS)
                     Gsa(
                         talker = talker,
                         mode = f[1].singleOrNull(),
@@ -144,8 +153,9 @@ object NmeaParser {
                         systemId = f.getOrNull(18)?.let { int(it) },
                     )
                 }
+
                 "GST" -> {
-                    if (f.size < 9) throw Malformed()
+                    f.requireFields(GST_FIELDS)
                     Gst(
                         talker = talker,
                         rmsM = double(f[2]),
@@ -157,8 +167,9 @@ object NmeaParser {
                         altSigmaM = double(f[8]),
                     )
                 }
+
                 "RMC" -> {
-                    if (f.size < 10) throw Malformed()
+                    f.requireFields(RMC_FIELDS)
                     Rmc(
                         talker = talker,
                         valid = f[2] == "A",
@@ -166,6 +177,7 @@ object NmeaParser {
                         courseDeg = double(f[8]),
                     )
                 }
+
                 else -> OtherSentence(talker, type)
             }
         } catch (_: Malformed) {
@@ -177,18 +189,22 @@ object NmeaParser {
     private fun double(field: String): Double? =
         if (field.isEmpty()) null else field.toDoubleOrNull()?.takeIf { it.isFinite() } ?: throw Malformed()
 
-    private fun int(field: String): Int? =
-        if (field.isEmpty()) null else field.toIntOrNull() ?: throw Malformed()
+    private fun int(field: String): Int? = if (field.isEmpty()) null else field.toIntOrNull() ?: throw Malformed()
 
     /** `ddmm.mmmm` / `dddmm.mmmm` plus hemisphere to signed decimal degrees. */
-    private fun coordinate(value: String, hemisphere: String, positive: Char, negative: Char, maxDegrees: Double): Double? {
+    private fun coordinate(
+        value: String,
+        hemisphere: String,
+        positive: Char,
+        negative: Char,
+        maxDegrees: Double,
+    ): Double? {
         val raw = double(value) ?: return null
-        if (raw < 0) throw Malformed()
         val degrees = Math.floor(raw / 100.0)
         val minutes = raw - degrees * 100.0
-        if (minutes >= 60.0) throw Malformed()
         val abs = degrees + minutes / 60.0
-        if (abs > maxDegrees) throw Malformed()
+        // Negative, 60 minutes or more, or beyond the pole or the antimeridian: not a coordinate.
+        if (raw < 0 || minutes >= 60.0 || abs > maxDegrees) throw Malformed()
         return when (hemisphere.singleOrNull()) {
             positive -> abs
             negative -> -abs

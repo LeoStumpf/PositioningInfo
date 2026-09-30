@@ -87,7 +87,9 @@ class InterferenceMonitorTest {
             atMs = atMs,
             agc = listOf(AgcReading(Constellation.GPS, l5, agc)),
             signals = (1..2).map { SignalReading(Constellation.GPS, it, l5, 35.0, false) },
-            clockDriftNsPerS = null, hardwareClockDiscontinuityCount = null, leapSecond = null,
+            clockDriftNsPerS = null,
+            hardwareClockDiscontinuityCount = null,
+            leapSecond = null,
         )
         var m = (0 until 70).fold(InterferenceMonitor()) { acc, s -> acc.onEpoch(e(s * 1000L, 50.0)) }
         repeat(5) { m = m.onEpoch(e(70_000L + it * 1000, 44.0)) }

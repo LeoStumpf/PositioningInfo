@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.common
 
-import androidx.compose.runtime.remember
-import androidx.compose.ui.platform.LocalContext
 import android.text.format.DateFormat
-import java.text.SimpleDateFormat
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
+import java.text.SimpleDateFormat
 import java.util.Locale
 
 // --- Formatting ------------------------------------------------------------------------
@@ -41,6 +41,9 @@ fun metres(value: Double?, decimals: Int = 1): String = when {
 /** "1:02:03" or "4:05". */
 fun duration(ms: Long): String {
     val s = ms / 1_000
-    return if (s >= 3_600) String.format(Locale.US, "%d:%02d:%02d", s / 3_600, s / 60 % 60, s % 60)
-    else String.format(Locale.US, "%d:%02d", s / 60, s % 60)
+    return if (s >= 3_600) {
+        String.format(Locale.US, "%d:%02d:%02d", s / 3_600, s / 60 % 60, s % 60)
+    } else {
+        String.format(Locale.US, "%d:%02d", s / 60, s % 60)
+    }
 }

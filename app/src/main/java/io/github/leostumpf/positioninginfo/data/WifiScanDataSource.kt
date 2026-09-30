@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.data
 
-import android.annotation.SuppressLint
 import android.Manifest
+import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -32,7 +32,7 @@ class WifiScanDataSource(context: Context) {
     private val wifi = appContext.getSystemService<WifiManager>()
 
     /** Scanning works with Wi-Fi off too, if "Wi-Fi scanning" is enabled in location settings. */
-    @Suppress("DEPRECATION")  // isScanAlwaysAvailable: no replacement readable by apps
+    @Suppress("DEPRECATION") // isScanAlwaysAvailable: no replacement readable by apps
     val canScan: Boolean
         get() = runCatching {
             wifi?.let { it.isWifiEnabled || it.isScanAlwaysAvailable } == true
@@ -91,8 +91,8 @@ class WifiScanDataSource(context: Context) {
     }
 }
 
-@Suppress("DEPRECATION")  // wifiSsid replaces SSID only from API 33
-@SuppressLint("InlinedApi")  // the width and standard constants are inlined
+@Suppress("DEPRECATION") // wifiSsid replaces SSID only from API 33
+@SuppressLint("InlinedApi") // the width and standard constants are inlined
 private fun ScanResult.toAccessPoint() = AccessPoint(
     ssid = SSID?.removeSurrounding("\"")?.takeIf { it.isNotBlank() && it != "<unknown ssid>" },
     bssid = BSSID.orEmpty(),
@@ -100,10 +100,16 @@ private fun ScanResult.toAccessPoint() = AccessPoint(
     frequencyMhz = frequency,
     channelWidthMhz = when (channelWidth) {
         ScanResult.CHANNEL_WIDTH_20MHZ -> 20
+
         ScanResult.CHANNEL_WIDTH_40MHZ -> 40
+
         ScanResult.CHANNEL_WIDTH_80MHZ -> 80
+
         ScanResult.CHANNEL_WIDTH_160MHZ, ScanResult.CHANNEL_WIDTH_80MHZ_PLUS_MHZ -> 160
-        ScanResult.CHANNEL_WIDTH_320MHZ -> 320  // an inlined constant, safe before Android 13
+
+        ScanResult.CHANNEL_WIDTH_320MHZ -> 320
+
+        // an inlined constant, safe before Android 13
         else -> null
     },
     standard = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
@@ -122,11 +128,16 @@ private fun ScanResult.toAccessPoint() = AccessPoint(
     security = capabilities.orEmpty().let { c ->
         when {
             "SAE" in c || "WPA3" in c -> "WPA3"
+
             // Before RSN: an OWE network advertises itself as [RSN-OWE-CCMP].
             "OWE" in c -> "Enhanced open (OWE)"
+
             "WPA2" in c || "RSN" in c -> "WPA2"
+
             "WPA" in c -> "WPA"
+
             "WEP" in c -> "WEP"
+
             else -> "open"
         }
     },

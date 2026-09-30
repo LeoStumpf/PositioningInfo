@@ -31,6 +31,22 @@ data class TripStats(
 )
 
 /**
+ * Where a climb altitude comes from. The sources disagree by tens of metres — the standard
+ * atmosphere is off by about 8 m per hPa of weather, GNSS height by its geoid and its noise —
+ * so a switch between them is a jump in the reference, not a climb.
+ */
+enum class ClimbSource(val hysteresisM: Double) {
+    /** Barometer calibrated against GNSS: smooth to a metre or so. */
+    BAROMETER(3.0),
+
+    /** Barometer on the standard atmosphere, before calibration: smooth, but offset. */
+    BAROMETER_STANDARD(3.0),
+
+    /** GNSS height alone: 5–10 m of slowly wandering noise, so a wider band. */
+    GNSS(10.0),
+}
+
+/**
  * Running statistics of a recorded trip.
  *
  * GNSS positions wander by metres even when the phone lies still; summing every step would
@@ -39,25 +55,12 @@ data class TripStats(
  * point, or the receiver reports real motion (> [MOVING_SPEED_MPS]). Fixes worse than
  * [MAX_ACCURACY_M] never contribute distance. Across a reception gap longer than [MAX_GAP_MS]
  * the jump in position still counts, and so does the gap's time as moving time whenever the
- * jump implies travel — distance and moving time always cover the same stretches. Ascent and descent use a hysteresis (see [ClimbSource])
- * hysteresis for the same reason: altitude noise must not add up to phantom climbing.
+ * jump implies travel — distance and moving time always cover the same stretches. Ascent and
+ * descent use a hysteresis for the same reason, as wide as the altitude source is noisy (see
+ * [ClimbSource]): altitude noise must not add up to phantom climbing.
  *
  * Immutable: [add] returns a new instance.
  */
-/**
- * Where a climb altitude comes from. The sources disagree by tens of metres — the standard
- * atmosphere is off by about 8 m per hPa of weather, GNSS height by its geoid and its noise —
- * so a switch between them is a jump in the reference, not a climb.
- */
-enum class ClimbSource(val hysteresisM: Double) {
-    /** Barometer calibrated against GNSS: smooth to a metre or so. */
-    BAROMETER(3.0),
-    /** Barometer on the standard atmosphere, before calibration: smooth, but offset. */
-    BAROMETER_STANDARD(3.0),
-    /** GNSS height alone: 5–10 m of slowly wandering noise, so a wider band. */
-    GNSS(10.0),
-}
-
 data class TripAccumulator(
     val stats: TripStats = TripStats(0, 0.0, 0L, 0L, null, null, 0.0, 0.0),
     private val firstTimeMs: Long? = null,
@@ -100,8 +103,10 @@ data class TripAccumulator(
             if (dt in 1..MAX_GAP_MS) {
                 // Without a reported speed, fall back to the displacement over the interval.
                 val speed = point.speedMps?.toDouble()
-                    ?: (NetworkComparison.distanceM(prev.latitude, prev.longitude, point.latitude, point.longitude) /
-                        (dt / 1000.0))
+                    ?: (
+                        NetworkComparison.distanceM(prev.latitude, prev.longitude, point.latitude, point.longitude) /
+                            (dt / 1000.0)
+                        )
                 if (speed > MOVING_SPEED_MPS) moving += dt
             } else if (dt > MAX_GAP_MS && distance > stats.distanceM) {
                 // A gap the track jumped across — a tunnel, or the app closed on the way. Its
@@ -155,6 +160,7 @@ data class TripAccumulator(
         const val MAX_ACCURACY_M = 30f
         const val MIN_SEGMENT_M = 3.0
         const val MOVING_SPEED_MPS = 0.5f
+
         /** Intervals above this are reception gaps, judged by their overall displacement. */
         const val MAX_GAP_MS = 30_000L
     }
@@ -228,12 +234,18 @@ object Gpx {
         for (c in s) {
             when {
                 c == '&' -> append("&amp;")
+
                 c == '<' -> append("&lt;")
+
                 c == '>' -> append("&gt;")
+
                 c == '"' -> append("&quot;")
+
                 c == '\'' -> append("&apos;")
+
                 // Other control characters are not allowed in XML 1.0 at all.
                 c < ' ' && c != '\t' && c != '\n' && c != '\r' -> Unit
+
                 else -> append(c)
             }
         }

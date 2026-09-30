@@ -22,10 +22,14 @@ object RawSignal {
      */
     fun carrierPhase(state: Int?): String = when {
         state == null || state == 0 -> "not tracked"
+
         state and ADR_RESET != 0 -> "reset"
+
         state and ADR_CYCLE_SLIP != 0 -> "cycle slip"
+
         state and ADR_VALID != 0 ->
             if (state and ADR_HALF_CYCLE_RESOLVED != 0) "valid, half-cycle resolved" else "valid"
+
         else -> "not valid"
     }
 
@@ -39,20 +43,31 @@ object RawSignal {
             Constellation.BEIDOU, Constellation.IRNSS -> null
             else -> "C/A civil code"
         }
+
         "B" -> if (constellation == Constellation.GALILEO) "E1-B data channel" else null
+
         "X" -> "data and pilot combined"
+
         "I" -> "in-phase data channel"
+
         "Q" -> "quadrature pilot channel"
+
         "D" -> "data channel"
+
         "P" -> "pilot channel"
+
         "Z" -> "combined channels"
+
         "A" -> when (constellation) {
             Constellation.IRNSS -> "standard positioning service"
             Constellation.GALILEO -> "E1-A public regulated service"
             else -> null
         }
+
         "L" -> "long code"
+
         "S" -> "short code"
+
         else -> null
     }
 

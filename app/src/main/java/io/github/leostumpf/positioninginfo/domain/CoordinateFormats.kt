@@ -15,8 +15,7 @@ import kotlin.math.sqrt
 /** A position on the UTM grid: zone, latitude band and metres east and north within the zone. */
 data class UtmCoordinate(val zone: Int, val band: Char, val easting: Double, val northing: Double) {
     /** e.g. "33U 389918 5819699" (metres, rounded) */
-    override fun toString(): String =
-        "$zone$band ${easting.roundToLong()} ${northing.roundToLong()}"
+    override fun toString(): String = "$zone$band ${easting.roundToLong()} ${northing.roundToLong()}"
 }
 
 /**
@@ -34,8 +33,7 @@ object CoordinateFormats {
         return "$la° ${hemisphere(lat, la, 'N', 'S')}, $lo° ${hemisphere(lon, lo, 'E', 'W')}"
     }
 
-    fun dms(lat: Double, lon: Double): String =
-        "${dmsPart(lat, 'N', 'S')}, ${dmsPart(lon, 'E', 'W')}"
+    fun dms(lat: Double, lon: Double): String = "${dmsPart(lat, 'N', 'S')}, ${dmsPart(lon, 'E', 'W')}"
 
     /**
      * Rounds once, in tenths of a second, and splits afterwards. Rounding the seconds on
@@ -63,9 +61,12 @@ object CoordinateFormats {
     private const val FALSE_NORTHING_SOUTH = 10_000_000.0
     private const val BANDS = "CDEFGHJKLMNPQRSTUVWX"
 
+    /** UTM covers 80° S to 84° N; the poles belong to UPS. */
+    private val UTM_LATITUDES = -80.0..84.0
+
     // Krüger's series in the third flattening n, to n⁶ (Karney 2011): sub-millimetre
     // within a UTM zone, where the classic Snyder series drifts by centimetres.
-    private val N = F / (2 - F)
+    private const val N = F / (2 - F)
     private val RECTIFYING_RADIUS = A / (1 + N) * (1 + N * N / 4 + N.pow(4) / 64 + N.pow(6) / 256)
     private val ALPHA = doubleArrayOf(
         N / 2 - 2 * N.pow(2) / 3 + 5 * N.pow(3) / 16 + 41 * N.pow(4) / 180 -
@@ -78,13 +79,14 @@ object CoordinateFormats {
         34729 * N.pow(5) / 80640 - 3418889 * N.pow(6) / 1995840,
         212378941 * N.pow(6) / 319334400,
     )
+
     /** First eccentricity, written in n. */
     private val E = 2 * sqrt(N) / (1 + N)
 
     private fun Double.pow(k: Int): Double = Math.pow(this, k.toDouble())
 
     fun utm(lat: Double, lon: Double): UtmCoordinate? {
-        if (!lat.isFinite() || !lon.isFinite() || lat < -80.0 || lat > 84.0) return null
+        if (!lon.isFinite() || lat !in UTM_LATITUDES) return null
         val lo = normaliseLongitude(lon)
         val zone = utmZone(lat, lo)
         // Band X is 12° tall (72°..84°), so the index is clamped rather than overflowing.
@@ -92,7 +94,11 @@ object CoordinateFormats {
 
         val phi = Math.toRadians(lat)
         var dLambda = lo - (zone * 6 - 183)
-        if (dLambda < -180) dLambda += 360 else if (dLambda > 180) dLambda -= 360
+        if (dLambda < -180) {
+            dLambda += 360
+        } else if (dLambda > 180) {
+            dLambda -= 360
+        }
         val lambda = Math.toRadians(dLambda)
 
         // Conformal latitude, then the Gauss-Schreiber sphere, then Krüger's correction.
@@ -115,7 +121,7 @@ object CoordinateFormats {
 
     /** Standard 6° zones, widened for south-west Norway (32V) and Svalbard (31X..37X). */
     private fun utmZone(lat: Double, lon: Double): Int {
-        if (lat >= 56.0 && lat < 64.0 && lon >= 3.0 && lon < 12.0) return 32
+        if (lat in 56.0..<64.0 && lon in 3.0..<12.0) return 32
         if (lat >= 72.0) {
             when {
                 lon >= 0.0 && lon < 9.0 -> return 31

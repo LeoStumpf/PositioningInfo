@@ -8,7 +8,7 @@ package io.github.leostumpf.positioninginfo.domain
  * mean of the samples. GNSS updates do not arrive at a perfectly fixed rate, and a naive
  * mean would over-weight the bursts of closely spaced fixes.
  *
- * Intervals longer than [maxGapMs] are treated as a gap in reception (a tunnel, a
+ * Intervals longer than [MAX_GAP_MS] are treated as a gap in reception (a tunnel, a
  * backgrounded app) and contribute no weight at all, so the time spent without a fix is
  * never silently charged to the last known speed.
  *
@@ -39,7 +39,7 @@ data class SessionStats(
 
         // A non-monotonic or absurdly long delta carries no usable weight, but the sample
         // still counts towards the maximum and re-anchors the clock for the next interval.
-        val usableDelta = if (deltaMs in 1..maxGapMs) deltaMs else 0L
+        val usableDelta = if (deltaMs in 1..MAX_GAP_MS) deltaMs else 0L
 
         return SessionStats(
             maxMps = maxOf(maxMps, speedMps),
@@ -51,6 +51,6 @@ data class SessionStats(
 
     companion object {
         /** Intervals above this are reception gaps, not time spent travelling. */
-        const val maxGapMs: Long = 5_000L
+        const val MAX_GAP_MS: Long = 5_000L
     }
 }

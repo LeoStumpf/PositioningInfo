@@ -29,9 +29,18 @@ class ProviderTextTest {
         val passive = LocationProviderInfo("passive", enabled = true, traits = null)
         assertNull(passive.quality)
         assertNull(passive.capabilities)
-        val empty = LocationProviderInfo("x", true, gpsTraits.copy(
-            accuracy = null, power = null, needsSatellites = false, altitude = false, speed = false, bearing = false,
-        ))
+        val empty = LocationProviderInfo(
+            "x",
+            true,
+            gpsTraits.copy(
+                accuracy = null,
+                power = null,
+                needsSatellites = false,
+                altitude = false,
+                speed = false,
+                bearing = false,
+            ),
+        )
         assertNull(empty.quality)
         assertNull(empty.capabilities)
     }

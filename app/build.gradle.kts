@@ -5,6 +5,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.androidx.baselineprofile)
+    alias(libs.plugins.detekt)
 }
 
 // Release signing is read from a gitignored keystore.properties, with an env-var
@@ -116,6 +117,9 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     debugImplementation(libs.androidx.compose.ui.tooling)
 
+    detektPlugins(libs.detekt.compose.rules)
+    detektPlugins(libs.detekt.ktlint)
+
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
 
@@ -148,3 +152,25 @@ tasks.register("printVersion") {
     val line = "$appVersionName $buildCode"
     doLast { println(line) }
 }
+
+// Kotlin static analysis: style, complexity, naming, documentation and Compose conventions
+// (config/detekt/detekt.yml on top of detekt's defaults). Runs in CI and in the pre-commit
+// hook (.githooks/pre-commit); every finding is fixed, none is baselined.
+detekt {
+    buildUponDefaultConfig = true
+    config.setFrom(rootProject.file("config/detekt/detekt.yml"))
+    parallel = true
+    // ./gradlew detekt -PdetektAutoCorrect lets the formatting rules fix what they can.
+    autoCorrect = providers.gradleProperty("detektAutoCorrect").isPresent
+}
+
+// The linters run before every commit (.githooks/pre-commit). Every build points git at that
+// hook directory, so a fresh clone gets the hook with its first build; outside a git checkout
+// (a source archive) there is nothing to do.
+val installGitHooks = tasks.register<Exec>("installGitHooks") {
+    description = "Points git at .githooks, where the pre-commit linter hook lives."
+    onlyIf { rootProject.file(".git").exists() }
+    workingDir = rootProject.projectDir
+    commandLine("git", "config", "core.hooksPath", ".githooks")
+}
+tasks.named("preBuild") { dependsOn(installGitHooks) }

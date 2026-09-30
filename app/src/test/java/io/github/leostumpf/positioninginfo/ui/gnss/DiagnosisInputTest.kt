@@ -14,17 +14,28 @@ import org.junit.Test
 
 class DiagnosisInputTest {
 
-    private fun sat(svid: Int, cn0: Float, used: Boolean = true, az: Float = svid * 40f, el: Float = 30f + svid, mhz: Float = 1575.42f) =
-        SatelliteInfo(
-            svid = svid, constellation = Constellation.GPS, cn0DbHz = cn0,
-            elevationDegrees = el, azimuthDegrees = az, usedInFix = used,
-            hasAlmanac = true, hasEphemeris = true, carrierFrequencyHz = mhz * 1_000_000f,
-        )
+    private fun sat(
+        svid: Int,
+        cn0: Float,
+        used: Boolean = true,
+        az: Float = svid * 40f,
+        el: Float = 30f + svid,
+        mhz: Float = 1575.42f,
+    ) = SatelliteInfo(
+        svid = svid, constellation = Constellation.GPS, cn0DbHz = cn0,
+        elevationDegrees = el, azimuthDegrees = az, usedInFix = used,
+        hasAlmanac = true, hasEphemeris = true, carrierFrequencyHz = mhz * 1_000_000f,
+    )
 
     private fun input(vararg sats: SatelliteInfo, fix: SpeedFix? = null) = diagnosisInput(
         snapshot = GnssSnapshot(satellites = sats.toList(), hasReported = true),
-        fix = fix, gpsEnabled = true, powerSave = PowerSaveLocation.UNRESTRICTED,
-        airplaneMode = false, dataConnection = true, searchingMs = 3_000L, firstFixMs = null,
+        fix = fix,
+        gpsEnabled = true,
+        powerSave = PowerSaveLocation.UNRESTRICTED,
+        airplaneMode = false,
+        dataConnection = true,
+        searchingMs = 3_000L,
+        firstFixMs = null,
     )
 
     @Test
@@ -46,7 +57,13 @@ class DiagnosisInputTest {
 
     @Test
     fun `a simulated fix is flagged`() {
-        val mock = SpeedFix(speedMps = 0f, speedAccuracyMps = null, horizontalAccuracyM = 5f, elapsedRealtimeMs = 0L, isMock = true)
+        val mock = SpeedFix(
+            speedMps = 0f,
+            speedAccuracyMps = null,
+            horizontalAccuracyM = 5f,
+            elapsedRealtimeMs = 0L,
+            isMock = true,
+        )
         assertTrue(input(sat(1, 40f), fix = mock).isMock)
     }
 }

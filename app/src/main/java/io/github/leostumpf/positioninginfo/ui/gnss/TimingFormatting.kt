@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.gnss
 
-import io.github.leostumpf.positioninginfo.domain.formatDuration
 import io.github.leostumpf.positioninginfo.domain.ClockOffset
+import io.github.leostumpf.positioninginfo.domain.formatDuration
 import kotlin.math.abs
 
 /** How a timing figure should be tinted: settled, still in progress, or worth a look. */
@@ -50,7 +50,13 @@ private const val NETWORK_TOLERANCE_MS = 500L
  */
 internal fun describeOffset(offsetMs: Long, toleranceMs: Long, reference: String): String {
     if (kotlin.math.abs(offsetMs) < toleranceMs) {
-        return if (toleranceMs >= 1_000L) "in sync (within ${toleranceMs / 1_000} s)" else "in sync (within $toleranceMs ms)"
+        return if (toleranceMs >=
+            1_000L
+        ) {
+            "in sync (within ${toleranceMs / 1_000} s)"
+        } else {
+            "in sync (within $toleranceMs ms)"
+        }
     }
     val size = kotlin.math.abs(offsetMs)
     val amount = when {

@@ -35,7 +35,11 @@ class SystemStatusDataSource(context: Context) {
     val powerSaveLocation: PowerSaveLocation
         get() {
             val manager = power ?: return PowerSaveLocation.UNRESTRICTED
-            if (!manager.isPowerSaveMode || Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return PowerSaveLocation.UNRESTRICTED
+            if (!manager.isPowerSaveMode ||
+                Build.VERSION.SDK_INT < Build.VERSION_CODES.P
+            ) {
+                return PowerSaveLocation.UNRESTRICTED
+            }
             return when (manager.locationPowerSaveMode) {
                 PowerManager.LOCATION_MODE_GPS_DISABLED_WHEN_SCREEN_OFF -> PowerSaveLocation.GNSS_OFF_SCREEN_OFF
                 PowerManager.LOCATION_MODE_ALL_DISABLED_WHEN_SCREEN_OFF -> PowerSaveLocation.ALL_OFF_SCREEN_OFF
@@ -67,7 +71,10 @@ class SystemStatusDataSource(context: Context) {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) location?.isLocationEnabled else null
         }.getOrNull(),
         networkLocation = runCatching { location?.isProviderEnabled(LocationManager.NETWORK_PROVIDER) }.getOrNull(),
-        wifiScanning = runCatching { @Suppress("DEPRECATION") wifi?.isScanAlwaysAvailable }.getOrNull(),
+        wifiScanning = runCatching {
+            @Suppress("DEPRECATION")
+            wifi?.isScanAlwaysAvailable
+        }.getOrNull(),
         // Not a public constant, but a readable global setting on every Android version.
         bluetoothScanning = globalFlag("ble_scan_always_enabled"),
         autoTime = globalFlag(Settings.Global.AUTO_TIME),

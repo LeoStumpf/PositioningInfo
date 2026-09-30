@@ -28,6 +28,7 @@ data class History(val samples: List<HistorySample> = emptyList()) {
     companion object {
         const val INTERVAL_MS = 5_000L
         const val WINDOW_MS = 30 * 60_000L
+
         /** A longer silence (app in the background) breaks the line rather than bridging it. */
         const val GAP_MS = 20_000L
     }

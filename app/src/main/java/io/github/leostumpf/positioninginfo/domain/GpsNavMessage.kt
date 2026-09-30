@@ -50,7 +50,10 @@ object GpsNavDecoder {
      */
     fun parityFailures(data: ByteArray): Int? = decode(data)?.second
 
-    /** 10 words of 24 corrected data bits each (d1 = MSB of the 24), or null if preamble/parity invalid or data.size < 40. */
+    /**
+     * 10 words of 24 corrected data bits each (d1 = MSB of the 24), or null if the preamble
+     * or parity is invalid or data.size < 40.
+     */
     fun words(data: ByteArray): IntArray? {
         val (words, failures) = decode(data) ?: return null
         return if (failures == 0) words else null
@@ -59,10 +62,12 @@ object GpsNavDecoder {
     private fun decode(data: ByteArray): Pair<IntArray, Int>? {
         if (data.size < BYTES) return null
         val raw = IntArray(WORDS) { i ->
-            ((data[4 * i].toInt() and 0xFF) shl 24 or
-                ((data[4 * i + 1].toInt() and 0xFF) shl 16) or
-                ((data[4 * i + 2].toInt() and 0xFF) shl 8) or
-                (data[4 * i + 3].toInt() and 0xFF)) and 0x3FFFFFFF
+            (
+                (data[4 * i].toInt() and 0xFF) shl 24 or
+                    ((data[4 * i + 1].toInt() and 0xFF) shl 16) or
+                    ((data[4 * i + 2].toInt() and 0xFF) shl 8) or
+                    (data[4 * i + 3].toInt() and 0xFF)
+                ) and 0x3FFFFFFF
         }
         // The previous subframe is not delivered, so its D29*/D30* are unknown. Word 10 is
         // built to end in 00, so word 1 goes out upright; reading the preamble inverted means
@@ -70,8 +75,16 @@ object GpsNavDecoder {
         var d29: Int
         var d30: Int
         when (raw[0] ushr 22) {
-            PREAMBLE -> { d29 = 0; d30 = 0 }
-            PREAMBLE xor 0xFF -> { d29 = 1; d30 = 1 }
+            PREAMBLE -> {
+                d29 = 0
+                d30 = 0
+            }
+
+            PREAMBLE xor 0xFF -> {
+                d29 = 1
+                d30 = 1
+            }
+
             else -> return null
         }
         var failures = 0
@@ -150,16 +163,20 @@ data class GpsNavState(
                 ura = ura + (svid to bits(w[2], 13, 4)),
                 health = health + (svid to bits(w[2], 17, 6)),
             )
+
             4, 5 -> {
                 val pageSvId = bits(w[2], 3, 6)
                 when {
-                    subframeId == 5 && pageSvId in 1..24 ||
-                        subframeId == 4 && pageSvId in 25..32 ->
+                    (subframeId == 5 && pageSvId in 1..24) ||
+                        (subframeId == 4 && pageSvId in 25..32) ->
                         decoded.copy(almanacSvids = almanacSvids + pageSvId)
+
                     subframeId == 4 && pageSvId == PAGE_18_SV_ID -> decoded.withPage18(w)
+
                     else -> decoded
                 }
             }
+
             else -> decoded
         }
     }

@@ -1,8 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui
 
-import io.github.leostumpf.positioninginfo.ui.network.positionSources
-import io.github.leostumpf.positioninginfo.ui.gnss.diagnosisInput
 import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Application
@@ -17,38 +15,41 @@ import io.github.leostumpf.positioninginfo.data.AssistanceDataSource
 import io.github.leostumpf.positioninginfo.data.CellInfoDataSource
 import io.github.leostumpf.positioninginfo.data.GnssCapabilityDataSource
 import io.github.leostumpf.positioninginfo.data.GnssStatusDataSource
-import io.github.leostumpf.positioninginfo.data.LocationProviderDataSource
 import io.github.leostumpf.positioninginfo.data.LocationDataSource
+import io.github.leostumpf.positioninginfo.data.LocationProviderDataSource
 import io.github.leostumpf.positioninginfo.data.NetworkLocationDataSource
 import io.github.leostumpf.positioninginfo.data.SystemStatusDataSource
 import io.github.leostumpf.positioninginfo.data.TtffLogStore
-import io.github.leostumpf.positioninginfo.domain.AlmanacReadiness
-import io.github.leostumpf.positioninginfo.domain.History
-import io.github.leostumpf.positioninginfo.domain.HistorySample
-import io.github.leostumpf.positioninginfo.domain.TtffEntry
 import io.github.leostumpf.positioninginfo.data.WifiScanDataSource
-import io.github.leostumpf.positioninginfo.domain.FixDiagnosis
 import io.github.leostumpf.positioninginfo.data.model.AccessPoint
 import io.github.leostumpf.positioninginfo.data.model.CellTower
-import io.github.leostumpf.positioninginfo.data.model.NetworkFix
 import io.github.leostumpf.positioninginfo.data.model.GnssSnapshot
+import io.github.leostumpf.positioninginfo.data.model.NetworkFix
 import io.github.leostumpf.positioninginfo.data.model.SpeedFix
+import io.github.leostumpf.positioninginfo.domain.AlmanacReadiness
 import io.github.leostumpf.positioninginfo.domain.AlmanacStatus
 import io.github.leostumpf.positioninginfo.domain.ClockOffset
 import io.github.leostumpf.positioninginfo.domain.FirstFixTimer
+import io.github.leostumpf.positioninginfo.domain.FixDiagnosis
 import io.github.leostumpf.positioninginfo.domain.FixFreshness
+import io.github.leostumpf.positioninginfo.domain.History
+import io.github.leostumpf.positioninginfo.domain.HistorySample
+import io.github.leostumpf.positioninginfo.domain.PositioningQuality
 import io.github.leostumpf.positioninginfo.domain.SessionStats
 import io.github.leostumpf.positioninginfo.domain.SkyTracker
-import io.github.leostumpf.positioninginfo.domain.SpeedReading
 import io.github.leostumpf.positioninginfo.domain.SpeedHistory
-import io.github.leostumpf.positioninginfo.domain.SpeedUnit
-import io.github.leostumpf.positioninginfo.domain.UpdateRate
-import io.github.leostumpf.positioninginfo.domain.PositioningQuality
+import io.github.leostumpf.positioninginfo.domain.SpeedReading
 import io.github.leostumpf.positioninginfo.domain.SpeedResolver
+import io.github.leostumpf.positioninginfo.domain.SpeedUnit
+import io.github.leostumpf.positioninginfo.domain.TtffEntry
+import io.github.leostumpf.positioninginfo.domain.UpdateRate
 import io.github.leostumpf.positioninginfo.settings.UnitPreference
+import io.github.leostumpf.positioninginfo.ui.common.DataInventory
 import io.github.leostumpf.positioninginfo.ui.gnss.GnssUiState
 import io.github.leostumpf.positioninginfo.ui.gnss.TimingUiState
+import io.github.leostumpf.positioninginfo.ui.gnss.diagnosisInput
 import io.github.leostumpf.positioninginfo.ui.network.NetworkUiState
+import io.github.leostumpf.positioninginfo.ui.network.positionSources
 import io.github.leostumpf.positioninginfo.ui.signal.SignalUiState
 import io.github.leostumpf.positioninginfo.ui.sky.SkyUiState
 import io.github.leostumpf.positioninginfo.ui.speed.SpeedUiState
@@ -56,12 +57,11 @@ import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
-import io.github.leostumpf.positioninginfo.ui.common.DataInventory
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
@@ -90,6 +90,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     private val capabilitySource = GnssCapabilityDataSource(application)
     private val assistanceSource = AssistanceDataSource(application)
     private val networkLocationSource = NetworkLocationDataSource(application)
+
     // "fused" is LocationManager.FUSED_PROVIDER, which only exists from Android 12; older
     // phones simply do not list it, and the source reports itself absent.
     private val fusedLocationSource = NetworkLocationDataSource(application, "fused")
@@ -99,7 +100,13 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     private val ttffStore = TtffLogStore(application)
     private val providerSource = LocationProviderDataSource(application)
     private val facts = PhoneFacts(
-        locationSource, networkLocationSource, fusedLocationSource, cellSource, wifiSource, systemStatus, providerSource,
+        locationSource,
+        networkLocationSource,
+        fusedLocationSource,
+        cellSource,
+        wifiSource,
+        systemStatus,
+        providerSource,
     )
 
     /** Static for the life of the device, so it is read once rather than streamed. */
@@ -133,16 +140,21 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     private var stats = SessionStats()
     private var lastFix: SpeedFix? = null
     private var updateRate = UpdateRate()
+
     /** Speed since the last reset, for the plot on the speed page; memory only. */
     private var speedHistory = SpeedHistory()
+
     /** Held in memory only; see [History]. */
     private var history = History()
     private var ttffLog = listOf<TtffEntry>()
+
     /** What the receiver held when this session started: hot, warm or cold. */
     private var sessionStartType: AlmanacReadiness? = null
     private var firstFixTimer: FirstFixTimer? = null
+
     /** When the receiver was last released; null before the first start, or after a cold start. */
     private var releasedAtMs: Long? = null
+
     /** Whether this session's first fix goes into the log; see [startTracking]. */
     private var logThisFirstFix = true
     private var clockOffsetMs: Long? = null
@@ -249,7 +261,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
      * revoked from the notification shade while the app sits in the background, and the
      * next ON_START would otherwise register a listener the app is no longer allowed.
      */
-    @SuppressLint("MissingPermission")  // guarded by hasLocationPermission() immediately below
+    @SuppressLint("MissingPermission") // guarded by hasLocationPermission() immediately below
     fun startTracking() {
         if (trackingJobs.isNotEmpty()) return
         if (!hasLocationPermission()) return
@@ -285,20 +297,32 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         // cheap: the network provider does one lookup every few seconds, and the cell and
         // Wi-Fi readings mostly return what the radios already know.
         trackingJobs += scope.launch {
-            networkLocationSource.fixes().collect { networkFix = it; publishNetwork() }
+            networkLocationSource.fixes().collect {
+                networkFix = it
+                publishNetwork()
+            }
         }
         if (facts.fusedProviderExists) {
             trackingJobs += scope.launch {
-                fusedLocationSource.fixes().collect { fusedFix = it; publishNetwork() }
+                fusedLocationSource.fixes().collect {
+                    fusedFix = it
+                    publishNetwork()
+                }
             }
         }
         if (facts.hasTelephony) {
             trackingJobs += scope.launch {
-                cellSource.cells().collect { cells = it; publishNetwork() }
+                cellSource.cells().collect {
+                    cells = it
+                    publishNetwork()
+                }
             }
         }
         trackingJobs += scope.launch {
-            wifiSource.accessPoints().collect { accessPoints = it; publishNetwork() }
+            wifiSource.accessPoints().collect {
+                accessPoints = it
+                publishNetwork()
+            }
         }
         trackingJobs += analysis.start()
         // A fix ages whether or not a new one arrives, so the reading has to be
@@ -359,7 +383,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         if (!accepted) return
         stopTracking()
         lastFix = null
-        releasedAtMs = null  // a cold start is exactly what the log is for
+        releasedAtMs = null // a cold start is exactly what the log is for
         startTracking()
     }
 
@@ -433,13 +457,15 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
                 satellitesVisible = snapshot.visibleCount,
             )
         }
-        _gnssState.value = analysis.decorateGnss(GnssUiState.from(
-            status = AlmanacStatus.from(snapshot),
-            satellites = snapshot.satellites,
-            gpsEnabled = facts.gpsEnabled,
-            timing = currentTiming(),
-            assistanceMessage = assistanceMessage,
-        )).copy(history = history.samples, ttffLog = ttffLog, settings = facts.phoneSettings)
+        _gnssState.value = analysis.decorateGnss(
+            GnssUiState.from(
+                status = AlmanacStatus.from(snapshot),
+                satellites = snapshot.satellites,
+                gpsEnabled = facts.gpsEnabled,
+                timing = currentTiming(),
+                assistanceMessage = assistanceMessage,
+            ),
+        ).copy(history = history.samples, ttffLog = ttffLog, settings = facts.phoneSettings)
         publishSignal()
         publishDiagnosis()
         publishSky(now)
@@ -576,16 +602,16 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         )
     }
 
-    private fun hasLocationPermission(): Boolean =
-        ContextCompat.checkSelfPermission(
-            getApplication(),
-            Manifest.permission.ACCESS_FINE_LOCATION,
-        ) == PackageManager.PERMISSION_GRANTED
+    private fun hasLocationPermission(): Boolean = ContextCompat.checkSelfPermission(
+        getApplication(),
+        Manifest.permission.ACCESS_FINE_LOCATION,
+    ) == PackageManager.PERMISSION_GRANTED
 
     private companion object {
         const val TAG = "PositioningInfo"
         const val FRESHNESS_TICK_MS = 500L
         const val SLOW_TICKS = 10
+
         /** A receiver released for less than this restarts hot; its first fix is not logged. */
         const val MIN_RELEASE_FOR_TTFF_LOG_MS = 60_000L
     }

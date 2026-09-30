@@ -21,7 +21,8 @@ enum class DopRating(val label: String) {
     GOOD("Good"),
     MODERATE("Moderate"),
     FAIR("Fair"),
-    POOR("Poor");
+    POOR("Poor"),
+    ;
 
     companion object {
         fun of(dop: Double): DopRating = when {
@@ -45,7 +46,10 @@ enum class DopRating(val label: String) {
  */
 object DopCalculator {
 
-    /** Dilution of precision from the directions of the satellites used in the fix. Null for fewer than 4 or a singular geometry. */
+    /**
+     * Dilution of precision from the directions of the satellites used in the fix. Null for
+     * fewer than 4 or a singular geometry.
+     */
     fun of(directions: List<SkyPoint>): Dop? {
         if (directions.size < 4) return null
         // Rows of the geometry matrix H in local east-north-up, plus the clock column.
@@ -61,7 +65,7 @@ object DopCalculator {
         val qUU = q[2][2]
         val qTT = q[3][3]
         // A nearly singular matrix can come back with negative diagonals from rounding.
-        if (qEE < 0 || qNN < 0 || qUU < 0 || qTT < 0) return null
+        if (listOf(qEE, qNN, qUU, qTT).any { it < 0 }) return null
         return Dop(
             pdop = sqrt(qEE + qNN + qUU),
             hdop = sqrt(qEE + qNN),
@@ -73,21 +77,33 @@ object DopCalculator {
     /** Gauss-Jordan with partial pivoting; null when a pivot vanishes relative to the matrix. */
     private fun invert(m: Array<DoubleArray>): Array<DoubleArray>? {
         val n = m.size
-        val a = Array(n) { i -> DoubleArray(2 * n) { j -> if (j < n) m[i][j] else if (j - n == i) 1.0 else 0.0 } }
+        val a = Array(n) { i ->
+            DoubleArray(2 * n) { j ->
+                if (j < n) {
+                    m[i][j]
+                } else if (j - n == i) {
+                    1.0
+                } else {
+                    0.0
+                }
+            }
+        }
         val scale = m.maxOf { row -> row.maxOf { abs(it) } }
         if (scale == 0.0) return null
         val tolerance = scale * SINGULAR_EPSILON
         for (col in 0 until n) {
             val pivot = (col until n).maxBy { abs(a[it][col]) }
             if (abs(a[pivot][col]) < tolerance) return null
-            val tmp = a[col]; a[col] = a[pivot]; a[pivot] = tmp
+            val tmp = a[col]
+            a[col] = a[pivot]
+            a[pivot] = tmp
             val p = a[col][col]
             for (j in 0 until 2 * n) a[col][j] /= p
             for (r in 0 until n) {
-                if (r == col) continue
                 val factor = a[r][col]
-                if (factor == 0.0) continue
-                for (j in 0 until 2 * n) a[r][j] -= factor * a[col][j]
+                if (r != col && factor != 0.0) {
+                    for (j in 0 until 2 * n) a[r][j] -= factor * a[col][j]
+                }
             }
         }
         return Array(n) { i -> DoubleArray(n) { j -> a[i][j + n] } }

@@ -9,6 +9,13 @@
 plugins {
     alias(libs.plugins.android.test)
     alias(libs.plugins.androidx.baselineprofile)
+    alias(libs.plugins.detekt)
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    config.setFrom(rootProject.file("config/detekt/detekt.yml"))
+    autoCorrect = providers.gradleProperty("detektAutoCorrect").isPresent
 }
 
 android {
@@ -37,4 +44,5 @@ dependencies {
     implementation(libs.androidx.test.ext.junit)
     implementation(libs.androidx.test.uiautomator)
     implementation(libs.androidx.benchmark.macro.junit4)
+    detektPlugins(libs.detekt.ktlint)
 }

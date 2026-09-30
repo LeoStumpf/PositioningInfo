@@ -44,8 +44,7 @@ data class FirstFixTimer(
         if (gpsEnabled || hasFix) this else copy(startedAtMs = nowMs)
 
     /** How long the receiver has been searching so far, or null once it has a fix. */
-    fun searchingForMs(nowMs: Long): Long? =
-        if (hasFix) null else (nowMs - startedAtMs).coerceAtLeast(0L)
+    fun searchingForMs(nowMs: Long): Long? = if (hasFix) null else (nowMs - startedAtMs).coerceAtLeast(0L)
 }
 
 /**

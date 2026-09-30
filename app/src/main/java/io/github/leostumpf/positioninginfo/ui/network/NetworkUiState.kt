@@ -52,14 +52,18 @@ data class NetworkUiState(
                 comparison = comparison,
                 comparisonUnavailableReason = when {
                     comparison != null -> ""
+
                     fix == null -> "No network position yet."
+
                     gnss?.latitude == null ||
                         gnss.isCached ||
                         nowMs - gnss.elapsedRealtimeMs > NetworkComparison.MAX_GNSS_AGE_MS ->
                         "Needs a current GNSS fix as the reference — go outside."
+
                     (gnss.horizontalAccuracyM ?: Float.MAX_VALUE) > NetworkComparison.MAX_GNSS_ACCURACY_M ->
                         "GNSS is only ±${gnss.horizontalAccuracyM?.toInt()} m right now, too coarse " +
                             "to judge the network position against."
+
                     else -> "The network position is too old to compare."
                 },
                 hasTelephony = hasTelephony,
@@ -75,8 +79,15 @@ data class NetworkUiState(
 internal fun formatDistance(metres: Double): String = distanceParts(metres).let { (value, unit) -> "$value $unit" }
 
 /** [formatDistance] as number and unit, for pages that set the unit in a lighter style. */
-internal fun distanceParts(metres: Double): Pair<String, String> =
-    if (metres < 1_000) "${metres.toInt()}" to "m" else String.format(java.util.Locale.US, "%.1f", metres / 1_000) to "km"
+internal fun distanceParts(metres: Double): Pair<String, String> = if (metres < 1_000) {
+    "${metres.toInt()}" to "m"
+} else {
+    String.format(
+        java.util.Locale.US,
+        "%.1f",
+        metres / 1_000,
+    ) to "km"
+}
 
 internal fun band(frequencyMhz: Int): String = when (frequencyMhz) {
     in 2_400..2_500 -> "2.4 GHz"

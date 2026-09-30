@@ -1,9 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.common
 
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -20,6 +17,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -40,11 +38,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.foundation.selection.toggleable
 import io.github.leostumpf.positioninginfo.ui.theme.BodyStyle
 import io.github.leostumpf.positioninginfo.ui.theme.CaptionStyle
 import io.github.leostumpf.positioninginfo.ui.theme.Palette
@@ -84,7 +84,10 @@ fun SecondaryButton(
         modifier = modifier.height(ButtonHeight),
         shape = ButtonShape,
         border = BorderStroke(1.dp, if (enabled) Palette.Outline else Palette.Hairline),
-        colors = ButtonDefaults.outlinedButtonColors(contentColor = Palette.TextPrimary, disabledContentColor = Palette.Inactive),
+        colors = ButtonDefaults.outlinedButtonColors(
+            contentColor = Palette.TextPrimary,
+            disabledContentColor = Palette.Inactive,
+        ),
     ) {
         icon?.let {
             Icon(it, contentDescription = null, modifier = Modifier.size(16.dp))
@@ -102,7 +105,9 @@ fun QuietButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
         modifier = modifier.height(ButtonHeight),
         shape = ButtonShape,
         contentPadding = PaddingValues(horizontal = 0.dp),
-        colors = ButtonDefaults.textButtonColors(contentColor = if (destructive) Palette.Bad else Palette.TextSecondary),
+        colors = ButtonDefaults.textButtonColors(
+            contentColor = if (destructive) Palette.Bad else Palette.TextSecondary,
+        ),
     ) { Text(text, style = BodyStyle.copy(fontWeight = FontWeight.Medium)) }
 }
 
@@ -111,12 +116,13 @@ fun CircleIconButton(
     icon: ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
     size: Dp = 48.dp,
     tint: Color = Palette.TextSecondary,
 ) {
     IconButton(
         onClick = onClick,
-        modifier = Modifier.size(size).border(1.dp, Palette.Outline, CircleShape),
+        modifier = modifier.size(size).border(1.dp, Palette.Outline, CircleShape),
     ) { Icon(icon, contentDescription = contentDescription, tint = tint, modifier = Modifier.size(20.dp)) }
 }
 
@@ -145,10 +151,16 @@ fun SegmentedToggle(options: List<String>, selected: Int, onSelect: (Int) -> Uni
 
 /** A setting with consequences, explained in its subtitle. */
 @Composable
-fun SwitchRow(title: String, subtitle: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+fun SwitchRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val shape = RoundedCornerShape(16.dp)
     Row(
-        Modifier
+        modifier
             .fillMaxWidth()
             .clip(shape)
             .background(Palette.Surface)
@@ -182,7 +194,11 @@ fun LevelBar(fraction: Float, color: Color, modifier: Modifier = Modifier) {
     // Decorative: the value it shows is always written next to it.
     Box(modifier.clearAndSetSemantics { }.height(6.dp).clip(RoundedCornerShape(3.dp)).background(Palette.Divider)) {
         if (fraction > 0f) {
-            Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).fillMaxHeight().background(color, RoundedCornerShape(3.dp)))
+            Box(
+                Modifier.fillMaxWidth(
+                    fraction.coerceIn(0f, 1f),
+                ).fillMaxHeight().background(color, RoundedCornerShape(3.dp)),
+            )
         }
     }
 }

@@ -17,7 +17,8 @@ enum class SignalBand(val label: String, val description: String) {
     E5B("E5b / B2b / L3", "Galileo and BeiDou secondary band, and GLONASS L3"),
     E6("E6 / B3 / L6", "Galileo E6, BeiDou B3I and QZSS L6: precise-positioning services"),
     S_BAND("S", "NavIC S-band"),
-    UNKNOWN("—", "Unrecognised carrier frequency");
+    UNKNOWN("—", "Unrecognised carrier frequency"),
+    ;
 
     val isHighPrecision: Boolean get() = this == L5 || this == E5B
 
@@ -32,13 +33,27 @@ enum class SignalBand(val label: String, val description: String) {
         fun fromCarrierFrequencyHz(hz: Float): SignalBand {
             val mhz = hz / 1_000_000.0
             return when {
-                mhz >= 1_555.0 && mhz < 1_595.0 -> L1        // GPS L1, Galileo E1, BeiDou B1
-                mhz >= 1_595.0 && mhz < 1_610.0 -> L1        // GLONASS L1 (FDMA spread)
-                mhz >= 1_215.0 && mhz < 1_255.0 -> L2        // GPS L2C, GLONASS L2
-                mhz >= 1_164.0 && mhz < 1_192.0 -> L5        // GPS L5, Galileo E5a, BeiDou B2a
-                mhz >= 1_192.0 && mhz < 1_215.0 -> E5B       // Galileo E5b, BeiDou B2b, GLONASS L3
-                mhz >= 1_255.0 && mhz < 1_300.0 -> E6        // BeiDou B3I 1268.52, Galileo E6 and QZSS L6 1278.75
-                mhz >= 2_480.0 && mhz < 2_500.0 -> S_BAND    // NavIC S
+                mhz >= 1_555.0 && mhz < 1_595.0 -> L1
+
+                // GPS L1, Galileo E1, BeiDou B1
+                mhz >= 1_595.0 && mhz < 1_610.0 -> L1
+
+                // GLONASS L1 (FDMA spread)
+                mhz >= 1_215.0 && mhz < 1_255.0 -> L2
+
+                // GPS L2C, GLONASS L2
+                mhz >= 1_164.0 && mhz < 1_192.0 -> L5
+
+                // GPS L5, Galileo E5a, BeiDou B2a
+                mhz >= 1_192.0 && mhz < 1_215.0 -> E5B
+
+                // Galileo E5b, BeiDou B2b, GLONASS L3
+                mhz >= 1_255.0 && mhz < 1_300.0 -> E6
+
+                // BeiDou B3I 1268.52, Galileo E6 and QZSS L6 1278.75
+                mhz >= 2_480.0 && mhz < 2_500.0 -> S_BAND
+
+                // NavIC S
                 else -> UNKNOWN
             }
         }

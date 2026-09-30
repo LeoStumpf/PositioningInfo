@@ -15,7 +15,8 @@ enum class Constellation(val label: String, val operator: String) {
     QZSS("QZSS", "Japan"),
     IRNSS("NavIC", "India"),
     SBAS("SBAS", "Augmentation"),
-    UNKNOWN("Unknown", "");
+    UNKNOWN("Unknown", ""),
+    ;
 
     companion object {
         /** Constellation types as defined by `android.location.GnssStatus`. */

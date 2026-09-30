@@ -1,11 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.position
 
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
-import io.github.leostumpf.positioninginfo.domain.counted
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -15,6 +13,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -23,26 +23,26 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.leostumpf.positioninginfo.domain.ScatterStats
+import io.github.leostumpf.positioninginfo.domain.counted
 import io.github.leostumpf.positioninginfo.ui.common.AppIcons
-import io.github.leostumpf.positioninginfo.ui.common.copyText
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import io.github.leostumpf.positioninginfo.ui.common.DASH
 import io.github.leostumpf.positioninginfo.ui.common.HeroValue
 import io.github.leostumpf.positioninginfo.ui.common.InfoCard
 import io.github.leostumpf.positioninginfo.ui.common.Note
 import io.github.leostumpf.positioninginfo.ui.common.Notice
 import io.github.leostumpf.positioninginfo.ui.common.Page
-import io.github.leostumpf.positioninginfo.ui.common.Tone
-import androidx.compose.foundation.layout.Box
 import io.github.leostumpf.positioninginfo.ui.common.PageScaffold
 import io.github.leostumpf.positioninginfo.ui.common.PrimaryButton
 import io.github.leostumpf.positioninginfo.ui.common.SecondaryButton
+import io.github.leostumpf.positioninginfo.ui.common.Tone
 import io.github.leostumpf.positioninginfo.ui.common.ValueRow
+import io.github.leostumpf.positioninginfo.ui.common.copyText
 import io.github.leostumpf.positioninginfo.ui.common.fmt
 import io.github.leostumpf.positioninginfo.ui.common.metres
 import io.github.leostumpf.positioninginfo.ui.common.section
@@ -65,7 +65,9 @@ fun PositionScreen(
         section(
             "Coordinates · WGS84",
             trailing = state.horizontalAccuracyM?.let { acc ->
-                "±${acc.fmt(1)} m · " + if ((state.fixAgeMs ?: 0) < LIVE_FIX_MS) "live" else "${(state.fixAgeMs ?: 0) / 1_000} s old"
+                "±${acc.fmt(
+                    1,
+                )} m · " + if ((state.fixAgeMs ?: 0) < LIVE_FIX_MS) "live" else "${(state.fixAgeMs ?: 0) / 1_000} s old"
             },
             trailingColor = if ((state.fixAgeMs ?: Long.MAX_VALUE) < LIVE_FIX_MS) Palette.Good else Palette.Degraded,
         )
@@ -75,7 +77,7 @@ fun PositionScreen(
                     Notice(
                         "Simulated position: a mock-location app is supplying these coordinates, not the " +
                             "receiver. Everything below describes the fake, not where the phone is.",
-                        Tone.BAD,
+                        tone = Tone.BAD,
                     )
                 }
             }
@@ -93,13 +95,28 @@ fun PositionScreen(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 ) {
-                                    Text(format.shortLabel, style = BodyStyle.copy(fontSize = 14.sp), color = Palette.TextSecondary)
-                                    Text(value, style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
+                                    Text(
+                                        format.shortLabel,
+                                        style = BodyStyle.copy(fontSize = 14.sp),
+                                        color = Palette.TextSecondary,
+                                    )
+                                    Text(
+                                        value,
+                                        style = DataStyle.copy(fontSize = 13.sp),
+                                        color = Palette.TextPrimary,
+                                        textAlign = TextAlign.End,
+                                        modifier = Modifier.weight(1f),
+                                    )
                                     IconButton(
                                         onClick = { copyText(context, value, "${format.label} copied") },
                                         modifier = Modifier.size(48.dp),
                                     ) {
-                                        Icon(AppIcons.Copy, contentDescription = "Copy ${format.label}", tint = Palette.TextTertiary, modifier = Modifier.size(18.dp))
+                                        Icon(
+                                            AppIcons.Copy,
+                                            contentDescription = "Copy ${format.label}",
+                                            tint = Palette.TextTertiary,
+                                            modifier = Modifier.size(18.dp),
+                                        )
                                     }
                                 }
                                 if (i < state.coordinates.lastIndex) HorizontalDivider(color = Palette.Divider)
@@ -113,7 +130,11 @@ fun PositionScreen(
                     "Copy all formats",
                     icon = AppIcons.Copy,
                     onClick = {
-                        copyText(context, state.coordinates.joinToString("\n") { "${it.first.label}: ${it.second}" }, "All formats copied")
+                        copyText(
+                            context,
+                            state.coordinates.joinToString("\n") { "${it.first.label}: ${it.second}" },
+                            "All formats copied",
+                        )
                     },
                     modifier = Modifier.padding(top = 10.dp),
                 )
@@ -164,7 +185,10 @@ fun PositionScreen(
         val stats = state.scatter
         if (stats != null) {
             item {
-                Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     ScatterPlot(stats, Modifier.size(170.dp))
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                         Figure("CEP50", metres(stats.cep50M), Palette.Good)
@@ -179,7 +203,8 @@ fun PositionScreen(
         }
         item {
             Note(
-                "Leave the phone still under open sky. The inner circle (green) holds half the fixes, the outer (amber) 95 %; " +
+                "Leave the phone still under open sky. The inner circle (green) holds half the fixes, the outer " +
+                    "(amber) 95 %; " +
                     "dashed is the ± the receiver claims (68 % expected inside).",
                 modifier = Modifier.padding(top = 12.dp),
             )
@@ -187,11 +212,22 @@ fun PositionScreen(
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 12.dp)) {
                 PrimaryButton(
-                    if (state.scatterRunning) "Stop" else if (stats != null) "Continue" else "Start",
+                    if (state.scatterRunning) {
+                        "Stop"
+                    } else if (stats != null) {
+                        "Continue"
+                    } else {
+                        "Start"
+                    },
                     onClick = onToggleScatter,
                     modifier = Modifier.weight(1f),
                 )
-                SecondaryButton("Reset", onClick = onResetScatter, enabled = stats != null, modifier = Modifier.weight(1f))
+                SecondaryButton(
+                    "Reset",
+                    onClick = onResetScatter,
+                    enabled = stats != null,
+                    modifier = Modifier.weight(1f),
+                )
             }
         }
     }
@@ -207,7 +243,7 @@ private fun Figure(label: String, value: String, labelColor: Color = Palette.Tex
 
 /** Each fix around the mean, with the CEP50 and CEP95 circles and the claimed radius dashed. */
 @Composable
-private fun ScatterPlot(stats: ScatterStats, modifier: Modifier) {
+private fun ScatterPlot(stats: ScatterStats, modifier: Modifier = Modifier) {
     Canvas(
         modifier.semantics {
             contentDescription = "Scatter of ${stats.count} fixes around their mean: half within " +
@@ -229,12 +265,24 @@ private fun ScatterPlot(stats: ScatterStats, modifier: Modifier) {
         drawLine(Palette.Hairline, Offset(c.x - half, c.y), Offset(c.x + half, c.y))
         drawLine(Palette.Hairline, Offset(c.x, c.y - half), Offset(c.x, c.y + half))
         stats.meanClaimedAccuracyM?.let {
-            drawCircle(Palette.TextTertiary, (it * scale).toFloat(), c, style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 3.dp.toPx()))))
+            drawCircle(
+                Palette.TextTertiary,
+                (it * scale).toFloat(),
+                c,
+                style = Stroke(
+                    1.dp.toPx(),
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(3.dp.toPx(), 3.dp.toPx())),
+                ),
+            )
         }
         drawCircle(Palette.Degraded, (stats.cep95M * scale).toFloat(), c, style = Stroke(1.5.dp.toPx()))
         drawCircle(Palette.Good, (stats.cep50M * scale).toFloat(), c, style = Stroke(1.5.dp.toPx()))
         stats.points.forEach {
-            drawCircle(Palette.TextPrimary.copy(alpha = 0.55f), 1.8.dp.toPx(), Offset(c.x + it.eastM.toFloat() * scale, c.y - it.northM.toFloat() * scale))
+            drawCircle(
+                Palette.TextPrimary.copy(alpha = 0.55f),
+                1.8.dp.toPx(),
+                Offset(c.x + it.eastM.toFloat() * scale, c.y - it.northM.toFloat() * scale),
+            )
         }
     }
 }

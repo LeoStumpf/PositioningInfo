@@ -83,11 +83,11 @@ class CellInfoDataSource(context: Context) {
 // inlined into the app, so reading them is safe on every version.
 @SuppressLint("InlinedApi")
 private fun Int.valid(): Int? = takeIf { it != CellInfo.UNAVAILABLE && it != Int.MIN_VALUE }
+
 @SuppressLint("InlinedApi")
 private fun Long.valid(): Long? = takeIf { it != CellInfo.UNAVAILABLE_LONG && it != Long.MAX_VALUE }
 
-private fun network(mcc: String?, mnc: String?): String? =
-    if (mcc != null && mnc != null) "$mcc-$mnc" else null
+private fun network(mcc: String?, mnc: String?): String? = if (mcc != null && mnc != null) "$mcc-$mnc" else null
 
 private fun labelled(label: String, value: Number?): String? = value?.let { "$label $it" }
 
@@ -95,18 +95,23 @@ private fun labelled(label: String, value: Number?): String? = value?.let { "$la
 // Android 11; below that, calling them throws NoSuchMethodError. So both are read from the
 // typed subclass inside each branch, never from the base type. The typed identities only
 // share the CellIdentity base class from Android 9, hence the cast behind the check.
-private fun operatorOf(id: Any): String? =
-    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        (id as CellIdentity).operatorAlphaLong?.toString()?.takeIf { it.isNotBlank() }
-    } else {
-        null
-    }
+private fun operatorOf(id: Any): String? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+    (id as CellIdentity).operatorAlphaLong?.toString()?.takeIf { it.isNotBlank() }
+} else {
+    null
+}
 
 private fun levelOf(s: CellSignalStrength): Int? = s.level.takeIf { it in 0..4 }
 
 private fun CellInfo.toCellTower(): CellTower? {
     val bandsOf: (() -> IntArray?) -> List<Int> = { get ->
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) runCatching { get()?.toList() }.getOrNull().orEmpty() else emptyList()
+        if (Build.VERSION.SDK_INT >=
+            Build.VERSION_CODES.R
+        ) {
+            runCatching { get()?.toList() }.getOrNull().orEmpty()
+        } else {
+            emptyList()
+        }
     }
     return when {
         this is CellInfoLte -> {
@@ -115,13 +120,22 @@ private fun CellInfo.toCellTower(): CellTower? {
             CellTower(
                 technology = "LTE",
                 registered = isRegistered,
-                network = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) network(id.mccString, id.mncString) else null,
+                network = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    network(
+                        id.mccString,
+                        id.mncString,
+                    )
+                } else {
+                    null
+                },
                 area = labelled("TAC", id.tac.valid()),
                 cellId = labelled("CI", id.ci.valid()?.toLong()),
                 physicalId = id.pci.valid(),
                 physicalIdLabel = "PCI",
                 signalDbm = s.dbm.valid(),
-                timingAdvanceDistanceM = s.timingAdvance.valid()?.takeIf { isRegistered }?.let(TimingAdvance::lteMetres),
+                timingAdvanceDistanceM = s.timingAdvance.valid()?.takeIf { isRegistered }?.let(
+                    TimingAdvance::lteMetres,
+                ),
                 operatorName = operatorOf(id),
                 channel = id.earfcn.valid(),
                 channelLabel = "EARFCN",
@@ -130,7 +144,17 @@ private fun CellInfo.toCellTower(): CellTower? {
                     s.rsrp.valid()?.let { SignalMeasure("RSRP", it, "dBm") },
                     s.rsrq.valid()?.let { SignalMeasure("RSRQ", it, "dB") },
                     s.rssnr.valid()?.let { SignalMeasure("SINR", it, "dB") },
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) s.rssi.valid()?.let { SignalMeasure("RSSI", it, "dBm") } else null,
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                        s.rssi.valid()?.let {
+                            SignalMeasure(
+                                "RSSI",
+                                it,
+                                "dBm",
+                            )
+                        }
+                    } else {
+                        null
+                    },
                 ),
                 level = levelOf(s),
                 timingAdvanceSteps = s.timingAdvance.valid()?.takeIf { isRegistered },
@@ -149,7 +173,9 @@ private fun CellInfo.toCellTower(): CellTower? {
                 physicalId = id.pci.valid(),
                 physicalIdLabel = "PCI",
                 signalDbm = s.dbm.valid(),
-                timingAdvanceDistanceM = if (isRegistered && Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                timingAdvanceDistanceM = if (isRegistered &&
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+                ) {
                     s.timingAdvanceMicros.valid()?.let(TimingAdvance::nrMetres)
                 } else {
                     null
@@ -173,19 +199,50 @@ private fun CellInfo.toCellTower(): CellTower? {
             CellTower(
                 technology = "GSM",
                 registered = isRegistered,
-                network = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) network(id.mccString, id.mncString) else null,
+                network = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    network(
+                        id.mccString,
+                        id.mncString,
+                    )
+                } else {
+                    null
+                },
                 area = labelled("LAC", id.lac.valid()),
                 cellId = labelled("CID", id.cid.valid()?.toLong()),
                 physicalId = id.bsic.valid(),
                 physicalIdLabel = "BSIC",
                 signalDbm = s.dbm.valid(),
-                timingAdvanceDistanceM = s.timingAdvance.valid()?.takeIf { isRegistered }?.let(TimingAdvance::gsmMetres),
+                timingAdvanceDistanceM = s.timingAdvance.valid()?.takeIf { isRegistered }?.let(
+                    TimingAdvance::gsmMetres,
+                ),
                 operatorName = operatorOf(id),
                 channel = id.arfcn.valid(),
                 channelLabel = "ARFCN",
                 quality = listOfNotNull(
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) s.rssi.valid()?.let { SignalMeasure("RSSI", it, "dBm") } else null,
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) s.bitErrorRate.takeIf { it in 0..7 }?.let { SignalMeasure("Bit error rate class", it, "") } else null,
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        s.rssi.valid()?.let {
+                            SignalMeasure(
+                                "RSSI",
+                                it,
+                                "dBm",
+                            )
+                        }
+                    } else {
+                        null
+                    },
+                    if (Build.VERSION.SDK_INT >=
+                        Build.VERSION_CODES.Q
+                    ) {
+                        s.bitErrorRate.takeIf { it in 0..7 }?.let {
+                            SignalMeasure(
+                                "Bit error rate class",
+                                it,
+                                "",
+                            )
+                        }
+                    } else {
+                        null
+                    },
                 ),
                 level = levelOf(s),
                 timingAdvanceSteps = s.timingAdvance.valid()?.takeIf { isRegistered },
@@ -198,7 +255,14 @@ private fun CellInfo.toCellTower(): CellTower? {
             CellTower(
                 technology = "UMTS",
                 registered = isRegistered,
-                network = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) network(id.mccString, id.mncString) else null,
+                network = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    network(
+                        id.mccString,
+                        id.mncString,
+                    )
+                } else {
+                    null
+                },
                 area = labelled("LAC", id.lac.valid()),
                 cellId = labelled("CID", id.cid.valid()?.toLong()),
                 physicalId = id.psc.valid(),
@@ -209,7 +273,17 @@ private fun CellInfo.toCellTower(): CellTower? {
                 channel = id.uarfcn.valid(),
                 channelLabel = "UARFCN",
                 quality = listOfNotNull(
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) s.ecNo.valid()?.let { SignalMeasure("Ec/No", it, "dB") } else null,
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                        s.ecNo.valid()?.let {
+                            SignalMeasure(
+                                "Ec/No",
+                                it,
+                                "dB",
+                            )
+                        }
+                    } else {
+                        null
+                    },
                 ),
                 level = levelOf(s),
             )
