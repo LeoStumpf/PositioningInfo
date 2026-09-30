@@ -2,4 +2,12 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later -->
 <resources>
     <string name="app_name">Positioning Info</string>
+
+    <!-- Background mode: the notification channel (shown in the system settings) and the
+         permanent notification with its Stop action. -->
+    <string name="background_channel_name">Background mode</string>
+    <string name="background_channel_description">Shown while Positioning Info keeps the GNSS receiver running in the background.</string>
+    <string name="background_notification_title">Positioning Info is running in the background</string>
+    <string name="background_notification_text">The GNSS receiver stays on. Tap Stop to release it.</string>
+    <string name="background_notification_stop">Stop</string>
 </resources>

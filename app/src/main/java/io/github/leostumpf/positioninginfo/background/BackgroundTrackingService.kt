@@ -68,8 +68,8 @@ class BackgroundTrackingService : Service() {
 
     private fun createChannel() {
         getSystemService<NotificationManager>()?.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Background mode", NotificationManager.IMPORTANCE_LOW).apply {
-                description = "Shown while Positioning Info keeps the GNSS receiver running in the background."
+            NotificationChannel(CHANNEL_ID, getString(R.string.background_channel_name), NotificationManager.IMPORTANCE_LOW).apply {
+                description = getString(R.string.background_channel_description)
                 setShowBadge(false)
             },
         )
@@ -77,8 +77,8 @@ class BackgroundTrackingService : Service() {
 
     private fun buildNotification() = NotificationCompat.Builder(this, CHANNEL_ID)
         .setSmallIcon(R.drawable.ic_notification)
-        .setContentTitle("Positioning Info is running in the background")
-        .setContentText("The GNSS receiver stays on. Tap Stop to release it.")
+        .setContentTitle(getString(R.string.background_notification_title))
+        .setContentText(getString(R.string.background_notification_text))
         .setOngoing(true)
         .setOnlyAlertOnce(true)
         .setCategory(NotificationCompat.CATEGORY_SERVICE)
@@ -93,7 +93,7 @@ class BackgroundTrackingService : Service() {
         )
         .addAction(
             0,
-            "Stop",
+            getString(R.string.background_notification_stop),
             PendingIntent.getService(
                 this,
                 1,
