@@ -24,8 +24,10 @@ data class CellTower(
     val registered: Boolean,
     /** "MCC-MNC", e.g. "262-01", or null when not reported (usual for neighbours). */
     val network: String?,
-    /** Area code and cell identity, formatted for display, or null when not reported. */
-    val identity: String?,
+    /** Tracking or location area, "TAC 1234", or null when not reported. */
+    val area: String?,
+    /** The cell's own number, "CI 5678", or null when not reported. */
+    val cellId: String?,
     /** Physical cell ID / scrambling code: what distinguishes neighbours on the same channel. */
     val physicalId: Int?,
     /** What [physicalId] is called in this technology: PCI, BSIC or PSC. */
@@ -48,7 +50,10 @@ data class CellTower(
     /** Android's 0–4 bars rating. */
     val level: Int? = null,
     val timingAdvanceSteps: Int? = null,
-)
+) {
+    /** Area and cell together, "TAC 1234 · CI 5678", or null when neither is reported. */
+    val identity: String? get() = listOfNotNull(area, cellId).joinToString(" · ").ifEmpty { null }
+}
 
 /** One reported signal figure, e.g. RSRP −95 dBm. */
 data class SignalMeasure(val name: String, val value: Int, val unit: String)

@@ -10,7 +10,7 @@ data class PositionUiState(
     val isMock: Boolean = false,
     val fixAgeMs: Long? = null,
     val horizontalAccuracyM: Float? = null,
-    val coordinates: List<Pair<String, String>> = emptyList(),
+    val coordinates: List<Pair<CoordinateFormat, String>> = emptyList(),
 
     val gnssMslM: Double? = null,
     /** Where the sea-level height came from: the chip's NMEA, Android, or a geoid offset. */
@@ -31,3 +31,13 @@ data class PositionUiState(
     val scatterRunning: Boolean = false,
     val scatter: ScatterStats? = null,
 )
+
+/** The ways a position is written on the page, with the short name used in the list. */
+enum class CoordinateFormat(val label: String, val shortLabel: String = label) {
+    DECIMAL("Decimal"),
+    DMS("Degrees, minutes, seconds", "DMS"),
+    UTM("UTM"),
+    MGRS("MGRS"),
+    PLUS_CODE("Plus Code"),
+    MAIDENHEAD("Maidenhead"),
+}

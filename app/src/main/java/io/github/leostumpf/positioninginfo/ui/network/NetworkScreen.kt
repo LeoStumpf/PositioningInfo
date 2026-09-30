@@ -90,8 +90,8 @@ fun NetworkScreen(state: NetworkUiState, modifier: Modifier = Modifier) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 HeroValue(
-                    value = state.accuracyM?.let { "±${formatDistance(it.toDouble()).substringBefore(' ')}" } ?: DASH,
-                    unit = state.accuracyM?.let { formatDistance(it.toDouble()).substringAfter(' ') },
+                    value = state.accuracyM?.let { "±${distanceParts(it.toDouble()).first}" } ?: DASH,
+                    unit = state.accuracyM?.let { distanceParts(it.toDouble()).second },
                     caption = when {
                         !state.providerEnabled -> null
                         state.ageMs == null -> "Waiting for a network position…"
@@ -298,8 +298,9 @@ private fun Comparison(state: NetworkUiState) {
                 Text("REAL ERROR VS GNSS", style = OverlineStyle, color = Palette.TextTertiary)
                 Text(
                     buildAnnotatedString {
-                        append(formatDistance(c.distanceM).substringBefore(' '))
-                        withStyle(SpanStyle(fontSize = 16.sp, color = Palette.TextSecondary)) { append(" ${formatDistance(c.distanceM).substringAfter(' ')} off") }
+                        val (value, unit) = distanceParts(c.distanceM)
+                        append(value)
+                        withStyle(SpanStyle(fontSize = 16.sp, color = Palette.TextSecondary)) { append(" $unit off") }
                     },
                     style = BodyStyle.copy(fontFamily = CondensedFamily, fontSize = 32.sp, lineHeight = 36.sp),
                     color = Palette.TextPrimary,
@@ -367,13 +368,13 @@ private fun CellRow(cell: CellTower, onClick: () -> Unit) {
             )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(
-                    listOfNotNull(cell.operatorName ?: cell.network, cell.identity?.substringAfterLast(" · ")).joinToString(" · ").ifEmpty { cell.technology },
+                    listOfNotNull(cell.operatorName ?: cell.network, cell.cellId).joinToString(" · ").ifEmpty { cell.technology },
                     style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary,
                 )
                 Text(
                     listOfNotNull(
                         if (cell.registered) "serving" else "neighbour",
-                        cell.identity?.substringBeforeLast(" · ")?.takeIf { cell.identity.contains(" · ") },
+                        cell.area?.takeIf { cell.cellId != null },
                         cell.physicalId?.let { "${cell.physicalIdLabel} $it" },
                         cell.timingAdvanceDistanceM?.let { "tower ≈ ${formatDistance(it)}" },
                     ).joinToString(" · "),

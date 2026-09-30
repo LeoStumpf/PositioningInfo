@@ -43,12 +43,13 @@ data class SkyUiState(
                 .filter { it.visible }
                 .mapNotNull { track ->
                     SkyProjection.of(track.samples, nowMs)?.setsInMinutes
-                        ?.let { UpcomingSet(track.id.label(), it) }
+                        ?.let { UpcomingSet(track.id, it) }
                 }
                 .sortedBy { it.minutes },
             events = tracker.events.map { event ->
                 EventRow(
                     key = "${event.id}-${event.kind}-${event.atMs}",
+                    id = event.id,
                     text = event.describe(),
                     ago = formatAgo(nowMs - event.atMs),
                 )
@@ -70,9 +71,10 @@ data class SkyMarker(
     val usedInFix: Boolean,
 )
 
-data class UpcomingSet(val label: String, val minutes: Float)
+data class UpcomingSet(val id: SatelliteId, val minutes: Float)
 
-data class EventRow(val key: String, val text: String, val ago: String)
+/** An event, with the satellite kept apart from the words so it can be drawn in its colour. */
+data class EventRow(val key: String, val id: SatelliteId, val text: String, val ago: String)
 
 private fun SkyTrack.toMarker(nowMs: Long): SkyMarker {
     val segments = mutableListOf<MutableList<SkyPoint>>()
@@ -110,12 +112,12 @@ private fun Constellation.prefix(): String = when (this) {
 }
 
 /** Low elevation means the horizon was involved; high means an obstruction or acquisition. */
+/** What happened to the satellite, without its name: "set below the horizon (4°)". */
 private fun SkyEvent.describe(): String {
-    val name = id.label()
     val low = elevationDegrees < LOW_ELEVATION_DEGREES
     return when (kind) {
-        SkyEvent.Kind.APPEARED -> if (low) "$name rose above the horizon" else "$name acquired"
-        SkyEvent.Kind.LOST -> if (low) "$name set below the horizon" else "$name lost"
+        SkyEvent.Kind.APPEARED -> if (low) "rose above the horizon" else "acquired"
+        SkyEvent.Kind.LOST -> if (low) "set below the horizon" else "lost"
     } + " (${elevationDegrees.toInt()}°)"
 }
 

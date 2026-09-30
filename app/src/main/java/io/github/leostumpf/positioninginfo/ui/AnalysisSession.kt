@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui
 
+import io.github.leostumpf.positioninginfo.ui.position.CoordinateFormat
 import io.github.leostumpf.positioninginfo.ui.trip.TripRecorder
 import android.annotation.SuppressLint
 import android.app.Application
@@ -376,12 +377,12 @@ class AnalysisSession(
             horizontalAccuracyM = fix?.horizontalAccuracyM,
             coordinates = if (lat != null && lon != null) {
                 listOf(
-                    "Decimal" to CoordinateFormats.decimal(lat, lon),
-                    "Degrees, minutes, seconds" to CoordinateFormats.dms(lat, lon),
-                    "UTM" to (CoordinateFormats.utm(lat, lon)?.toString() ?: "outside UTM"),
-                    "MGRS" to (CoordinateFormats.mgrs(lat, lon) ?: "outside MGRS"),
-                    "Plus Code" to CoordinateFormats.plusCode(lat, lon),
-                    "Maidenhead" to CoordinateFormats.maidenhead(lat, lon),
+                    CoordinateFormat.DECIMAL to CoordinateFormats.decimal(lat, lon),
+                    CoordinateFormat.DMS to CoordinateFormats.dms(lat, lon),
+                    CoordinateFormat.UTM to (CoordinateFormats.utm(lat, lon)?.toString() ?: "outside UTM"),
+                    CoordinateFormat.MGRS to (CoordinateFormats.mgrs(lat, lon) ?: "outside MGRS"),
+                    CoordinateFormat.PLUS_CODE to CoordinateFormats.plusCode(lat, lon),
+                    CoordinateFormat.MAIDENHEAD to CoordinateFormats.maidenhead(lat, lon),
                 )
             } else {
                 emptyList()

@@ -71,9 +71,12 @@ data class NetworkUiState(
     }
 }
 
-/** "±35 m" or "±1.2 km". */
-internal fun formatDistance(metres: Double): String =
-    if (metres < 1_000) "${metres.toInt()} m" else String.format(java.util.Locale.US, "%.1f km", metres / 1_000)
+/** "35 m" or "1.2 km". */
+internal fun formatDistance(metres: Double): String = distanceParts(metres).let { (value, unit) -> "$value $unit" }
+
+/** [formatDistance] as number and unit, for pages that set the unit in a lighter style. */
+internal fun distanceParts(metres: Double): Pair<String, String> =
+    if (metres < 1_000) "${metres.toInt()}" to "m" else String.format(java.util.Locale.US, "%.1f", metres / 1_000) to "km"
 
 internal fun band(frequencyMhz: Int): String = when (frequencyMhz) {
     in 2_400..2_500 -> "2.4 GHz"

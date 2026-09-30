@@ -87,19 +87,19 @@ fun PositionScreen(
                 InfoCard(padding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)) {
                     SelectionContainer {
                         Column {
-                            state.coordinates.forEachIndexed { i, (label, value) ->
+                            state.coordinates.forEachIndexed { i, (format, value) ->
                                 Row(
                                     Modifier.fillMaxWidth().heightIn(min = 48.dp),
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 ) {
-                                    Text(if (label == "Degrees, minutes, seconds") "DMS" else label, style = BodyStyle.copy(fontSize = 14.sp), color = Palette.TextSecondary)
+                                    Text(format.shortLabel, style = BodyStyle.copy(fontSize = 14.sp), color = Palette.TextSecondary)
                                     Text(value, style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary, textAlign = TextAlign.End, modifier = Modifier.weight(1f))
                                     IconButton(
-                                        onClick = { copyText(context, value, "$label copied") },
+                                        onClick = { copyText(context, value, "${format.label} copied") },
                                         modifier = Modifier.size(48.dp),
                                     ) {
-                                        Icon(AppIcons.Copy, contentDescription = "Copy $label", tint = Palette.TextTertiary, modifier = Modifier.size(18.dp))
+                                        Icon(AppIcons.Copy, contentDescription = "Copy ${format.label}", tint = Palette.TextTertiary, modifier = Modifier.size(18.dp))
                                     }
                                 }
                                 if (i < state.coordinates.lastIndex) HorizontalDivider(color = Palette.Divider)
@@ -113,7 +113,7 @@ fun PositionScreen(
                     "Copy all formats",
                     icon = AppIcons.Copy,
                     onClick = {
-                        copyText(context, state.coordinates.joinToString("\n") { "${it.first}: ${it.second}" }, "All formats copied")
+                        copyText(context, state.coordinates.joinToString("\n") { "${it.first.label}: ${it.second}" }, "All formats copied")
                     },
                     modifier = Modifier.padding(top = 10.dp),
                 )

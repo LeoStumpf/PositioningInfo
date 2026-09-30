@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.sky
 
+import io.github.leostumpf.positioninginfo.domain.SatelliteId
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.foundation.layout.widthIn
@@ -59,7 +60,6 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.leostumpf.positioninginfo.domain.CompassTrust
-import io.github.leostumpf.positioninginfo.domain.Constellation
 import io.github.leostumpf.positioninginfo.domain.SkyPoint
 import io.github.leostumpf.positioninginfo.ui.common.AppIcons
 import io.github.leostumpf.positioninginfo.ui.common.Note
@@ -172,8 +172,8 @@ fun LazyListScope.skyEventItems(state: SkyUiState) {
     if (state.upcoming.isEmpty()) {
         item { Note("No satellite expected to set in the next 15 minutes.") }
     } else {
-        items(state.upcoming, key = { it.label }) {
-            EventRow(it.label, null, "in ~${it.minutes.roundToInt().coerceAtLeast(1)} min", dataValue = true)
+        items(state.upcoming, key = { it.id.label() }) {
+            EventRow(it.id, null, "in ~${it.minutes.roundToInt().coerceAtLeast(1)} min", dataValue = true)
         }
     }
 
@@ -181,7 +181,7 @@ fun LazyListScope.skyEventItems(state: SkyUiState) {
     if (state.events.isEmpty()) {
         item { Note("Satellites appearing and disappearing will be listed here.") }
     } else {
-        items(state.events, key = { it.key }) { EventRow(it.text.substringBefore(' '), it.text.substringAfter(' '), it.ago) }
+        items(state.events, key = { it.key }) { EventRow(it.id, it.text, it.ago) }
     }
 }
 
@@ -269,8 +269,9 @@ private fun LegendItem(label: String, mark: @Composable () -> Unit) {
 
 /** "G12 · set below the horizon (4°) · 2 min ago": the code coloured by its constellation. */
 @Composable
-private fun EventRow(code: String, text: String?, trailing: String, dataValue: Boolean = false) {
-    val color = codeColor(code)
+private fun EventRow(id: SatelliteId, text: String?, trailing: String, dataValue: Boolean = false) {
+    val code = id.label()
+    val color = id.constellation.color()
     Column {
         Row(
             Modifier.fillMaxWidth().heightIn(min = 48.dp),
@@ -289,16 +290,6 @@ private fun EventRow(code: String, text: String?, trailing: String, dataValue: B
         }
         HorizontalDivider(color = Palette.Divider)
     }
-}
-
-private fun codeColor(code: String): Color = when (code.firstOrNull()) {
-    'G' -> Constellation.GPS.color()
-    'R' -> Constellation.GLONASS.color()
-    'E' -> Constellation.GALILEO.color()
-    'C' -> Constellation.BEIDOU.color()
-    'J' -> Constellation.QZSS.color()
-    'I' -> Constellation.IRNSS.color()
-    else -> Constellation.SBAS.color()
 }
 
 @Composable

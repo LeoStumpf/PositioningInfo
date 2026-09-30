@@ -89,10 +89,7 @@ private fun Long.valid(): Long? = takeIf { it != CellInfo.UNAVAILABLE_LONG && it
 private fun network(mcc: String?, mnc: String?): String? =
     if (mcc != null && mnc != null) "$mcc-$mnc" else null
 
-private fun identity(areaLabel: String, area: Int?, cellLabel: String, cell: Long?): String? =
-    listOfNotNull(area?.let { "$areaLabel $it" }, cell?.let { "$cellLabel $it" })
-        .joinToString(" · ")
-        .ifEmpty { null }
+private fun labelled(label: String, value: Number?): String? = value?.let { "$label $it" }
 
 // CellInfo.getCellIdentity() and getCellSignalStrength() exist on the base class only from
 // Android 11; below that, calling them throws NoSuchMethodError. So both are read from the
@@ -119,7 +116,8 @@ private fun CellInfo.toCellTower(): CellTower? {
                 technology = "LTE",
                 registered = isRegistered,
                 network = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) network(id.mccString, id.mncString) else null,
-                identity = identity("TAC", id.tac.valid(), "CI", id.ci.valid()?.toLong()),
+                area = labelled("TAC", id.tac.valid()),
+                cellId = labelled("CI", id.ci.valid()?.toLong()),
                 physicalId = id.pci.valid(),
                 physicalIdLabel = "PCI",
                 signalDbm = s.dbm.valid(),
@@ -146,7 +144,8 @@ private fun CellInfo.toCellTower(): CellTower? {
                 technology = "5G NR",
                 registered = isRegistered,
                 network = network(id.mccString, id.mncString),
-                identity = identity("TAC", id.tac.valid(), "NCI", id.nci.valid()),
+                area = labelled("TAC", id.tac.valid()),
+                cellId = labelled("NCI", id.nci.valid()),
                 physicalId = id.pci.valid(),
                 physicalIdLabel = "PCI",
                 signalDbm = s.dbm.valid(),
@@ -175,7 +174,8 @@ private fun CellInfo.toCellTower(): CellTower? {
                 technology = "GSM",
                 registered = isRegistered,
                 network = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) network(id.mccString, id.mncString) else null,
-                identity = identity("LAC", id.lac.valid(), "CID", id.cid.valid()?.toLong()),
+                area = labelled("LAC", id.lac.valid()),
+                cellId = labelled("CID", id.cid.valid()?.toLong()),
                 physicalId = id.bsic.valid(),
                 physicalIdLabel = "BSIC",
                 signalDbm = s.dbm.valid(),
@@ -199,7 +199,8 @@ private fun CellInfo.toCellTower(): CellTower? {
                 technology = "UMTS",
                 registered = isRegistered,
                 network = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) network(id.mccString, id.mncString) else null,
-                identity = identity("LAC", id.lac.valid(), "CID", id.cid.valid()?.toLong()),
+                area = labelled("LAC", id.lac.valid()),
+                cellId = labelled("CID", id.cid.valid()?.toLong()),
                 physicalId = id.psc.valid(),
                 physicalIdLabel = "PSC",
                 signalDbm = s.dbm.valid(),
