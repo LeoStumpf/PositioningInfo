@@ -27,6 +27,32 @@ class FixDiagnosisTest {
     )
 
     @Test
+    fun `nothing heard after losing the fix is no signal, not acquiring`() {
+        val d = FixDiagnosis.evaluate(input(heard = 0, strong = 0, searchingMs = null, firstFixMs = 4_000L))
+        assertEquals("No satellite signals", d.verdict)
+        assertEquals(CheckStatus.FAIL, d.verdictStatus)
+    }
+
+    @Test
+    fun `a lost fix with signals is reacquiring, not learning orbits`() {
+        val d = FixDiagnosis.evaluate(
+            input(heard = 8, strong = 6, readiness = AlmanacReadiness.COLD, data = false, searchingMs = null, firstFixMs = 4_000L),
+        )
+        assertEquals("Fix lost, reacquiring", d.verdict)
+    }
+
+    @Test
+    fun `one satellite is singular`() {
+        assertEquals("Only 1 satellite heard", FixDiagnosis.evaluate(input(heard = 1, strong = 1)).verdict)
+    }
+
+    @Test
+    fun `a cold start with data is expected within minutes, not twelve`() {
+        assertEquals(120_000L, FixDiagnosis.expectedMs(AlmanacReadiness.COLD, dataConnection = true))
+        assertEquals(720_000L, FixDiagnosis.expectedMs(AlmanacReadiness.COLD, dataConnection = false))
+    }
+
+    @Test
     fun `location off comes before everything else`() {
         val d = FixDiagnosis.evaluate(input(gpsEnabled = false, heard = 0))
         assertEquals("Location is switched off", d.verdict)

@@ -65,11 +65,15 @@ data class Diagnosis(
  */
 object FixDiagnosis {
 
-    /** Typical time to first fix per start type, generously rounded up. */
-    fun expectedMs(readiness: AlmanacReadiness): Long = when (readiness) {
+    /**
+     * Typical time to first fix per start type, generously rounded up. A cold start with a
+     * data connection gets its orbits over the network (A-GNSS) and usually fixes within a
+     * minute; only without one must the receiver read them from the satellites.
+     */
+    fun expectedMs(readiness: AlmanacReadiness, dataConnection: Boolean? = null): Long = when (readiness) {
         AlmanacReadiness.HOT -> 15_000L
         AlmanacReadiness.WARM -> 60_000L
-        AlmanacReadiness.COLD, AlmanacReadiness.UNKNOWN -> 12 * 60_000L
+        AlmanacReadiness.COLD, AlmanacReadiness.UNKNOWN -> if (dataConnection == true) 2 * 60_000L else 12 * 60_000L
     }
 
     fun evaluate(i: DiagnosisInput): Diagnosis {
@@ -81,7 +85,10 @@ object FixDiagnosis {
 
     private fun verdict(i: DiagnosisInput, fixed: Boolean): Triple<String, CheckStatus, String> {
         val searching = i.searchingMs ?: 0L
-        val expected = expectedMs(i.readiness)
+        val expected = expectedMs(i.readiness, i.dataConnection)
+        // Fixed earlier this session and not now: the orbits are known, so "searching since
+        // start" and "learning orbits" no longer apply.
+        val lostFix = !fixed && i.searchingMs == null && i.firstFixMs != null
         return when {
             !i.gpsEnabled -> Triple(
                 "Location is switched off", CheckStatus.FAIL,
@@ -101,13 +108,13 @@ object FixDiagnosis {
                 "Fixed on ${i.usedInFix} satellites." +
                     (i.firstFixMs?.let { " This session's first fix took ${formatDuration(it)}." } ?: ""),
             )
-            i.satellitesHeard == 0 && searching > NO_SIGNAL_GRACE_MS -> Triple(
+            i.satellitesHeard == 0 && (lostFix || searching > NO_SIGNAL_GRACE_MS) -> Triple(
                 "No satellite signals", CheckStatus.FAIL,
                 "Nothing is heard at all — almost always a roof, walls or a car body in the way. " +
                     "GNSS signals need a view of the sky; try near a window or outside.",
             )
             i.satellitesHeard in 1 until AlmanacStatus.SATELLITES_FOR_FIX -> Triple(
-                "Only ${i.satellitesHeard} satellites heard", CheckStatus.FAIL,
+                "Only ${i.satellitesHeard} satellite${if (i.satellitesHeard == 1) "" else "s"} heard", CheckStatus.FAIL,
                 "A fix needs at least ${AlmanacStatus.SATELLITES_FOR_FIX}: three for position, one for the " +
                     "receiver's own clock. More of the sky has to be visible.",
             )
@@ -115,6 +122,11 @@ object FixDiagnosis {
                 "Signals too weak", CheckStatus.WARN,
                 "${i.satellitesHeard} satellites are heard, but only ${i.satellitesStrong} strongly enough to " +
                     "decode their data. Typical indoors or under dense trees.",
+            )
+            lostFix -> Triple(
+                "Fix lost, reacquiring", CheckStatus.INFO,
+                "The receiver had a fix this session and still holds the orbits, so it usually " +
+                    "recovers within seconds once enough of the sky is in view again.",
             )
             i.readiness == AlmanacReadiness.COLD && i.dataConnection == false -> Triple(
                 "Learning orbits from the satellites", CheckStatus.WARN,
@@ -228,8 +240,8 @@ object FixDiagnosis {
                 i.firstFixMs != null -> DiagnosisCheck("Time to first fix", formatDuration(i.firstFixMs), CheckStatus.OK)
                 i.searchingMs != null -> DiagnosisCheck(
                     "Searching for", formatDuration(i.searchingMs),
-                    if (i.searchingMs > expectedMs(i.readiness)) CheckStatus.WARN else CheckStatus.INFO,
-                    "Expected within ${formatDuration(expectedMs(i.readiness))} for this start.",
+                    if (i.searchingMs > expectedMs(i.readiness, i.dataConnection)) CheckStatus.WARN else CheckStatus.INFO,
+                    "Expected within ${formatDuration(expectedMs(i.readiness, i.dataConnection))} for this start.",
                 )
                 else -> DiagnosisCheck("Searching for", "—", CheckStatus.INFO)
             },
