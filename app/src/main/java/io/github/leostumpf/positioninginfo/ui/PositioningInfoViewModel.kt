@@ -238,7 +238,6 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     override fun onCleared() {
         // The screen is gone for good (the task was closed), so background mode ends with it.
         if (BackgroundMode.active.value) BackgroundMode.stop(getApplication())
-        super.onCleared()
     }
 
     /**

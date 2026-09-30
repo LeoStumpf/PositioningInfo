@@ -3,7 +3,6 @@ import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
 }
 
@@ -37,7 +36,7 @@ val appVersionName: String = providers.gradleProperty("appVersionName").get()
 
 android {
     namespace = "io.github.leostumpf.positioninginfo"
-    compileSdk = 36
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "io.github.leostumpf.positioninginfo"
@@ -87,6 +86,9 @@ android {
         // version check — fail the build; warnings are reported only.
         abortOnError = true
         checkReleaseBuilds = true
+        // targetSdk stays at the level Google Play requires until the next one has been
+        // tested on its own: raising it changes how Android treats the app.
+        disable += "OldTargetApi"
     }
     buildFeatures {
         compose = true
@@ -126,7 +128,7 @@ dependencies {
 // the local Wi-Fi share, so each build is ready for the phone. In CI it does not exist, and
 // nothing is copied.
 val releaseShare = rootProject.file("releases")
-val copyReleaseToShare by tasks.registering(Copy::class) {
+val copyReleaseToShare = tasks.register<Copy>("copyReleaseToShare") {
     description = "Copies the signed release APK into releases/ (the local share), if present."
     onlyIf { releaseShare.exists() && android.signingConfigs.findByName("release") != null }
     from(layout.buildDirectory.dir("outputs/apk/release")) { include("*-release.apk") }

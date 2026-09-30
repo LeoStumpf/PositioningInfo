@@ -207,7 +207,7 @@ notification permissions for opt-in background mode. There is no `INTERNET` perm
 
 ## Building
 
-Requires JDK 17+ and the Android SDK (compileSdk 36).
+Requires JDK 17+ and the Android SDK (compileSdk 37; targetSdk 36, the level Google Play requires).
 
 ```sh
 ./gradlew :app:assembleDebug     # build
