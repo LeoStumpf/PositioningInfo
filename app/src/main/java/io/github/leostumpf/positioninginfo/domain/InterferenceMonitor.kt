@@ -60,6 +60,8 @@ data class BandStatus(
     val meanCn0DbHz: Double?,
     val cn0BaselineDbHz: Double?,
     val signals: Int,
+    /** Signals typically tracked on this band during the baseline minute. */
+    val signalsBaseline: Double? = null,
 )
 
 data class InterferenceAssessment(
@@ -79,7 +81,11 @@ data class InterferenceAssessment(
 )
 
 /** What the first minute of a session looked like on one band, one value per epoch. */
-data class BandBaselineSamples(val agcDb: List<Double> = emptyList(), val meanCn0DbHz: List<Double> = emptyList())
+data class BandBaselineSamples(
+    val agcDb: List<Double> = emptyList(),
+    val meanCn0DbHz: List<Double> = emptyList(),
+    val signals: List<Double> = emptyList(),
+)
 
 /**
  * Jamming and spoofing indicators, and receiver clock quality, from raw GNSS measurements.
@@ -154,6 +160,7 @@ data class InterferenceMonitor(
                 updated[band] = BandBaselineSamples(
                     agcDb = m.agcDb?.let { old.agcDb + it } ?: old.agcDb,
                     meanCn0DbHz = m.meanCn0?.let { old.meanCn0DbHz + it } ?: old.meanCn0DbHz,
+                    signals = old.signals + m.cn0s.size.toDouble(),
                 )
             }
             updated
@@ -164,12 +171,6 @@ data class InterferenceMonitor(
         val statuses = bandStatuses(current, if (collecting) emptyMap() else samples)
         val jamming = statuses.any { it.looksJammed() }
 
-        val driftPpm = epoch.clockDriftNsPerS?.let { it / 1000.0 }
-        val previousDrift = base.driftHistory.lastOrNull()?.second
-        val jumped = driftPpm != null && previousDrift != null && abs(driftPpm - previousDrift) > DRIFT_JUMP_PPM
-        val history = (if (driftPpm != null) base.driftHistory + (epoch.atMs to driftPpm) else base.driftHistory)
-            .filter { epoch.atMs - it.first <= DRIFT_WINDOW_MS }
-
         val count = epoch.hardwareClockDiscontinuityCount
         val lastCount = base.lastDiscontinuityCount
         val newDiscontinuities = when {
@@ -177,6 +178,18 @@ data class InterferenceMonitor(
             count > lastCount -> count - lastCount
             else -> 1 // the counter went backwards: at least one reset happened
         }
+
+        // A drift jump counts only between consecutive epochs of one continuous clock: after
+        // a hardware discontinuity (routine duty cycling) the drift estimate restarts, and
+        // across a gap in the epochs the change is spread over time nobody watched.
+        val driftPpm = epoch.clockDriftNsPerS?.let { it / 1000.0 }
+        val previous = base.driftHistory.lastOrNull()
+        val jumped = driftPpm != null && previous != null && newDiscontinuities == 0 &&
+            epoch.atMs - previous.first <= DRIFT_JUMP_MAX_GAP_MS &&
+            abs(driftPpm - previous.second) > DRIFT_JUMP_PPM
+        val kept = if (newDiscontinuities > 0) emptyList() else base.driftHistory
+        val history = (if (driftPpm != null) kept + (epoch.atMs to driftPpm) else kept)
+            .filter { epoch.atMs - it.first <= DRIFT_WINDOW_MS }
 
         return base.copy(
             sessionStartMs = start,
@@ -231,7 +244,7 @@ data class InterferenceMonitor(
             val drop = s.agcDropDb ?: continue
             val mean = s.meanCn0DbHz ?: continue
             val baseline = s.cn0BaselineDbHz ?: continue
-            if (drop >= SPOOF_AGC_SHIFT_DB && mean > baseline) {
+            if (drop >= SPOOF_AGC_SHIFT_DB && mean - baseline >= SPOOF_CN0_RISE_DB) {
                 out += "${s.band.label}: more power in the band (AGC %.0f dB below baseline) ".format(drop) +
                     "while signals got stronger. This could be a source stronger than the sky."
             }
@@ -249,7 +262,11 @@ data class InterferenceMonitor(
         val drop = agcDropDb ?: return false
         if (drop < JAM_AGC_DROP_DB) return false
         val cn0Fell = cn0BaselineDbHz != null && (meanCn0DbHz == null || cn0BaselineDbHz - meanCn0DbHz >= JAM_CN0_DROP_DB)
-        return cn0Fell || signals < JAM_MIN_SIGNALS
+        // Losing signals counts only against a band that had plenty: L5 is often tracked on
+        // two or three satellites, and few signals there is normal, not a sign of jamming.
+        val base = signalsBaseline
+        val signalsLost = base != null && base >= JAM_MIN_SIGNALS && signals < JAM_MIN_SIGNALS && signals <= base / 2
+        return cn0Fell || signalsLost
     }
 
     /** One band in one epoch. */
@@ -269,7 +286,11 @@ data class InterferenceMonitor(
         const val SPOOF_UNIFORM_MAX_STDDEV = 1.5
         const val SPOOF_UNIFORM_MIN_MEAN = 40.0
         const val SPOOF_AGC_SHIFT_DB = 4.0
+        /** Signals must have got clearly stronger, not by the odd tenth of a dB. */
+        const val SPOOF_CN0_RISE_DB = 3.0
         const val DRIFT_JUMP_PPM = 0.5
+        /** Epochs further apart than this are not compared for a drift jump. */
+        const val DRIFT_JUMP_MAX_GAP_MS = 2_000L
 
         private val Band.label: String
             get() = when (this) {
@@ -311,6 +332,7 @@ data class InterferenceMonitor(
                     meanCn0DbHz = m?.meanCn0,
                     cn0BaselineDbHz = cn0Baseline,
                     signals = m?.cn0s?.size ?: 0,
+                    signalsBaseline = b?.signals?.takeIf { it.isNotEmpty() }?.let(::median),
                 )
             }
 

@@ -80,6 +80,44 @@ class InterferenceMonitorTest {
     }
 
     @Test
+    fun `few signals on a band that always had few is not jamming`() {
+        // L5 tracked on two satellites throughout; the AGC moves by 6 dB.
+        val l5 = 1176.45e6
+        fun e(atMs: Long, agc: Double) = RawEpoch(
+            atMs = atMs,
+            agc = listOf(AgcReading(Constellation.GPS, l5, agc)),
+            signals = (1..2).map { SignalReading(Constellation.GPS, it, l5, 35.0, false) },
+            clockDriftNsPerS = null, hardwareClockDiscontinuityCount = null, leapSecond = null,
+        )
+        var m = (0 until 70).fold(InterferenceMonitor()) { acc, s -> acc.onEpoch(e(s * 1000L, 50.0)) }
+        repeat(5) { m = m.onEpoch(e(70_000L + it * 1000, 44.0)) }
+        assertFalse(m.assessment.jammingSuspected)
+    }
+
+    @Test
+    fun `a slightly stronger sky with more power is not flagged`() {
+        val m = stable().onEpoch(epoch(70_000, agcDb = 45.0, meanCn0 = 38.5))
+        assertTrue(m.assessment.spoofingIndicators.none { it.contains("stronger than the sky") })
+    }
+
+    @Test
+    fun `a drift reset at a clock discontinuity is not a jump`() {
+        val m = InterferenceMonitor()
+            .onEpoch(epoch(0, driftNsPerS = 100.0, discontinuity = 3))
+            .onEpoch(epoch(1000, driftNsPerS = 700.0, discontinuity = 4))
+        assertTrue(m.assessment.spoofingIndicators.none { it.contains("drift jumped") })
+        assertEquals(0.0, m.assessment.clockDriftStdDevPpm ?: 0.0, 1e-12)
+    }
+
+    @Test
+    fun `a drift change across a gap in the epochs is not a jump`() {
+        val m = InterferenceMonitor()
+            .onEpoch(epoch(0, driftNsPerS = 100.0))
+            .onEpoch(epoch(20_000, driftNsPerS = 700.0))
+        assertTrue(m.assessment.spoofingIndicators.none { it.contains("drift jumped") })
+    }
+
+    @Test
     fun `nothing is judged during the baseline minute`() {
         var m = InterferenceMonitor()
         repeat(5) { m = m.onEpoch(epoch(it * 1000L, agcDb = 30.0, meanCn0 = 20.0)) }
