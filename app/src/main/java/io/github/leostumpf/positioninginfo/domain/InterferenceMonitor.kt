@@ -46,11 +46,11 @@ enum class Band {
          * between about 1559 and 1610 MHz; GPS L5, Galileo E5a, BeiDou B2a and NavIC L5 around
          * 1176 MHz.
          */
-        fun of(carrierHz: Double): Band = when (carrierHz / 1e6) {
-            // The same edges as SignalBand, so a signal sits on the same band on every page.
-            in 1555.0..1610.0 -> L1_E1_B1
+        fun of(carrierHz: Double): Band = when (SignalBand.fromCarrierFrequencyHz(carrierHz.toFloat())) {
+            // SignalBand's edges, so a signal sits on the same band on every page.
+            SignalBand.L1 -> L1_E1_B1
 
-            in 1164.0..1192.0 -> L5_E5A_B2A
+            SignalBand.L5 -> L5_E5A_B2A
 
             else -> OTHER
         }

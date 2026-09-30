@@ -181,10 +181,13 @@ object TripCsv {
         p.accuracyM?.toString().orEmpty(),
     ).joinToString(",")
 
+    /** Time, latitude, longitude, altitude, speed, accuracy; the last three may be empty. */
+    private const val FIELDS = 6
+
     /** Null for a malformed line, for example one truncated by a crash mid-write. */
     fun decode(line: String): TripPoint? {
         val f = line.trim().split(',').map { it.trim() }
-        if (f.size != 6) return null
+        if (f.size != FIELDS) return null
         val time = f[0].toLongOrNull() ?: return null
         // Finite and in range only: "NaN" and "Infinity" parse as numbers but would end up
         // as invalid coordinates in an exported GPX.

@@ -14,12 +14,7 @@ import androidx.compose.ui.unit.dp
  * match the type's weight. Kept here rather than pulling in an icon library.
  */
 object AppIcons {
-    val Help = stroke(
-        "Help",
-        CIRCLE,
-        "M9.6 9.4a2.4 2.4 0 1 1 3.4 2.2c-.6.3-1 .8-1 1.5v.6",
-        "M12 16.8h.01",
-    )
+    val Help = stroke("Help", CIRCLE, "M9.6 9.4a2.4 2.4 0 1 1 3.4 2.2c-.6.3-1 .8-1 1.5v.6", "M12 16.8h.01")
     val Reset = stroke("Reset", "M4 12a8 8 0 1 0 2.4-5.7", "M4 4v4h4")
     val Copy = stroke(
         "Copy",
@@ -68,8 +63,11 @@ object AppIcons {
 
     private const val CIRCLE = "M21 12a9 9 0 1 1-18 0a9 9 0 1 1 18 0"
 
+    /** The icons are drawn on a 24 × 24 grid, the size they are shown at. */
+    private const val GRID = 24f
+
     private fun stroke(name: String, vararg paths: String): ImageVector =
-        ImageVector.Builder(name, 24.dp, 24.dp, 24f, 24f).apply {
+        ImageVector.Builder(name, GRID.dp, GRID.dp, GRID, GRID).apply {
             paths.forEach {
                 addPath(
                     pathData = addPathNodes(it),

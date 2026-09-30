@@ -79,27 +79,14 @@ internal fun SatelliteSheet(row: SignalRow, detail: SignalDetail?, siblings: Lis
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 AcquisitionStage.entries.drop(1).forEach { s ->
                     val done = stage != null && s.step <= stage.step
+                    // Every step reached is lit; all four green once the satellite is usable.
+                    val barColour = when {
+                        !done -> Palette.Hairline
+                        stage == AcquisitionStage.TIME_DECODED -> Palette.Good
+                        else -> Palette.TextPrimary
+                    }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Box(
-                            Modifier.fillMaxWidth().height(
-                                4.dp,
-                            ).background(
-                                if (done) {
-                                    (
-                                        if (stage ==
-                                            AcquisitionStage.TIME_DECODED
-                                        ) {
-                                            Palette.Good
-                                        } else {
-                                            Palette.TextPrimary
-                                        }
-                                        )
-                                } else {
-                                    Palette.Hairline
-                                },
-                                RoundedCornerShape(2.dp),
-                            ),
-                        )
+                        Box(Modifier.fillMaxWidth().height(4.dp).background(barColour, RoundedCornerShape(2.dp)))
                         Text(
                             s.label,
                             style = CaptionStyle.copy(fontSize = 11.sp),
@@ -195,11 +182,7 @@ private fun RawMeasurementRows(sat: SatelliteInfo, raw: SignalMeasurement) {
             "Time uncertainty",
             if (ns < 1_000_000) "± $ns ns" else String.format(java.util.Locale.US, "± %.1f ms", ns / 1e6),
             detail = if (metres < 10_000) {
-                String.format(
-                    java.util.Locale.US,
-                    "≈ %.0f m of range",
-                    metres,
-                )
+                String.format(java.util.Locale.US, "≈ %.0f m of range", metres)
             } else {
                 String.format(java.util.Locale.US, "≈ %.0f km of range", metres / 1_000)
             },

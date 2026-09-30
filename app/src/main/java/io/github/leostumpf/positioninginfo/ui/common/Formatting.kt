@@ -34,16 +34,22 @@ fun rememberLogTimeFormat(): SimpleDateFormat {
 /** "12.3 m", or "1.2 km" beyond a kilometre. */
 fun metres(value: Double?, decimals: Int = 1): String = when {
     value == null -> DASH
-    kotlin.math.abs(value) >= 1_000 -> "${(value / 1_000).fmt(2)} km"
+    kotlin.math.abs(value) >= M_PER_KM -> "${(value / M_PER_KM).fmt(2)} km"
     else -> "${value.fmt(decimals)} m"
 }
 
-/** "1:02:03" or "4:05". */
+/** "1:02:03" or "4:05": a stopwatch. */
 fun duration(ms: Long): String {
-    val s = ms / 1_000
-    return if (s >= 3_600) {
-        String.format(Locale.US, "%d:%02d:%02d", s / 3_600, s / 60 % 60, s % 60)
+    val s = ms / MS_PER_S
+    val min = s / S_PER_MIN
+    return if (s >= S_PER_H) {
+        String.format(Locale.US, "%d:%02d:%02d", s / S_PER_H, min % S_PER_MIN, s % S_PER_MIN)
     } else {
-        String.format(Locale.US, "%d:%02d", s / 60, s % 60)
+        String.format(Locale.US, "%d:%02d", min, s % S_PER_MIN)
     }
 }
+
+private const val M_PER_KM = 1_000.0
+private const val MS_PER_S = 1_000L
+private const val S_PER_MIN = 60L
+private const val S_PER_H = 3_600L

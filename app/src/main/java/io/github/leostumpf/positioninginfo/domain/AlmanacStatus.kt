@@ -118,9 +118,6 @@ data class AlmanacStatus(
             }
             // Busiest constellation first, then by name so the order never jitters
             // between sweeps when two constellations are tied.
-            .sortedWith(
-                compareByDescending<ConstellationSummary> { it.visible }
-                    .thenBy { it.constellation.label },
-            )
+            .sortedWith(compareByDescending<ConstellationSummary> { it.visible }.thenBy { it.constellation.label })
     }
 }

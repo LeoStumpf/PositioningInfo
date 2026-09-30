@@ -90,10 +90,7 @@ internal fun DiagnosisCard(d: Diagnosis, modifier: Modifier = Modifier) {
                                 color = Palette.TextSecondary,
                             )
                             if (check.status != CheckStatus.OK) {
-                                check.hint(
-                                    d.input,
-                                    d.expectedMs,
-                                )?.let {
+                                check.hint(d.input, d.expectedMs)?.let {
                                     Text(
                                         it,
                                         style = BodyStyle.copy(fontSize = 12.sp, lineHeight = 17.sp),

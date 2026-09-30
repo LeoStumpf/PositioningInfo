@@ -19,16 +19,18 @@ enum class Constellation(val label: String, val operator: String) {
     ;
 
     companion object {
-        /** Constellation types as defined by `android.location.GnssStatus`. */
-        fun fromAndroidType(type: Int): Constellation = when (type) {
-            1 -> GPS
-            2 -> SBAS
-            3 -> GLONASS
-            4 -> QZSS
-            5 -> BEIDOU
-            6 -> GALILEO
-            7 -> IRNSS
-            else -> UNKNOWN
-        }
+        /** Constellation types as defined by `android.location.GnssStatus.CONSTELLATION_*`. */
+        fun fromAndroidType(type: Int): Constellation = ANDROID_TYPES[type] ?: UNKNOWN
+
+        /** `GnssStatus.CONSTELLATION_GPS` … `CONSTELLATION_IRNSS`, which are 1 to 7. */
+        private val ANDROID_TYPES = mapOf(
+            1 to GPS,
+            2 to SBAS,
+            3 to GLONASS,
+            4 to QZSS,
+            5 to BEIDOU,
+            6 to GALILEO,
+            7 to IRNSS,
+        )
     }
 }

@@ -253,10 +253,7 @@ object Glossary {
                 "≤10\u00A0min of movement. Needs 2\u00A0min of history; satellites below the " +
                 "horizon cannot be predicted offline.",
         ),
-        PrimerEntry(
-            "Setting soon",
-            "Satellites whose projection reaches the horizon within 15\u00A0min.",
-        ),
+        PrimerEntry("Setting soon", "Satellites whose projection reaches the horizon within 15\u00A0min."),
         PrimerEntry(
             "Show / clear paths",
             "Paths are recorded only while the app runs, so after closing and reopening it they " +
@@ -390,10 +387,7 @@ object Glossary {
             "The pressure at sea level that makes the barometer agree with GNSS — " +
                 "equivalent to the QNH pilots set. It changes with the weather.",
         ),
-        PrimerEntry(
-            "Vertical speed",
-            "Rate of climb or descent from the barometer over the last few seconds.",
-        ),
+        PrimerEntry("Vertical speed", "Rate of climb or descent from the barometer over the last few seconds."),
     )
 
     val trip = listOf(
@@ -416,10 +410,7 @@ object Glossary {
             "The standard open file format for tracks; readable by practically every map and " +
                 "sports app. Export writes it to a file you choose.",
         ),
-        PrimerEntry(
-            "Max / average speed",
-            "Highest recorded speed, and distance divided by moving time.",
-        ),
+        PrimerEntry("Max / average speed", "Highest recorded speed, and distance divided by moving time."),
         PrimerEntry(
             "Background mode",
             "Without it, recording stops as soon as you leave the app. With it, a " +

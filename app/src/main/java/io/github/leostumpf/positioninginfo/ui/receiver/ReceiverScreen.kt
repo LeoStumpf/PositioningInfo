@@ -123,12 +123,7 @@ fun ReceiverScreen(state: ReceiverUiState, modifier: Modifier = Modifier) {
                             )
                         },
                         { m ->
-                            StatTile(
-                                "Satellites",
-                                n.gga?.satellites?.toString() ?: DASH,
-                                m,
-                                footnote = "in solution",
-                            )
+                            StatTile("Satellites", n.gga?.satellites?.toString() ?: DASH, m, footnote = "in solution")
                         },
                         { m ->
                             StatTile(
@@ -146,9 +141,7 @@ fun ReceiverScreen(state: ReceiverUiState, modifier: Modifier = Modifier) {
                     ValueRow(
                         "Error ellipse, 1σ",
                         if (gst.semiMajorM != null && gst.semiMinorM != null) {
-                            "${gst.semiMajorM.fmt(
-                                1,
-                            )} × ${gst.semiMinorM.fmt(1)} m"
+                            "${gst.semiMajorM.fmt(1)} × ${gst.semiMinorM.fmt(1)} m"
                         } else {
                             DASH
                         },
@@ -196,10 +189,7 @@ fun ReceiverScreen(state: ReceiverUiState, modifier: Modifier = Modifier) {
                 ValueRow(
                     "GPS week",
                     gps.weekNumber?.let { wn ->
-                        fullWeek(
-                            wn,
-                            state.currentGpsWeek,
-                        )?.let { "$it" } ?: "$wn mod 1024"
+                        fullWeek(wn, state.currentGpsWeek)?.let { "$it" } ?: "$wn mod 1024"
                     } ?: DASH,
                     detail = gps.weekNumber?.let { "broadcast as $it (10 bits)" },
                 )
@@ -243,14 +233,7 @@ fun ReceiverScreen(state: ReceiverUiState, modifier: Modifier = Modifier) {
                     ValueRow(
                         "Ionosphere model",
                         "received",
-                        detail = "α " + k.alpha.joinToString(
-                            " ",
-                        ) {
-                            "%.2e".format(
-                                Locale.US,
-                                it,
-                            )
-                        } + " · β " + k.beta.joinToString(" ") { "%.2e".format(Locale.US, it) },
+                        detail = "α ${k.alpha.scientific()} · β ${k.beta.scientific()}",
                         divider = false,
                     )
                 }
@@ -309,7 +292,7 @@ fun ReceiverScreen(state: ReceiverUiState, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun Verdict(a: InterferenceAssessment) {
+private fun Verdict(a: InterferenceAssessment, modifier: Modifier = Modifier) {
     val (title, subtitle, tone) = when {
         a.jammingSuspected -> Triple("Possible jamming", "Gain and signal strength dropped together", Tone.BAD)
 
@@ -324,25 +307,28 @@ private fun Verdict(a: InterferenceAssessment) {
         else -> Triple("No interference detected", "Gain and signal strength match the baseline", Tone.GOOD)
     }
     val shape = RoundedCornerShape(16.dp)
-    Row(
-        Modifier.fillMaxWidth().tinted(tone, shape).padding(16.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Icon(
-            if (tone == Tone.GOOD || tone == Tone.NEUTRAL) AppIcons.ShieldCheck else AppIcons.ShieldAlert,
-            contentDescription = null,
-            tint = tone.color,
-            modifier = Modifier.size(28.dp),
-        )
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = TitleStyle, color = Palette.TextPrimary)
-            Text(subtitle, style = CaptionStyle, color = Palette.TextSecondary)
+    Column(modifier) {
+        Row(
+            Modifier.fillMaxWidth().tinted(tone, shape).padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(
+                if (tone == Tone.GOOD || tone == Tone.NEUTRAL) AppIcons.ShieldCheck else AppIcons.ShieldAlert,
+                contentDescription = null,
+                tint = tone.color,
+                modifier = Modifier.size(28.dp),
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, style = TitleStyle, color = Palette.TextPrimary)
+                Text(subtitle, style = CaptionStyle, color = Palette.TextSecondary)
+            }
+        }
+        // The first indicator is the verdict's subtitle; any further ones follow as notes.
+        for (indicator in a.spoofingIndicators.drop(1)) {
+            Note("• ${indicator.describe()}", Modifier.padding(top = 6.dp), color = Palette.Degraded)
         }
     }
-    a.spoofingIndicators.drop(
-        1,
-    ).forEach { Note("• ${it.describe()}", Modifier.padding(top = 6.dp), color = Palette.Degraded) }
 }
 
 private val BandWeights = listOf(1.4f, 1f, 1f, 0.6f)
@@ -477,22 +463,27 @@ private fun rawStatusText(status: RawStreamStatus, what: String) = when (status)
     else -> "Waiting for $what from the chip…"
 }
 
-private fun ggaQuality(q: Int) = when (q) {
-    0 -> "no fix"
-    1 -> "GNSS"
-    2 -> "SBAS"
-    4 -> "RTK fixed"
-    5 -> "RTK float"
-    6 -> "estimated"
-    else -> "other"
-}
+/** What the GGA fix-quality digit means (NMEA 0183). */
+private fun ggaQuality(q: Int) = GGA_QUALITIES[q] ?: "other"
+
+private val GGA_QUALITIES = mapOf(
+    0 to "no fix",
+    1 to "GNSS",
+    2 to "SBAS",
+    4 to "RTK fixed",
+    5 to "RTK float",
+    6 to "estimated",
+)
 
 /** Resolves the 10-bit broadcast week against the phone's date: the candidate nearest to it. */
 internal fun fullWeek(broadcast: Int, current: Int?): Int? {
     if (current == null) return null
-    val base = current - current % 1024 + broadcast
-    return listOf(base - 1024, base, base + 1024).minBy { abs(it - current) }
+    val base = current - current % WEEK_ROLLOVER + broadcast
+    return listOf(base - WEEK_ROLLOVER, base, base + WEEK_ROLLOVER).minBy { abs(it - current) }
 }
+
+/** The broadcast week has 10 bits, so it rolls over every 1024 weeks. */
+private const val WEEK_ROLLOVER = 1024
 
 /** One epoch a second for [InterferenceMonitor.BASELINE_MS]: the baseline minute. */
 private const val BASELINE_EPOCHS = (InterferenceMonitor.BASELINE_MS / 1_000).toInt()
@@ -525,3 +516,6 @@ internal fun SpoofingIndicator.describe(): String = when (this) {
         ) +
             "rarely does on its own."
 }
+
+/** The model's coefficients in scientific notation: "1.21e-08 1.49e-08 …". */
+private fun List<Double>.scientific(): String = joinToString(" ") { "%.2e".format(Locale.US, it) }

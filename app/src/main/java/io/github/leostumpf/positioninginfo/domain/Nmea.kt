@@ -84,6 +84,9 @@ object NmeaParser {
         if (size < count) throw Malformed()
     }
 
+    private const val DEGREES_SHIFT = 100.0
+    private const val MINUTES_PER_DEGREE = 60.0
+
     /** Fields, counting the address, that each decoded sentence type always carries. */
     private const val GGA_FIELDS = 12
     private const val GSA_FIELDS = 18
@@ -98,92 +101,134 @@ object NmeaParser {
      * proprietary `$P...` sentences, returned as [OtherSentence] with talker "P".
      */
     fun parse(line: String): NmeaSentence? {
-        val s = line.trimEnd()
-        if (s.length < 4 || s[0] != '$') return null
-        val star = s.lastIndexOf('*')
-        if (star < 0 || s.length != star + 3) return null
-        val hex = s.substring(star + 1)
-        // Exactly two hex digits: toIntOrNull alone would also take "+7".
-        if (!hex.all { it in '0'..'9' || it in 'A'..'F' || it in 'a'..'f' }) return null
-        val expected = hex.toInt(16)
-        val body = s.substring(1, star)
-        var sum = 0
-        for (c in body) {
-            if (c.code > 0x7E || c.code < 0x20) return null
-            sum = sum xor c.code
-        }
-        if (sum != expected) return null
-
+        val body = checkedBody(line) ?: return null
         val f = body.split(',')
         val address = f[0]
         if (address.isEmpty() || !address.all { it.isLetterOrDigit() }) return null
         if (address[0] == 'P') {
             return if (address.length > 1) OtherSentence("P", address.substring(1)) else null
         }
-        if (address.length < 5) return null
-        val talker = address.substring(0, address.length - 3)
-        val type = address.substring(address.length - 3)
-
+        if (address.length < TALKER_LENGTH + TYPE_LENGTH) return null
+        val talker = address.dropLast(TYPE_LENGTH)
+        val type = address.takeLast(TYPE_LENGTH)
         return try {
             when (type) {
-                "GGA" -> {
-                    f.requireFields(GGA_FIELDS)
-                    Gga(
-                        talker = talker,
-                        latitude = coordinate(f[2], f[3], 'N', 'S', maxDegrees = 90.0),
-                        longitude = coordinate(f[4], f[5], 'E', 'W', maxDegrees = 180.0),
-                        fixQuality = int(f[6]),
-                        satellites = int(f[7]),
-                        hdop = double(f[8]),
-                        altitudeMslM = double(f[9]),
-                        geoidSeparationM = double(f[11]),
-                    )
-                }
-
-                "GSA" -> {
-                    f.requireFields(GSA_FIELDS)
-                    Gsa(
-                        talker = talker,
-                        mode = f[1].singleOrNull(),
-                        fixType = int(f[2]),
-                        prns = (3..14).mapNotNull { int(f[it]) },
-                        pdop = double(f[15]),
-                        hdop = double(f[16]),
-                        vdop = double(f[17]),
-                        systemId = f.getOrNull(18)?.let { int(it) },
-                    )
-                }
-
-                "GST" -> {
-                    f.requireFields(GST_FIELDS)
-                    Gst(
-                        talker = talker,
-                        rmsM = double(f[2]),
-                        semiMajorM = double(f[3]),
-                        semiMinorM = double(f[4]),
-                        orientationDeg = double(f[5]),
-                        latSigmaM = double(f[6]),
-                        lonSigmaM = double(f[7]),
-                        altSigmaM = double(f[8]),
-                    )
-                }
-
-                "RMC" -> {
-                    f.requireFields(RMC_FIELDS)
-                    Rmc(
-                        talker = talker,
-                        valid = f[2] == "A",
-                        speedKnots = double(f[7]),
-                        courseDeg = double(f[8]),
-                    )
-                }
-
+                "GGA" -> gga(talker, f)
+                "GSA" -> gsa(talker, f)
+                "GST" -> gst(talker, f)
+                "RMC" -> rmc(talker, f)
                 else -> OtherSentence(talker, type)
             }
         } catch (_: Malformed) {
             null
         }
     }
+
+    /**
+     * The sentence between `$` and `*hh`, if the line is complete, printable and its checksum —
+     * the XOR of every character in between — matches; null otherwise.
+     */
+    private fun checkedBody(line: String): String? {
+        val s = line.trimEnd()
+        if (s.length < MIN_LINE_LENGTH || s[0] != '$') return null
+        val star = s.lastIndexOf('*')
+        if (star < 0 || s.length != star + 1 + CHECKSUM_DIGITS) return null
+        val hex = s.substring(star + 1)
+        // Exactly two hex digits: toIntOrNull alone would also take "+7".
+        if (!hex.all { it in '0'..'9' || it in 'A'..'F' || it in 'a'..'f' }) return null
+        val body = s.substring(1, star)
+        if (!body.all { it.code in PRINTABLE_ASCII }) return null
+        val sum = body.fold(0) { acc, c -> acc xor c.code }
+        return body.takeIf { sum == hex.toInt(HEX_RADIX) }
+    }
+
+    private fun gga(talker: String, f: List<String>): Gga {
+        f.requireFields(GGA_FIELDS)
+        return Gga(
+            talker = talker,
+            latitude = coordinate(f[GGA_LAT], f[GGA_LAT + 1], 'N', 'S', maxDegrees = MAX_LATITUDE),
+            longitude = coordinate(f[GGA_LON], f[GGA_LON + 1], 'E', 'W', maxDegrees = MAX_LONGITUDE),
+            fixQuality = int(f[GGA_QUALITY]),
+            satellites = int(f[GGA_SATELLITES]),
+            hdop = double(f[GGA_HDOP]),
+            altitudeMslM = double(f[GGA_ALTITUDE]),
+            geoidSeparationM = double(f[GGA_GEOID_SEPARATION]),
+        )
+    }
+
+    private fun gsa(talker: String, f: List<String>): Gsa {
+        f.requireFields(GSA_FIELDS)
+        return Gsa(
+            talker = talker,
+            mode = f[GSA_MODE].singleOrNull(),
+            fixType = int(f[GSA_FIX_TYPE]),
+            prns = GSA_PRNS.mapNotNull { int(f[it]) },
+            pdop = double(f[GSA_PDOP]),
+            hdop = double(f[GSA_PDOP + 1]),
+            vdop = double(f[GSA_PDOP + 2]),
+            systemId = f.getOrNull(GSA_SYSTEM_ID)?.let { int(it) },
+        )
+    }
+
+    private fun gst(talker: String, f: List<String>): Gst {
+        f.requireFields(GST_FIELDS)
+        return Gst(
+            talker = talker,
+            rmsM = double(f[GST_RMS]),
+            semiMajorM = double(f[GST_SEMI_MAJOR]),
+            semiMinorM = double(f[GST_SEMI_MINOR]),
+            orientationDeg = double(f[GST_ORIENTATION]),
+            latSigmaM = double(f[GST_LAT_SIGMA]),
+            lonSigmaM = double(f[GST_LON_SIGMA]),
+            altSigmaM = double(f[GST_ALT_SIGMA]),
+        )
+    }
+
+    private fun rmc(talker: String, f: List<String>): Rmc {
+        f.requireFields(RMC_FIELDS)
+        return Rmc(
+            talker = talker,
+            valid = f[RMC_STATUS] == "A",
+            speedKnots = double(f[RMC_SPEED]),
+            courseDeg = double(f[RMC_SPEED + 1]),
+        )
+    }
+
+    // Envelope: "$" + talker (usually 2 letters) + type (3) … "*" + two hex digits.
+    private const val TALKER_LENGTH = 2
+    private const val TYPE_LENGTH = 3
+    private const val CHECKSUM_DIGITS = 2
+    private const val MIN_LINE_LENGTH = 1 + CHECKSUM_DIGITS + 1
+    private const val HEX_RADIX = 16
+    private val PRINTABLE_ASCII = 0x20..0x7E
+
+    // Field positions (0 = the address) per NMEA 0183; a coordinate is followed by its hemisphere.
+    private const val GGA_LAT = 2
+    private const val GGA_LON = 4
+    private const val GGA_QUALITY = 6
+    private const val GGA_SATELLITES = 7
+    private const val GGA_HDOP = 8
+    private const val GGA_ALTITUDE = 9
+    private const val GGA_GEOID_SEPARATION = 11
+    private const val GSA_MODE = 1
+    private const val GSA_FIX_TYPE = 2
+
+    /** Twelve slots for the PRNs of the satellites used. */
+    private val GSA_PRNS = 3..14
+    private const val GSA_PDOP = 15
+    private const val GSA_SYSTEM_ID = 18
+
+    private const val GST_RMS = 2
+    private const val GST_SEMI_MAJOR = 3
+    private const val GST_SEMI_MINOR = 4
+    private const val GST_ORIENTATION = 5
+    private const val GST_LAT_SIGMA = 6
+    private const val GST_LON_SIGMA = 7
+    private const val GST_ALT_SIGMA = 8
+    private const val RMC_STATUS = 2
+    private const val RMC_SPEED = 7
+    private const val MAX_LATITUDE = 90.0
+    private const val MAX_LONGITUDE = 180.0
 
     /** Empty means "not known"; anything else that is not a number means the line is broken. */
     private fun double(field: String): Double? =
@@ -200,11 +245,12 @@ object NmeaParser {
         maxDegrees: Double,
     ): Double? {
         val raw = double(value) ?: return null
-        val degrees = Math.floor(raw / 100.0)
-        val minutes = raw - degrees * 100.0
-        val abs = degrees + minutes / 60.0
+        // ddmm.mmmm: the degrees are the hundreds.
+        val degrees = Math.floor(raw / DEGREES_SHIFT)
+        val minutes = raw - degrees * DEGREES_SHIFT
+        val abs = degrees + minutes / MINUTES_PER_DEGREE
         // Negative, 60 minutes or more, or beyond the pole or the antimeridian: not a coordinate.
-        if (raw < 0 || minutes >= 60.0 || abs > maxDegrees) throw Malformed()
+        if (raw < 0 || minutes >= MINUTES_PER_DEGREE || abs > maxDegrees) throw Malformed()
         return when (hemisphere.singleOrNull()) {
             positive -> abs
             negative -> -abs
@@ -235,10 +281,7 @@ data class NmeaState(
     fun onLine(line: String): NmeaState {
         val sentence = NmeaParser.parse(line)
             ?: return copy(total = total + 1, rejected = rejected + 1)
-        val counted = copy(
-            counts = counts + (sentence.type to (counts[sentence.type] ?: 0) + 1),
-            total = total + 1,
-        )
+        val counted = copy(counts = counts + (sentence.type to (counts[sentence.type] ?: 0) + 1), total = total + 1)
         return when (sentence) {
             is Gga -> counted.copy(gga = sentence)
             is Gsa -> if (sentence.pdop != null) counted.copy(gsa = sentence) else counted

@@ -45,6 +45,7 @@ import io.github.leostumpf.positioninginfo.ui.theme.BodyStyle
 import io.github.leostumpf.positioninginfo.ui.theme.PageTitleStyle
 import io.github.leostumpf.positioninginfo.ui.theme.Palette
 import io.github.leostumpf.positioninginfo.ui.theme.color
+import java.util.Date
 
 /**
  * What orbital data the receiver is holding, and therefore how quickly it can fix.
@@ -200,27 +201,17 @@ fun GnssScreen(
         }
         if (state.ttffLog.isNotEmpty()) {
             section("Recent first fixes", trailing = "stored on this phone")
-            state.ttffLog.takeLast(5).reversed().forEachIndexed { i, e ->
+            val shown = state.ttffLog.takeLast(TTFF_SHOWN).reversed()
+            shown.forEachIndexed { i, e ->
                 item {
+                    val slow = e.ttffMs > FixDiagnosis.expectedMs(e.startType)
                     ValueRow(
-                        rememberLogTimeFormat().format(java.util.Date(e.utcMs)),
+                        rememberLogTimeFormat().format(Date(e.utcMs)),
                         formatDuration(e.ttffMs),
                         // Slow is said as well as coloured, for anyone who cannot tell the two apart.
-                        detail = when (e.startType) {
-                            AlmanacReadiness.HOT -> "hot start"
-                            AlmanacReadiness.WARM -> "warm start"
-                            AlmanacReadiness.COLD -> "cold start"
-                            AlmanacReadiness.UNKNOWN -> "start type unknown"
-                        } + if (e.ttffMs > FixDiagnosis.expectedMs(e.startType)) " · slower than usual" else "",
-                        valueColor = if (e.ttffMs <= FixDiagnosis.expectedMs(
-                                e.startType,
-                            )
-                        ) {
-                            Palette.Good
-                        } else {
-                            Palette.Degraded
-                        },
-                        divider = i < minOf(5, state.ttffLog.size) - 1,
+                        detail = e.startType.startLabel() + if (slow) " · slower than usual" else "",
+                        valueColor = if (slow) Palette.Degraded else Palette.Good,
+                        divider = i < shown.lastIndex,
                     )
                 }
             }
@@ -358,4 +349,14 @@ private fun explanationFor(state: GnssUiState): String = when {
 
         AlmanacReadiness.UNKNOWN -> "No report from the GNSS receiver yet."
     }
+}
+
+/** The newest first fixes shown; the log keeps more. */
+private const val TTFF_SHOWN = 5
+
+private fun AlmanacReadiness.startLabel(): String = when (this) {
+    AlmanacReadiness.HOT -> "hot start"
+    AlmanacReadiness.WARM -> "warm start"
+    AlmanacReadiness.COLD -> "cold start"
+    AlmanacReadiness.UNKNOWN -> "start type unknown"
 }

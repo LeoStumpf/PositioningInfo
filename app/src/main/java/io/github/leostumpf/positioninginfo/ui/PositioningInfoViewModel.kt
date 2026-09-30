@@ -377,9 +377,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
      */
     fun coldStart() {
         val accepted = assistanceSource.clearAidingData()
-        publishAssistance(
-            if (accepted) "Aiding data cleared — cold start running" else "Command rejected by device",
-        )
+        publishAssistance(if (accepted) "Aiding data cleared — cold start running" else "Command rejected by device")
         if (!accepted) return
         stopTracking()
         lastFix = null
@@ -452,10 +450,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         if (!uiVisible) return
         val snapshot = lastSnapshot
         _speedState.update {
-            it.copy(
-                satellitesUsed = snapshot.usedInFixCount,
-                satellitesVisible = snapshot.visibleCount,
-            )
+            it.copy(satellitesUsed = snapshot.usedInFixCount, satellitesVisible = snapshot.visibleCount)
         }
         _gnssState.value = analysis.decorateGnss(
             GnssUiState.from(

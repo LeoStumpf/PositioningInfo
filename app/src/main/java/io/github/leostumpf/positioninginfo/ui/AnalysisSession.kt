@@ -225,10 +225,7 @@ class AnalysisSession(
         lastSnapshot = snapshot
         val now = SystemClock.elapsedRealtime()
         snapshot.satellites.filter { it.cn0DbHz > 0f }.forEach {
-            firstHeardMs.putIfAbsent(
-                it.constellation to it.svid,
-                now,
-            )
+            firstHeardMs.putIfAbsent(it.constellation to it.svid, now)
         }
         obstruction = obstruction.onSnapshot(snapshot.satellites)
     }
@@ -320,14 +317,8 @@ class AnalysisSession(
         val moving = (fix?.speedMps ?: 0f) > 1f && fix?.bearingDegrees != null
         val parts = mutableListOf<String>()
         if (compassMode && trueHeading != null) {
-            parts +=
-                if (declination !=
-                    null
-                ) {
-                    "Heading ${trueHeading.roundToInt()}° true"
-                } else {
-                    "Heading ${trueHeading.roundToInt()}° magnetic"
-                }
+            val north = if (declination != null) "true" else "magnetic"
+            parts += "Heading ${trueHeading.roundToInt()}° $north"
         }
         if (declination != null && (compassMode || moving)) {
             parts += "declination ${abs(declination).fmt(1)}° ${if (declination >= 0) "E" else "W"}"
@@ -358,10 +349,7 @@ class AnalysisSession(
                     ?: AcquisitionStage.TIME_DECODED.takeIf { row.satellite.usedInFix },
                 stageInferred = m == null && row.satellite.usedInFix,
                 dopplerHz = m?.let {
-                    AcquisitionStage.dopplerHz(
-                        it.pseudorangeRateMps,
-                        it.carrierFrequencyHz ?: L1_HZ,
-                    )
+                    AcquisitionStage.dopplerHz(it.pseudorangeRateMps, it.carrierFrequencyHz ?: L1_HZ)
                 },
                 multipath = m?.multipath,
                 firstHeardMs = firstHeardMs[row.satellite.constellation to row.satellite.svid],
@@ -426,6 +414,10 @@ class AnalysisSession(
         )
     }
 
+    /** How long tracking has run without a single navigation frame, or 0 once one arrived. */
+    private fun navSilentMs(): Long =
+        if (navFrames.isEmpty() && tracking) SystemClock.elapsedRealtime() - trackingStartedAtMs else 0L
+
     private fun publishReceiver() {
         if (!visible) return
         _receiverState.value = ReceiverUiState(
@@ -440,13 +432,7 @@ class AnalysisSession(
             gps = gpsNav,
             currentGpsWeek = ((System.currentTimeMillis() - GPS_EPOCH_MS) / WEEK_MS).toInt(),
             capabilities = capabilities,
-            navSilentMs = if (navFrames.isEmpty() &&
-                tracking
-            ) {
-                SystemClock.elapsedRealtime() - trackingStartedAtMs
-            } else {
-                0L
-            },
+            navSilentMs = navSilentMs(),
         )
     }
 
@@ -471,7 +457,13 @@ class AnalysisSession(
     private fun geomagneticAt(fix: SpeedFix): Geomagnetic? {
         val lat = fix.latitude ?: return null
         val lon = fix.longitude ?: return null
-        geomagnetic?.let { if (abs(it.latitude - lat) < 0.1 && abs(it.longitude - lon) < 0.1) return it }
+        val cached = geomagnetic
+        if (cached != null && abs(
+                cached.latitude - lat,
+            ) < SAME_FIELD_DEG && abs(cached.longitude - lon) < SAME_FIELD_DEG
+        ) {
+            return cached
+        }
         val alt = fix.ellipsoidAltitudeM ?: 0.0
         val now = System.currentTimeMillis()
         return Geomagnetic(
@@ -496,12 +488,8 @@ class AnalysisSession(
         fix.mslAltitudeM?.let { return it to "Android geoid model" }
         val separation = gga?.geoidSeparationM
         val ellipsoid = fix.ellipsoidAltitudeM
-        if (separation != null &&
-            ellipsoid != null
-        ) {
-            return (ellipsoid - separation) to "ellipsoid − chip's geoid height"
-        }
-        return null
+        if (separation == null || ellipsoid == null) return null
+        return (ellipsoid - separation) to "ellipsoid − chip's geoid height"
     }
 
     private fun updateHeadingJob() {
@@ -536,6 +524,8 @@ class AnalysisSession(
     }
 
     private companion object {
+        /** About 10 km: the magnetic model changes far less than the compass can show over that. */
+        const val SAME_FIELD_DEG = 0.1
         const val GGA_FRESH_MS = 3_000L
         const val FIELD_SMOOTHING = 0.1
         const val L1_HZ = 1_575.42e6

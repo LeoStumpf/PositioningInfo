@@ -31,31 +31,26 @@ enum class SignalBand(val label: String, val description: String) {
          * constellation places its signals a little differently within a band.
          */
         fun fromCarrierFrequencyHz(hz: Float): SignalBand {
-            val mhz = hz / 1_000_000.0
-            return when {
-                mhz >= 1_555.0 && mhz < 1_595.0 -> L1
-
-                // GPS L1, Galileo E1, BeiDou B1
-                mhz >= 1_595.0 && mhz < 1_610.0 -> L1
-
-                // GLONASS L1 (FDMA spread)
-                mhz >= 1_215.0 && mhz < 1_255.0 -> L2
-
-                // GPS L2C, GLONASS L2
-                mhz >= 1_164.0 && mhz < 1_192.0 -> L5
-
-                // GPS L5, Galileo E5a, BeiDou B2a
-                mhz >= 1_192.0 && mhz < 1_215.0 -> E5B
-
-                // Galileo E5b, BeiDou B2b, GLONASS L3
-                mhz >= 1_255.0 && mhz < 1_300.0 -> E6
-
-                // BeiDou B3I 1268.52, Galileo E6 and QZSS L6 1278.75
-                mhz >= 2_480.0 && mhz < 2_500.0 -> S_BAND
-
-                // NavIC S
-                else -> UNKNOWN
-            }
+            val mhz = hz / HZ_PER_MHZ
+            return RANGES_MHZ.firstOrNull { (range, _) -> mhz in range }?.second ?: UNKNOWN
         }
+
+        private const val HZ_PER_MHZ = 1_000_000.0
+
+        /** Each band's span in MHz, with the signals that fall into it. */
+        private val RANGES_MHZ = listOf(
+            // GPS L1, Galileo E1, BeiDou B1, and the GLONASS L1 FDMA channels up to 1610 MHz
+            1_555.0..<1_610.0 to L1,
+            // GPS L2C, GLONASS L2
+            1_215.0..<1_255.0 to L2,
+            // GPS L5, Galileo E5a, BeiDou B2a (and Galileo's E5 AltBOC centre at 1191.795)
+            1_164.0..<1_192.0 to L5,
+            // Galileo E5b, BeiDou B2b, GLONASS L3
+            1_192.0..<1_215.0 to E5B,
+            // BeiDou B3I 1268.52, Galileo E6 and QZSS L6 1278.75
+            1_255.0..<1_300.0 to E6,
+            // NavIC S
+            2_480.0..<2_500.0 to S_BAND,
+        )
     }
 }

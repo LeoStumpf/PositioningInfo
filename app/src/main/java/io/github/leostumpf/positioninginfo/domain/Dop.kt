@@ -15,24 +15,18 @@ data class Dop(val pdop: Double, val hdop: Double, val vdop: Double, val tdop: D
 }
 
 /** The customary verbal scale for DOP values. */
-enum class DopRating(val label: String) {
-    IDEAL("Ideal"),
-    EXCELLENT("Excellent"),
-    GOOD("Good"),
-    MODERATE("Moderate"),
-    FAIR("Fair"),
-    POOR("Poor"),
+enum class DopRating(val label: String, private val upTo: Double) {
+    IDEAL("Ideal", 1.0),
+    EXCELLENT("Excellent", 2.0),
+    GOOD("Good", 5.0),
+    MODERATE("Moderate", 10.0),
+    FAIR("Fair", 20.0),
+    POOR("Poor", Double.POSITIVE_INFINITY),
     ;
 
     companion object {
-        fun of(dop: Double): DopRating = when {
-            dop <= 1.0 -> IDEAL
-            dop <= 2.0 -> EXCELLENT
-            dop <= 5.0 -> GOOD
-            dop <= 10.0 -> MODERATE
-            dop <= 20.0 -> FAIR
-            else -> POOR
-        }
+        /** The first rating whose upper bound the value does not exceed. */
+        fun of(dop: Double): DopRating = entries.first { dop <= it.upTo }
     }
 }
 
@@ -51,7 +45,7 @@ object DopCalculator {
      * fewer than 4 or a singular geometry.
      */
     fun of(directions: List<SkyPoint>): Dop? {
-        if (directions.size < 4) return null
+        if (directions.size < MIN_SATELLITES) return null
         // Rows of the geometry matrix H in local east-north-up, plus the clock column.
         val rows = directions.map { p ->
             val az = Math.toRadians(p.azimuthDegrees.toDouble())
@@ -66,12 +60,7 @@ object DopCalculator {
         val qTT = q[3][3]
         // A nearly singular matrix can come back with negative diagonals from rounding.
         if (listOf(qEE, qNN, qUU, qTT).any { it < 0 }) return null
-        return Dop(
-            pdop = sqrt(qEE + qNN + qUU),
-            hdop = sqrt(qEE + qNN),
-            vdop = sqrt(qUU),
-            tdop = sqrt(qTT),
-        )
+        return Dop(pdop = sqrt(qEE + qNN + qUU), hdop = sqrt(qEE + qNN), vdop = sqrt(qUU), tdop = sqrt(qTT))
     }
 
     /** Gauss-Jordan with partial pivoting; null when a pivot vanishes relative to the matrix. */
@@ -110,4 +99,7 @@ object DopCalculator {
     }
 
     private const val SINGULAR_EPSILON = 1e-9
+
+    /** Three unknowns for the position and one for the receiver clock. */
+    private const val MIN_SATELLITES = 4
 }

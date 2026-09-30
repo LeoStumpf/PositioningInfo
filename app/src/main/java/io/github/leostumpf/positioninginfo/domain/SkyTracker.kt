@@ -65,10 +65,7 @@ data class SkyTracker(
         // reported lost and then found again. The gap is not news, so start over quietly.
         val resumed = lastSnapshotMs == null || nowMs - lastSnapshotMs > LOST_AFTER_MS
         val base = if (resumed) {
-            copy(
-                tracks = tracks.mapValues { it.value.copy(visible = false) },
-                sessionStartMs = nowMs,
-            )
+            copy(tracks = tracks.mapValues { it.value.copy(visible = false) }, sessionStartMs = nowMs)
         } else {
             this
         }
@@ -161,6 +158,11 @@ data class SkyProjection(
         /** Below this the satellite is effectively still (a geostationary SBAS or BeiDou GEO). */
         const val MIN_RATE_DEG_PER_MIN = 0.05
 
+        /** A line through fewer than three positions is a guess, not a fit. */
+        private const val MIN_SAMPLES = 3
+        private const val MS_PER_MIN = 60_000.0
+        private const val FULL_TURN_DEG = 360.0
+
         /**
          * Continues the recent motion in a straight line through space and projects it back
          * onto the sky.
@@ -172,10 +174,10 @@ data class SkyProjection(
         fun of(samples: List<SkySample>, nowMs: Long): SkyProjection? {
             val last = samples.lastOrNull() ?: return null
             val window = samples.filter { last.atMs - it.atMs <= FIT_WINDOW_MS }
-            if (window.size < 3 || last.atMs - window.first().atMs < MIN_SPAN_MS) return null
+            if (window.size < MIN_SAMPLES || last.atMs - window.first().atMs < MIN_SPAN_MS) return null
 
             // Least squares per axis, time in minutes relative to the newest sample.
-            val ts = window.map { (it.atMs - last.atMs) / 60_000.0 }
+            val ts = window.map { (it.atMs - last.atMs) / MS_PER_MIN }
             val vs = window.map { it.point.toVector() }
             val tMean = ts.average()
             val denom = ts.sumOf { (it - tMean) * (it - tMean) }
@@ -219,16 +221,18 @@ data class SkyProjection(
 
         private fun toPoint(v: DoubleArray): SkyPoint {
             val norm = sqrt(v.sumOf { it * it })
-            val az = Math.toDegrees(atan2(v[0], v[1])).let { if (it < 0) it + 360 else it }
+            val az = Math.toDegrees(atan2(v[0], v[1])).let { if (it < 0) it + FULL_TURN_DEG else it }
             val el = Math.toDegrees(asin((v[2] / norm).coerceIn(-1.0, 1.0)))
             return SkyPoint(az.toFloat(), el.toFloat())
         }
 
         private fun interpolateAzimuth(from: Float, to: Float, f: Float): Float {
+            val half = (FULL_TURN_DEG / 2).toFloat()
+            val full = FULL_TURN_DEG.toFloat()
             var delta = to - from
-            if (delta > 180f) delta -= 360f
-            if (delta < -180f) delta += 360f
-            return ((from + delta * f) % 360f + 360f) % 360f
+            if (delta > half) delta -= full
+            if (delta < -half) delta += full
+            return ((from + delta * f) % full + full) % full
         }
     }
 }

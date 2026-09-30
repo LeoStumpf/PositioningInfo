@@ -42,9 +42,12 @@ data class TtffEntry(val utcMs: Long, val ttffMs: Long, val startType: AlmanacRe
     companion object {
         const val MAX_ENTRIES = 20
 
+        /** A line is time, duration and start type, comma separated. */
+        private const val FIELDS = 3
+
         fun decode(line: String): TtffEntry? {
             val parts = line.trim().split(',')
-            if (parts.size != 3) return null
+            if (parts.size != FIELDS) return null
             val utc = parts[0].toLongOrNull() ?: return null
             val ttff = parts[1].toLongOrNull() ?: return null
             val type = AlmanacReadiness.entries.firstOrNull { it.name == parts[2] } ?: return null

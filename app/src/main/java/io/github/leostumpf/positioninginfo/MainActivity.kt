@@ -72,9 +72,7 @@ private fun PositioningInfoRoot() {
         onPauseOrDispose { }
     }
     var wasDenied by rememberSaveable { mutableStateOf(false) }
-    val launcher = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestMultiplePermissions(),
-    ) { result ->
+    val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { result ->
         hasFineLocation = result[Manifest.permission.ACCESS_FINE_LOCATION] == true
         if (!hasFineLocation) wasDenied = true
     }
@@ -100,10 +98,7 @@ private fun PositioningInfoRoot() {
         state = state,
         onRequest = {
             launcher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                    Manifest.permission.ACCESS_COARSE_LOCATION,
-                ),
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
             )
         },
         onOpenSettings = {

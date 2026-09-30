@@ -181,9 +181,7 @@ fun NetworkScreen(state: NetworkUiState, modifier: Modifier = Modifier) {
         }
         when {
             !state.wifiAvailable -> item {
-                Notice(
-                    "Wi-Fi is off and background Wi-Fi scanning is disabled, so no access points are visible.",
-                )
+                Notice("Wi-Fi is off and background Wi-Fi scanning is disabled, so no access points are visible.")
             }
 
             state.accessPoints.isEmpty() -> item { Notice("No access points found yet.") }
@@ -275,9 +273,7 @@ private fun CellSheet(cell: CellTower, onDismiss: () -> Unit) {
             ),
         )
         cell.quality.forEach { q ->
-            add(
-                DetailRow(q.name, "${q.value}${if (q.unit.isNotEmpty()) " ${q.unit}" else ""}", qualityMeaning(q.name)),
-            )
+            add(DetailRow(q.name, "${q.value}${if (q.unit.isNotEmpty()) " ${q.unit}" else ""}", qualityMeaning(q.name)))
         }
         if (cell.timingAdvanceSteps != null || cell.timingAdvanceDistanceM != null) {
             add(
@@ -361,14 +357,26 @@ private fun AccessPointSheet(ap: AccessPoint, onDismiss: () -> Unit) {
     )
 }
 
-/** 2.4 GHz channels start at 2412 MHz, 5 GHz at 5000, 6 GHz at 5950 — all in 5 MHz steps. */
-internal fun wifiChannel(mhz: Int): Int? = when (mhz) {
-    2484 -> 14
-    in 2412..2472 -> (mhz - 2407) / 5
-    in 5160..5885 -> (mhz - 5000) / 5
-    in 5955..7115 -> (mhz - 5950) / 5
-    else -> null
+/** The Wi-Fi channel number of a centre frequency, or null outside the channel plans. */
+internal fun wifiChannel(mhz: Int): Int? {
+    if (mhz == CHANNEL_14_MHZ) return CHANNEL_14
+    val plan = CHANNEL_PLANS.firstOrNull { mhz in it.centres } ?: return null
+    return (mhz - plan.channelZeroMhz) / CHANNEL_STEP_MHZ
 }
+
+/** A band's channels: [centres] they may lie on, counted in 5 MHz steps from [channelZeroMhz]. */
+private class ChannelPlan(val centres: IntRange, val channelZeroMhz: Int)
+
+private val CHANNEL_PLANS = listOf(
+    ChannelPlan(centres = 2412..2472, channelZeroMhz = 2407),
+    ChannelPlan(centres = 5160..5885, channelZeroMhz = 5000),
+    ChannelPlan(centres = 5955..7115, channelZeroMhz = 5950),
+)
+private const val CHANNEL_STEP_MHZ = 5
+
+/** Channel 14 (Japan, 802.11b only) is the odd one out, 12 MHz above channel 13. */
+private const val CHANNEL_14_MHZ = 2484
+private const val CHANNEL_14 = 14
 
 /** Where the network position lies relative to GNSS, drawn to scale inside its claimed circle. */
 @Composable
@@ -396,10 +404,7 @@ private fun Comparison(state: NetworkUiState) {
                 val centre = Offset(size.width / 2, size.height / 2)
                 val r = size.minDimension / 2 - 4.dp.toPx()
                 val scale = if (claimed != null && claimed > 0) {
-                    r / maxOf(
-                        claimed,
-                        c.distanceM,
-                    )
+                    r / maxOf(claimed, c.distanceM)
                 } else {
                     r / maxOf(c.distanceM, 1.0)
                 }
@@ -505,13 +510,14 @@ private fun CellRow(cell: CellTower, onClick: () -> Unit) {
                 style = DataStyle.copy(fontSize = 11.sp),
                 color = if (cell.registered) Palette.TextPrimary else Palette.TextSecondary,
                 textAlign = TextAlign.Center,
-                modifier = Modifier.widthIn(
-                    min = 44.dp,
-                ).border(
-                    1.dp,
-                    if (cell.registered) Palette.TextPrimary else Palette.Outline,
-                    RoundedCornerShape(6.dp),
-                ).padding(vertical = 2.dp),
+                modifier = Modifier
+                    .widthIn(min = 44.dp)
+                    .border(
+                        1.dp,
+                        if (cell.registered) Palette.TextPrimary else Palette.Outline,
+                        RoundedCornerShape(6.dp),
+                    )
+                    .padding(vertical = 2.dp),
             )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(

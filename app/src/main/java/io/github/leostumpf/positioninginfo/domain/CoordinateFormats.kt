@@ -39,13 +39,17 @@ object CoordinateFormats {
      * Rounds once, in tenths of a second, and splits afterwards. Rounding the seconds on
      * their own would print 59.95″ as "60.0″" instead of carrying into the minutes.
      */
+    private const val TENTHS = 10L
+    private const val TENTHS_PER_MINUTE = 60 * TENTHS
+    private const val TENTHS_PER_DEGREE = 60 * TENTHS_PER_MINUTE
+
     private fun dmsPart(value: Double, positive: Char, negative: Char): String {
-        val tenths = (abs(value) * 36_000).roundToLong()
-        val degrees = tenths / 36_000
-        val minutes = tenths % 36_000 / 600
-        val secondTenths = tenths % 600
+        val tenths = (abs(value) * TENTHS_PER_DEGREE).roundToLong()
+        val degrees = tenths / TENTHS_PER_DEGREE
+        val minutes = tenths % TENTHS_PER_DEGREE / TENTHS_PER_MINUTE
+        val secondTenths = tenths % TENTHS_PER_MINUTE
         val letter = if (value < 0 && tenths != 0L) negative else positive
-        return "$degrees°$minutes′${secondTenths / 10}.${secondTenths % 10}″ $letter"
+        return "$degrees°$minutes′${secondTenths / TENTHS}.${secondTenths % TENTHS}″ $letter"
     }
 
     /** "0.000000° S" would be odd: a value that prints as zero takes the positive letter. */
@@ -90,16 +94,10 @@ object CoordinateFormats {
         val lo = normaliseLongitude(lon)
         val zone = utmZone(lat, lo)
         // Band X is 12° tall (72°..84°), so the index is clamped rather than overflowing.
-        val band = BANDS[floor((lat + 80) / 8).toInt().coerceIn(0, BANDS.length - 1)]
+        val band = BANDS[floor((lat - UTM_LATITUDES.start) / BAND_HEIGHT_DEG).toInt().coerceIn(0, BANDS.length - 1)]
 
         val phi = Math.toRadians(lat)
-        var dLambda = lo - (zone * 6 - 183)
-        if (dLambda < -180) {
-            dLambda += 360
-        } else if (dLambda > 180) {
-            dLambda -= 360
-        }
-        val lambda = Math.toRadians(dLambda)
+        val lambda = Math.toRadians(normaliseLongitude(lo - centralMeridian(zone)))
 
         // Conformal latitude, then the Gauss-Schreiber sphere, then Krüger's correction.
         val sinPhi = sin(phi)
@@ -117,32 +115,47 @@ object CoordinateFormats {
         return UtmCoordinate(zone, band, easting, northing)
     }
 
-    private fun atanh(x: Double): Double = 0.5 * kotlin.math.ln((1 + x) / (1 - x))
+    /** Inverse hyperbolic tangent, ½ ln((1 + x) / (1 − x)). */
+    private fun atanh(x: Double): Double = kotlin.math.ln((1 + x) / (1 - x)) / 2
+
+    private const val ZONE_WIDTH_DEG = 6.0
+    private const val ZONES = 60
+    private const val BAND_HEIGHT_DEG = 8.0
+    private const val HALF_TURN_DEG = 180.0
+    private const val FULL_TURN_DEG = 360.0
+
+    /** The meridian in the middle of a 6° zone: zone 1 spans 180° W to 174° W. */
+    private fun centralMeridian(zone: Int): Double = zone * ZONE_WIDTH_DEG - HALF_TURN_DEG - ZONE_WIDTH_DEG / 2
+
+    /** Zone 32V is widened over south-west Norway. */
+    private val NORWAY_LATITUDES = 56.0..<64.0
+    private val NORWAY_LONGITUDES = 3.0..<12.0
+    private const val NORWAY_ZONE = 32
+
+    /** Band X over Svalbard has only the odd zones 31..37, each wider than 6°. */
+    private const val SVALBARD_FROM_LAT = 72.0
+    private val SVALBARD_ZONES = listOf(0.0..<9.0 to 31, 9.0..<21.0 to 33, 21.0..<33.0 to 35, 33.0..<42.0 to 37)
 
     /** Standard 6° zones, widened for south-west Norway (32V) and Svalbard (31X..37X). */
     private fun utmZone(lat: Double, lon: Double): Int {
-        if (lat in 56.0..<64.0 && lon in 3.0..<12.0) return 32
-        if (lat >= 72.0) {
-            when {
-                lon >= 0.0 && lon < 9.0 -> return 31
-                lon >= 9.0 && lon < 21.0 -> return 33
-                lon >= 21.0 && lon < 33.0 -> return 35
-                lon >= 33.0 && lon < 42.0 -> return 37
-            }
-        }
-        return (floor((lon + 180) / 6).toInt() + 1).coerceIn(1, 60)
+        if (lat in NORWAY_LATITUDES && lon in NORWAY_LONGITUDES) return NORWAY_ZONE
+        if (lat >= SVALBARD_FROM_LAT) SVALBARD_ZONES.firstOrNull { (lons, _) -> lon in lons }?.let { return it.second }
+        return (floor((lon + HALF_TURN_DEG) / ZONE_WIDTH_DEG).toInt() + 1).coerceIn(1, ZONES)
     }
 
+    /** The same longitude in −180°..180°. */
     private fun normaliseLongitude(lon: Double): Double {
-        var l = (lon + 180) % 360
-        if (l < 0) l += 360
-        return l - 180
+        var l = (lon + HALF_TURN_DEG) % FULL_TURN_DEG
+        if (l < 0) l += FULL_TURN_DEG
+        return l - HALF_TURN_DEG
     }
 
     // ---- MGRS ----
 
     private val MGRS_COLUMNS = arrayOf("ABCDEFGH", "JKLMNPQR", "STUVWXYZ")
     private const val MGRS_ROWS = "ABCDEFGHJKLMNPQRSTUV"
+    private const val MGRS_SQUARE_M = 100_000L
+    private const val MGRS_EVEN_ZONE_ROW_OFFSET = 5
 
     /**
      * MGRS is UTM with the leading digits replaced by a 100 km square name. The digits are
@@ -154,10 +167,10 @@ object CoordinateFormats {
         val n = floor(utm.northing).toLong()
         // Column letters cycle through three sets over zones; rows repeat every 2000 km and
         // even zones are offset by five letters so neighbouring squares never share a name.
-        val column = MGRS_COLUMNS[(utm.zone - 1) % 3][(e / 100_000).toInt() - 1]
-        val rowOffset = if (utm.zone % 2 == 0) 5 else 0
-        val row = MGRS_ROWS[((n / 100_000 + rowOffset) % 20).toInt()]
-        val digits = String.format(Locale.ROOT, "%05d %05d", e % 100_000, n % 100_000)
+        val column = MGRS_COLUMNS[(utm.zone - 1) % MGRS_COLUMNS.size][(e / MGRS_SQUARE_M).toInt() - 1]
+        val rowOffset = if (utm.zone % 2 == 0) MGRS_EVEN_ZONE_ROW_OFFSET else 0
+        val row = MGRS_ROWS[((n / MGRS_SQUARE_M + rowOffset) % MGRS_ROWS.length).toInt()]
+        val digits = String.format(Locale.ROOT, "%05d %05d", e % MGRS_SQUARE_M, n % MGRS_SQUARE_M)
         return "${utm.zone}${utm.band} $column$row $digits"
     }
 
@@ -165,42 +178,65 @@ object CoordinateFormats {
 
     private const val OLC_ALPHABET = "23456789CFGHJMPQRVWX"
     private const val OLC_PAIR_LENGTH = 10
+    private const val OLC_BASE = 20
+    private const val OLC_SEPARATOR_AT = 8
+    private const val QUARTER_TURN_DEG = 90.0
+    private const val OLC_LAT_PRECISION = 2.5e7
+    private const val OLC_LAT_DIVISOR = 3_125L
+    private const val OLC_LAT_UNITS_MAX = 180L * 8_000 - 1
+    private const val OLC_LON_PRECISION = 8.192e6
+    private const val OLC_LON_DIVISOR = 1_024L
 
     /** Height of a 10-digit code's cell, taken off the pole so it still has a cell to name. */
     private const val OLC_PRECISION = 1.0 / 8000
 
     fun plusCode(lat: Double, lon: Double): String {
-        var la = lat.coerceIn(-90.0, 90.0)
-        if (la == 90.0) la -= OLC_PRECISION
+        var la = lat.coerceIn(-QUARTER_TURN_DEG, QUARTER_TURN_DEG)
+        if (la == QUARTER_TURN_DEG) la -= OLC_PRECISION
         val lo = normaliseLongitude(lon)
         // Integer arithmetic, like the reference implementation, so that values sitting exactly
         // on a cell edge do not fall into the cell below through floating point error.
         // Clamped: a latitude a hair below 90° rounds up to the pole, which has no cell.
-        var latUnits = (((la + 90) * 2.5e7).roundToLong() / 3125).coerceAtMost(180L * 8000 - 1) // 1/8000° steps
-        var lonUnits = ((lo + 180) * 8.192e6).roundToLong() / 1024
+        // Latitude in 1/8000° steps, longitude in 1/8192°, as the reference implementation does.
+        var latUnits = (((la + QUARTER_TURN_DEG) * OLC_LAT_PRECISION).roundToLong() / OLC_LAT_DIVISOR)
+            .coerceAtMost(OLC_LAT_UNITS_MAX)
+        var lonUnits = ((lo + HALF_TURN_DEG) * OLC_LON_PRECISION).roundToLong() / OLC_LON_DIVISOR
         val digits = CharArray(OLC_PAIR_LENGTH)
         for (pair in OLC_PAIR_LENGTH / 2 - 1 downTo 0) {
-            digits[pair * 2] = OLC_ALPHABET[(latUnits % 20).toInt()]
-            digits[pair * 2 + 1] = OLC_ALPHABET[(lonUnits % 20).toInt()]
-            latUnits /= 20
-            lonUnits /= 20
+            digits[pair * 2] = OLC_ALPHABET[(latUnits % OLC_BASE).toInt()]
+            digits[pair * 2 + 1] = OLC_ALPHABET[(lonUnits % OLC_BASE).toInt()]
+            latUnits /= OLC_BASE
+            lonUnits /= OLC_BASE
         }
         val code = String(digits)
-        return code.substring(0, 8) + "+" + code.substring(8)
+        return code.substring(0, OLC_SEPARATOR_AT) + "+" + code.substring(OLC_SEPARATOR_AT)
     }
 
     // ---- Maidenhead ----
 
+    /** Fields are 20° × 10°, squares 2° × 1°, subsquares 5′ × 2.5′. */
+    private const val FIELD_LON_DEG = 20.0
+    private const val FIELD_LAT_DEG = 10.0
+    private const val SQUARE_LON_DEG = 2.0
+    private const val SQUARE_LAT_DEG = 1.0
+    private const val SUBSQUARES_PER_LON_DEG = 12.0
+    private const val SUBSQUARES_PER_LAT_DEG = 24.0
+
+    /** Kept off the last edge so the final field and square still exist. */
+    private const val EDGE = 1e-9
+
     fun maidenhead(lat: Double, lon: Double): String {
         // Just below the pole and the antimeridian, so the last field still exists.
-        val x = (normaliseLongitude(lon) + 180).coerceIn(0.0, 360 - 1e-9)
-        val y = (lat.coerceIn(-90.0, 90.0) + 90).coerceIn(0.0, 180 - 1e-9)
-        val fieldLon = floor(x / 20).toInt()
-        val fieldLat = floor(y / 10).toInt()
-        val squareLon = floor(x % 20 / 2).toInt()
-        val squareLat = floor(y % 10).toInt()
-        val subLon = floor(x % 2 * 12).toInt()
-        val subLat = floor(y % 1 * 24).toInt()
+        val x = (normaliseLongitude(lon) + HALF_TURN_DEG).coerceIn(0.0, FULL_TURN_DEG - EDGE)
+        val y = (
+            lat.coerceIn(-QUARTER_TURN_DEG, QUARTER_TURN_DEG) + QUARTER_TURN_DEG
+            ).coerceIn(0.0, HALF_TURN_DEG - EDGE)
+        val fieldLon = floor(x / FIELD_LON_DEG).toInt()
+        val fieldLat = floor(y / FIELD_LAT_DEG).toInt()
+        val squareLon = floor(x % FIELD_LON_DEG / SQUARE_LON_DEG).toInt()
+        val squareLat = floor(y % FIELD_LAT_DEG / SQUARE_LAT_DEG).toInt()
+        val subLon = floor(x % SQUARE_LON_DEG * SUBSQUARES_PER_LON_DEG).toInt()
+        val subLat = floor(y % SQUARE_LAT_DEG * SUBSQUARES_PER_LAT_DEG).toInt()
         return buildString {
             append('A' + fieldLon)
             append('A' + fieldLat)

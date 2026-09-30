@@ -65,9 +65,9 @@ fun PositionScreen(
         section(
             "Coordinates · WGS84",
             trailing = state.horizontalAccuracyM?.let { acc ->
-                "±${acc.fmt(
-                    1,
-                )} m · " + if ((state.fixAgeMs ?: 0) < LIVE_FIX_MS) "live" else "${(state.fixAgeMs ?: 0) / 1_000} s old"
+                val age = state.fixAgeMs ?: 0
+                val freshness = if (age < LIVE_FIX_MS) "live" else "${age / 1_000} s old"
+                "±${acc.fmt(1)} m · $freshness"
             },
             trailingColor = if ((state.fixAgeMs ?: Long.MAX_VALUE) < LIVE_FIX_MS) Palette.Good else Palette.Degraded,
         )

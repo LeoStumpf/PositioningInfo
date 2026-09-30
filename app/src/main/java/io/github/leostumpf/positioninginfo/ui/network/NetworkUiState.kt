@@ -79,22 +79,19 @@ data class NetworkUiState(
 internal fun formatDistance(metres: Double): String = distanceParts(metres).let { (value, unit) -> "$value $unit" }
 
 /** [formatDistance] as number and unit, for pages that set the unit in a lighter style. */
-internal fun distanceParts(metres: Double): Pair<String, String> = if (metres < 1_000) {
+internal fun distanceParts(metres: Double): Pair<String, String> = if (metres < M_PER_KM) {
     "${metres.toInt()}" to "m"
 } else {
-    String.format(
-        java.util.Locale.US,
-        "%.1f",
-        metres / 1_000,
-    ) to "km"
+    String.format(java.util.Locale.US, "%.1f", metres / M_PER_KM) to "km"
 }
 
-internal fun band(frequencyMhz: Int): String = when (frequencyMhz) {
-    in 2_400..2_500 -> "2.4 GHz"
-    in 4_900..5_900 -> "5 GHz"
-    in 5_925..7_125 -> "6 GHz"
-    else -> "$frequencyMhz MHz"
-}
+private const val M_PER_KM = 1_000.0
+
+/** The Wi-Fi band a frequency lies in, as people name it. */
+internal fun band(frequencyMhz: Int): String = WIFI_BANDS_MHZ.firstOrNull { frequencyMhz in it.first }?.second
+    ?: "$frequencyMhz MHz"
+
+private val WIFI_BANDS_MHZ = listOf(2_400..2_500 to "2.4 GHz", 4_900..5_900 to "5 GHz", 5_925..7_125 to "6 GHz")
 
 /** One position source in the comparison. */
 data class SourceRow(

@@ -42,12 +42,7 @@ data class ScatterStats(
  */
 data class PositionScatter(val samples: List<Sample> = emptyList()) {
 
-    data class Sample(
-        val latitude: Double,
-        val longitude: Double,
-        val altitudeM: Double?,
-        val claimedAccuracyM: Float?,
-    )
+    data class Sample(val latitude: Double, val longitude: Double, val altitudeM: Double?, val claimedAccuracyM: Float?)
 
     fun add(sample: Sample): PositionScatter {
         val kept = if (samples.size >= MAX_SAMPLES) samples.drop(samples.size - MAX_SAMPLES + 1) else samples
@@ -98,8 +93,8 @@ data class PositionScatter(val samples: List<Sample> = emptyList()) {
             meanLatitude = meanLat,
             meanLongitude = meanLon,
             points = points,
-            cep50M = percentile(sorted, 0.50),
-            cep95M = percentile(sorted, 0.95),
+            cep50M = percentile(sorted, CEP50),
+            cep95M = percentile(sorted, CEP95),
             drmsM = drms,
             twoDrmsM = 2 * drms,
             meanClaimedAccuracyM = meanClaimed,
@@ -110,6 +105,12 @@ data class PositionScatter(val samples: List<Sample> = emptyList()) {
 
     companion object {
         const val MAX_SAMPLES = 3600
+
+        /** The circular error probable radii: half and 95 % of the fixes lie within. */
+        private const val CEP50 = 0.50
+        private const val CEP95 = 0.95
+        private const val HALF_TURN_DEG = 180.0
+        private const val FULL_TURN_DEG = 360.0
 
         /** Same radius as [NetworkComparison.distanceM], so the two agree. */
         private const val EARTH_RADIUS_M = 6_371_000.0
@@ -125,8 +126,8 @@ data class PositionScatter(val samples: List<Sample> = emptyList()) {
         /** Wraps a longitude (difference) into [-180, 180]. */
         private fun wrap(deg: Double): Double {
             var d = deg
-            while (d > 180.0) d -= 360.0
-            while (d < -180.0) d += 360.0
+            while (d > HALF_TURN_DEG) d -= FULL_TURN_DEG
+            while (d < -HALF_TURN_DEG) d += FULL_TURN_DEG
             return d
         }
     }

@@ -15,6 +15,8 @@ import android.telephony.CellInfoWcdma
 import android.telephony.CellSignalStrength
 import android.telephony.CellSignalStrengthNr
 import android.telephony.TelephonyManager
+import androidx.annotation.ChecksSdkIntAtLeast
+import androidx.annotation.RequiresApi
 import androidx.annotation.RequiresPermission
 import androidx.core.content.getSystemService
 import io.github.leostumpf.positioninginfo.data.model.CellTower
@@ -95,200 +97,148 @@ private fun labelled(label: String, value: Number?): String? = value?.let { "$la
 // Android 11; below that, calling them throws NoSuchMethodError. So both are read from the
 // typed subclass inside each branch, never from the base type. The typed identities only
 // share the CellIdentity base class from Android 9, hence the cast behind the check.
-private fun operatorOf(id: Any): String? = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-    (id as CellIdentity).operatorAlphaLong?.toString()?.takeIf { it.isNotBlank() }
-} else {
-    null
+private fun operatorOf(id: Any): String? {
+    if (!sdk(Build.VERSION_CODES.P)) return null
+    return (id as CellIdentity).operatorAlphaLong?.toString()?.takeIf { it.isNotBlank() }
 }
 
-private fun levelOf(s: CellSignalStrength): Int? = s.level.takeIf { it in 0..4 }
+private fun levelOf(s: CellSignalStrength): Int? = s.level.takeIf { it in SIGNAL_LEVELS }
 
-private fun CellInfo.toCellTower(): CellTower? {
-    val bandsOf: (() -> IntArray?) -> List<Int> = { get ->
-        if (Build.VERSION.SDK_INT >=
-            Build.VERSION_CODES.R
-        ) {
-            runCatching { get()?.toList() }.getOrNull().orEmpty()
-        } else {
-            emptyList()
-        }
-    }
-    return when {
-        this is CellInfoLte -> {
-            val id = cellIdentity
-            val s = cellSignalStrength
-            CellTower(
-                technology = "LTE",
-                registered = isRegistered,
-                network = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    network(
-                        id.mccString,
-                        id.mncString,
-                    )
-                } else {
-                    null
-                },
-                area = labelled("TAC", id.tac.valid()),
-                cellId = labelled("CI", id.ci.valid()?.toLong()),
-                physicalId = id.pci.valid(),
-                physicalIdLabel = "PCI",
-                signalDbm = s.dbm.valid(),
-                timingAdvanceDistanceM = s.timingAdvance.valid()?.takeIf { isRegistered }?.let(
-                    TimingAdvance::lteMetres,
-                ),
-                operatorName = operatorOf(id),
-                channel = id.earfcn.valid(),
-                channelLabel = "EARFCN",
-                bands = bandsOf { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) id.bands else null },
-                quality = listOfNotNull(
-                    s.rsrp.valid()?.let { SignalMeasure("RSRP", it, "dBm") },
-                    s.rsrq.valid()?.let { SignalMeasure("RSRQ", it, "dB") },
-                    s.rssnr.valid()?.let { SignalMeasure("SINR", it, "dB") },
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        s.rssi.valid()?.let {
-                            SignalMeasure(
-                                "RSSI",
-                                it,
-                                "dBm",
-                            )
-                        }
-                    } else {
-                        null
-                    },
-                ),
-                level = levelOf(s),
-                timingAdvanceSteps = s.timingAdvance.valid()?.takeIf { isRegistered },
-            )
-        }
+/** Android's bars: none or unknown, poor, moderate, good, great. */
+private val SIGNAL_LEVELS = CellSignalStrength.SIGNAL_STRENGTH_NONE_OR_UNKNOWN..CellSignalStrength.SIGNAL_STRENGTH_GREAT
 
-        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && this is CellInfoNr -> {
-            val id = cellIdentity as CellIdentityNr
-            val s = cellSignalStrength as CellSignalStrengthNr
-            CellTower(
-                technology = "5G NR",
-                registered = isRegistered,
-                network = network(id.mccString, id.mncString),
-                area = labelled("TAC", id.tac.valid()),
-                cellId = labelled("NCI", id.nci.valid()),
-                physicalId = id.pci.valid(),
-                physicalIdLabel = "PCI",
-                signalDbm = s.dbm.valid(),
-                timingAdvanceDistanceM = if (isRegistered &&
-                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
-                ) {
-                    s.timingAdvanceMicros.valid()?.let(TimingAdvance::nrMetres)
-                } else {
-                    null
-                },
-                operatorName = operatorOf(id),
-                channel = id.nrarfcn.valid(),
-                channelLabel = "NR-ARFCN",
-                bands = bandsOf { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) id.bands else null },
-                quality = listOfNotNull(
-                    s.ssRsrp.valid()?.let { SignalMeasure("SS-RSRP", it, "dBm") },
-                    s.ssRsrq.valid()?.let { SignalMeasure("SS-RSRQ", it, "dB") },
-                    s.ssSinr.valid()?.let { SignalMeasure("SS-SINR", it, "dB") },
-                ),
-                level = levelOf(s),
-            )
-        }
+/** GSM bit error rate classes RXQUAL 0..7 (3GPP TS 45.008); 99 means not known. */
+private val BIT_ERROR_RATE_CLASSES = 0..7
 
-        this is CellInfoGsm -> {
-            val id = cellIdentity
-            val s = cellSignalStrength
-            CellTower(
-                technology = "GSM",
-                registered = isRegistered,
-                network = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    network(
-                        id.mccString,
-                        id.mncString,
-                    )
-                } else {
-                    null
-                },
-                area = labelled("LAC", id.lac.valid()),
-                cellId = labelled("CID", id.cid.valid()?.toLong()),
-                physicalId = id.bsic.valid(),
-                physicalIdLabel = "BSIC",
-                signalDbm = s.dbm.valid(),
-                timingAdvanceDistanceM = s.timingAdvance.valid()?.takeIf { isRegistered }?.let(
-                    TimingAdvance::gsmMetres,
-                ),
-                operatorName = operatorOf(id),
-                channel = id.arfcn.valid(),
-                channelLabel = "ARFCN",
-                quality = listOfNotNull(
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        s.rssi.valid()?.let {
-                            SignalMeasure(
-                                "RSSI",
-                                it,
-                                "dBm",
-                            )
-                        }
-                    } else {
-                        null
-                    },
-                    if (Build.VERSION.SDK_INT >=
-                        Build.VERSION_CODES.Q
-                    ) {
-                        s.bitErrorRate.takeIf { it in 0..7 }?.let {
-                            SignalMeasure(
-                                "Bit error rate class",
-                                it,
-                                "",
-                            )
-                        }
-                    } else {
-                        null
-                    },
-                ),
-                level = levelOf(s),
-                timingAdvanceSteps = s.timingAdvance.valid()?.takeIf { isRegistered },
-            )
-        }
+/** True on Android [version] or newer; annotated so lint's API check sees the guard. */
+@ChecksSdkIntAtLeast(parameter = 0)
+private fun sdk(version: Int): Boolean = Build.VERSION.SDK_INT >= version
 
-        this is CellInfoWcdma -> {
-            val id = cellIdentity
-            val s = cellSignalStrength
-            CellTower(
-                technology = "UMTS",
-                registered = isRegistered,
-                network = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    network(
-                        id.mccString,
-                        id.mncString,
-                    )
-                } else {
-                    null
-                },
-                area = labelled("LAC", id.lac.valid()),
-                cellId = labelled("CID", id.cid.valid()?.toLong()),
-                physicalId = id.psc.valid(),
-                physicalIdLabel = "PSC",
-                signalDbm = s.dbm.valid(),
-                timingAdvanceDistanceM = null,
-                operatorName = operatorOf(id),
-                channel = id.uarfcn.valid(),
-                channelLabel = "UARFCN",
-                quality = listOfNotNull(
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                        s.ecNo.valid()?.let {
-                            SignalMeasure(
-                                "Ec/No",
-                                it,
-                                "dB",
-                            )
-                        }
-                    } else {
-                        null
-                    },
-                ),
-                level = levelOf(s),
-            )
-        }
+/** A quality figure, or null when the modem does not report it. */
+private fun measure(name: String, value: Int?, unit: String): SignalMeasure? =
+    value?.let { SignalMeasure(name, it, unit) }
 
-        else -> null
-    }
+/** The frequency bands a cell identity lists, from Android 11; empty before. */
+@ChecksSdkIntAtLeast(api = Build.VERSION_CODES.R, lambda = 0)
+private fun bandsOf(read: () -> IntArray): List<Int> =
+    if (sdk(Build.VERSION_CODES.R)) runCatching { read().toList() }.getOrDefault(emptyList()) else emptyList()
+
+/** MCC-MNC of a cell identity, which Android exposes as strings from version 9. */
+@ChecksSdkIntAtLeast(api = Build.VERSION_CODES.P, lambda = 0)
+private fun networkOf(mcc: () -> String?, mnc: () -> String?): String? =
+    if (sdk(Build.VERSION_CODES.P)) network(mcc(), mnc()) else null
+
+private fun CellInfo.toCellTower(): CellTower? = when {
+    this is CellInfoLte -> toCellTower()
+    sdk(Build.VERSION_CODES.Q) && this is CellInfoNr -> toCellTower()
+    this is CellInfoGsm -> toCellTower()
+    this is CellInfoWcdma -> toCellTower()
+    else -> null
+}
+
+private fun CellInfoLte.toCellTower(): CellTower {
+    val id = cellIdentity
+    val s = cellSignalStrength
+    val timingAdvance = s.timingAdvance.valid()?.takeIf { isRegistered }
+    return CellTower(
+        technology = "LTE",
+        registered = isRegistered,
+        network = networkOf({ id.mccString }, { id.mncString }),
+        area = labelled("TAC", id.tac.valid()),
+        cellId = labelled("CI", id.ci.valid()?.toLong()),
+        physicalId = id.pci.valid(),
+        physicalIdLabel = "PCI",
+        signalDbm = s.dbm.valid(),
+        timingAdvanceDistanceM = timingAdvance?.let(TimingAdvance::lteMetres),
+        operatorName = operatorOf(id),
+        channel = id.earfcn.valid(),
+        channelLabel = "EARFCN",
+        bands = bandsOf { id.bands },
+        quality = listOfNotNull(
+            measure("RSRP", s.rsrp.valid(), "dBm"),
+            measure("RSRQ", s.rsrq.valid(), "dB"),
+            measure("SINR", s.rssnr.valid(), "dB"),
+            measure("RSSI", if (sdk(Build.VERSION_CODES.Q)) s.rssi.valid() else null, "dBm"),
+        ),
+        level = levelOf(s),
+        timingAdvanceSteps = timingAdvance,
+    )
+}
+
+@RequiresApi(Build.VERSION_CODES.Q)
+private fun CellInfoNr.toCellTower(): CellTower {
+    val id = cellIdentity as CellIdentityNr
+    val s = cellSignalStrength as CellSignalStrengthNr
+    // 5G's timing advance is readable from Android 14 on.
+    val timingAdvanceReadable = isRegistered && sdk(Build.VERSION_CODES.UPSIDE_DOWN_CAKE)
+    val timingAdvanceMicros = if (timingAdvanceReadable) s.timingAdvanceMicros else null
+    return CellTower(
+        technology = "5G NR",
+        registered = isRegistered,
+        network = network(id.mccString, id.mncString),
+        area = labelled("TAC", id.tac.valid()),
+        cellId = labelled("NCI", id.nci.valid()),
+        physicalId = id.pci.valid(),
+        physicalIdLabel = "PCI",
+        signalDbm = s.dbm.valid(),
+        timingAdvanceDistanceM = timingAdvanceMicros?.valid()?.let(TimingAdvance::nrMetres),
+        operatorName = operatorOf(id),
+        channel = id.nrarfcn.valid(),
+        channelLabel = "NR-ARFCN",
+        bands = bandsOf { id.bands },
+        quality = listOfNotNull(
+            measure("SS-RSRP", s.ssRsrp.valid(), "dBm"),
+            measure("SS-RSRQ", s.ssRsrq.valid(), "dB"),
+            measure("SS-SINR", s.ssSinr.valid(), "dB"),
+        ),
+        level = levelOf(s),
+    )
+}
+
+private fun CellInfoGsm.toCellTower(): CellTower {
+    val id = cellIdentity
+    val s = cellSignalStrength
+    val timingAdvance = s.timingAdvance.valid()?.takeIf { isRegistered }
+    val bitErrorRate = if (sdk(Build.VERSION_CODES.Q)) s.bitErrorRate.takeIf { it in BIT_ERROR_RATE_CLASSES } else null
+    return CellTower(
+        technology = "GSM",
+        registered = isRegistered,
+        network = networkOf({ id.mccString }, { id.mncString }),
+        area = labelled("LAC", id.lac.valid()),
+        cellId = labelled("CID", id.cid.valid()?.toLong()),
+        physicalId = id.bsic.valid(),
+        physicalIdLabel = "BSIC",
+        signalDbm = s.dbm.valid(),
+        timingAdvanceDistanceM = timingAdvance?.let(TimingAdvance::gsmMetres),
+        operatorName = operatorOf(id),
+        channel = id.arfcn.valid(),
+        channelLabel = "ARFCN",
+        quality = listOfNotNull(
+            measure("RSSI", if (sdk(Build.VERSION_CODES.R)) s.rssi.valid() else null, "dBm"),
+            measure("Bit error rate class", bitErrorRate, ""),
+        ),
+        level = levelOf(s),
+        timingAdvanceSteps = timingAdvance,
+    )
+}
+
+private fun CellInfoWcdma.toCellTower(): CellTower {
+    val id = cellIdentity
+    val s = cellSignalStrength
+    return CellTower(
+        technology = "UMTS",
+        registered = isRegistered,
+        network = networkOf({ id.mccString }, { id.mncString }),
+        area = labelled("LAC", id.lac.valid()),
+        cellId = labelled("CID", id.cid.valid()?.toLong()),
+        physicalId = id.psc.valid(),
+        physicalIdLabel = "PSC",
+        signalDbm = s.dbm.valid(),
+        timingAdvanceDistanceM = null,
+        operatorName = operatorOf(id),
+        channel = id.uarfcn.valid(),
+        channelLabel = "UARFCN",
+        quality = listOfNotNull(measure("Ec/No", if (sdk(Build.VERSION_CODES.R)) s.ecNo.valid() else null, "dB")),
+        level = levelOf(s),
+    )
 }

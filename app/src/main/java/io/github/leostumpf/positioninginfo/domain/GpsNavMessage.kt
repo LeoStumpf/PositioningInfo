@@ -15,9 +15,21 @@ package io.github.leostumpf.positioninginfo.domain
  */
 object GpsNavDecoder {
 
+    private const val BYTES_PER_WORD = 4
+
     const val PREAMBLE = 0x8B
     const val WORDS = 10
-    const val BYTES = WORDS * 4
+    const val BYTES = WORDS * BYTES_PER_WORD
+
+    private const val BITS_PER_BYTE = 8
+    private const val BYTE_MASK = 0xFF
+    private const val WORD_BITS = 30
+    private const val DATA_BITS = 24
+    private const val PARITY_BIT_COUNT = 6
+    private const val PREAMBLE_BITS = 8
+    private const val DATA_MASK = (1 shl DATA_BITS) - 1
+    private const val PARITY_MASK = (1 shl PARITY_BIT_COUNT) - 1
+    private const val WORD_MASK = (1 shl WORD_BITS) - 1
 
     /** IS-GPS-200 Table 20-XIV: data bits (1-based, d1 = MSB) feeding each parity bit D25..D30. */
     private val PARITY_BITS = listOf(
@@ -28,7 +40,7 @@ object GpsNavDecoder {
         intArrayOf(1, 3, 5, 6, 7, 9, 10, 14, 15, 16, 17, 18, 21, 22, 24),
         intArrayOf(3, 5, 6, 8, 9, 10, 11, 13, 15, 19, 22, 23, 24),
     )
-    private val PARITY_MASKS = PARITY_BITS.map { bits -> bits.fold(0) { m, b -> m or (1 shl (24 - b)) } }
+    private val PARITY_MASKS = PARITY_BITS.map { bits -> bits.fold(0) { m, b -> m or (1 shl (DATA_BITS - b)) } }
 
     /** Which of the previous word's bits enters each parity bit: true = D29*, false = D30*. */
     private val USES_D29 = booleanArrayOf(true, false, true, false, false, true)
@@ -36,7 +48,7 @@ object GpsNavDecoder {
     /** The six parity bits D25..D30 (D25 = MSB) for 24 source data bits. */
     fun parity(data: Int, d29Star: Int, d30Star: Int): Int {
         var p = 0
-        for (i in 0 until 6) {
+        for (i in 0 until PARITY_BIT_COUNT) {
             val seed = if (USES_D29[i]) d29Star else d30Star
             val bit = seed xor (Integer.bitCount(data and PARITY_MASKS[i]) and 1)
             p = (p shl 1) or bit
@@ -61,26 +73,19 @@ object GpsNavDecoder {
 
     private fun decode(data: ByteArray): Pair<IntArray, Int>? {
         if (data.size < BYTES) return null
-        val raw = IntArray(WORDS) { i ->
-            (
-                (data[4 * i].toInt() and 0xFF) shl 24 or
-                    ((data[4 * i + 1].toInt() and 0xFF) shl 16) or
-                    ((data[4 * i + 2].toInt() and 0xFF) shl 8) or
-                    (data[4 * i + 3].toInt() and 0xFF)
-                ) and 0x3FFFFFFF
-        }
+        val raw = IntArray(WORDS) { i -> bigEndianInt(data, i * BYTES_PER_WORD) and WORD_MASK }
         // The previous subframe is not delivered, so its D29*/D30* are unknown. Word 10 is
         // built to end in 00, so word 1 goes out upright; reading the preamble inverted means
         // the receiver locked 180° out of phase and every bit, D29*/D30* included, is flipped.
         var d29: Int
         var d30: Int
-        when (raw[0] ushr 22) {
+        when (raw[0] ushr (WORD_BITS - PREAMBLE_BITS)) {
             PREAMBLE -> {
                 d29 = 0
                 d30 = 0
             }
 
-            PREAMBLE xor 0xFF -> {
+            PREAMBLE xor BYTE_MASK -> {
                 d29 = 1
                 d30 = 1
             }
@@ -91,13 +96,33 @@ object GpsNavDecoder {
         val words = IntArray(WORDS)
         for (i in 0 until WORDS) {
             val w = raw[i]
-            val d = (w ushr 6).let { if (d30 == 1) it xor 0xFFFFFF else it }
-            if (parity(d, d29, d30) != (w and 0x3F)) failures++
+            val d = (w ushr PARITY_BIT_COUNT).let { if (d30 == 1) it xor DATA_MASK else it }
+            if (parity(d, d29, d30) != (w and PARITY_MASK)) failures++
             words[i] = d
             d29 = (w ushr 1) and 1
             d30 = w and 1
         }
         return words to failures
+    }
+
+    /** Four bytes from [offset] as one big-endian Int. */
+    private fun bigEndianInt(data: ByteArray, offset: Int): Int = (0 until BYTES_PER_WORD).fold(
+        0,
+    ) { acc, k -> (acc shl BITS_PER_BYTE) or (data[offset + k].toInt() and BYTE_MASK) }
+}
+
+/**
+ * One field of a subframe as IS-GPS-200 lays it out: [word] 1..10 and the 1-based [first] bit
+ * of its 24 data bits (bit 1 = MSB), [length] bits long; [signed] when two's complement.
+ */
+private class NavField(val word: Int, val first: Int, val length: Int, val signed: Boolean = false) {
+    fun readFrom(words: IntArray): Int {
+        val raw = (words[word - 1] ushr (DATA_BITS - first - length + 1)) and ((1 shl length) - 1)
+        return if (signed) (raw shl (Int.SIZE_BITS - length)) shr (Int.SIZE_BITS - length) else raw
+    }
+
+    private companion object {
+        const val DATA_BITS = 24
     }
 }
 
@@ -154,25 +179,23 @@ data class GpsNavState(
     /** [svid] is the transmitting satellite. Subframe ID comes from the HOW (word 2, bits 20-22). */
     fun onSubframe(svid: Int, data: ByteArray): GpsNavState {
         val w = GpsNavDecoder.words(data) ?: return copy(subframesRejected = subframesRejected + 1)
-        val subframeId = bits(w[1], 20, 3)
-        if (subframeId !in 1..5) return copy(subframesRejected = subframesRejected + 1)
+        val subframeId = SUBFRAME_ID.readFrom(w)
+        if (subframeId !in SUBFRAME_IDS) return copy(subframesRejected = subframesRejected + 1)
         val decoded = copy(subframesDecoded = subframesDecoded + 1)
         return when (subframeId) {
-            1 -> decoded.copy(
-                weekNumber = bits(w[2], 1, 10),
-                ura = ura + (svid to bits(w[2], 13, 4)),
-                health = health + (svid to bits(w[2], 17, 6)),
+            CLOCK_SUBFRAME -> decoded.copy(
+                weekNumber = WEEK.readFrom(w),
+                ura = ura + (svid to URA_INDEX.readFrom(w)),
+                health = health + (svid to SV_HEALTH.readFrom(w)),
             )
 
-            4, 5 -> {
-                val pageSvId = bits(w[2], 3, 6)
+            ALMANAC_SUBFRAME_4, ALMANAC_SUBFRAME_5 -> {
+                val pageSvId = PAGE_SV_ID.readFrom(w)
+                val almanacPage = (subframeId == ALMANAC_SUBFRAME_5 && pageSvId in SUBFRAME_5_ALMANAC_SVIDS) ||
+                    (subframeId == ALMANAC_SUBFRAME_4 && pageSvId in SUBFRAME_4_ALMANAC_SVIDS)
                 when {
-                    (subframeId == 5 && pageSvId in 1..24) ||
-                        (subframeId == 4 && pageSvId in 25..32) ->
-                        decoded.copy(almanacSvids = almanacSvids + pageSvId)
-
-                    subframeId == 4 && pageSvId == PAGE_18_SV_ID -> decoded.withPage18(w)
-
+                    almanacPage -> decoded.copy(almanacSvids = almanacSvids + pageSvId)
+                    subframeId == ALMANAC_SUBFRAME_4 && pageSvId == PAGE_18_SV_ID -> decoded.withPage18(w)
                     else -> decoded
                 }
             }
@@ -184,45 +207,82 @@ data class GpsNavState(
     /** IS-GPS-200 Figure 20-1, subframe 4 page 18. */
     private fun withPage18(w: IntArray): GpsNavState {
         val alpha = listOf(
-            signed(bits(w[2], 9, 8), 8) * POW2_M30,
-            signed(bits(w[2], 17, 8), 8) * POW2_M27,
-            signed(bits(w[3], 1, 8), 8) * POW2_M24,
-            signed(bits(w[3], 9, 8), 8) * POW2_M24,
+            ALPHA_0.readFrom(w) * Math.scalb(1.0, -30),
+            ALPHA_1.readFrom(w) * Math.scalb(1.0, -27),
+            ALPHA_2.readFrom(w) * Math.scalb(1.0, -24),
+            ALPHA_3.readFrom(w) * Math.scalb(1.0, -24),
         )
         val beta = listOf(
-            signed(bits(w[3], 17, 8), 8) * 2048.0,
-            signed(bits(w[4], 1, 8), 8) * 16384.0,
-            signed(bits(w[4], 9, 8), 8) * 65536.0,
-            signed(bits(w[4], 17, 8), 8) * 65536.0,
+            BETA_0.readFrom(w) * Math.scalb(1.0, 11),
+            BETA_1.readFrom(w) * Math.scalb(1.0, 14),
+            BETA_2.readFrom(w) * Math.scalb(1.0, 16),
+            BETA_3.readFrom(w) * Math.scalb(1.0, 16),
         )
-        // A0: 24 MSBs in word 7, 8 LSBs at the start of word 8. As an Int the 32 bits are
-        // already two's complement.
-        val a0Raw = (w[6] shl 8) or bits(w[7], 1, 8)
+        // A0 is split: 24 MSBs fill word 7, 8 LSBs start word 8. Put together in an Int, its
+        // 32 bits are already two's complement.
+        val a0Raw = (A0_MSB.readFrom(w) shl A0_LSB.length) or A0_LSB.readFrom(w)
         val utc = GpsUtcParams(
-            a0 = a0Raw * POW2_M30,
-            a1 = signed(w[5], 24) * POW2_M50,
-            tot = bits(w[7], 9, 8) shl 12,
-            wnt = bits(w[7], 17, 8),
-            deltaTls = signed(bits(w[8], 1, 8), 8),
-            wnLsf = bits(w[8], 9, 8),
-            dn = bits(w[8], 17, 8),
-            deltaTlsf = signed(bits(w[9], 1, 8), 8),
+            a0 = a0Raw * Math.scalb(1.0, -30),
+            a1 = A1.readFrom(w) * Math.scalb(1.0, -50),
+            tot = TOT.readFrom(w) shl TOT_SCALE_BITS,
+            wnt = WNT.readFrom(w),
+            deltaTls = DELTA_T_LS.readFrom(w),
+            wnLsf = WN_LSF.readFrom(w),
+            dn = DN.readFrom(w),
+            deltaTlsf = DELTA_T_LSF.readFrom(w),
         )
         return copy(ionosphere = Klobuchar(alpha, beta), utc = utc)
     }
 
+    /*
+     * Field positions and scale factors from IS-GPS-200, Figure 20-1 and Tables 20-I, 20-IX
+     * and 20-X. Scale factors are powers of two, written as Math.scalb(1.0, n) = 2^n.
+     */
     companion object {
         const val PAGE_18_SV_ID = 56
 
-        private const val POW2_M24 = 1.0 / (1 shl 24)
-        private const val POW2_M27 = 1.0 / (1 shl 27)
-        private const val POW2_M30 = 1.0 / (1 shl 30)
-        private val POW2_M50 = Math.scalb(1.0, -50)
+        private val SUBFRAME_IDS = 1..5
+        private const val CLOCK_SUBFRAME = 1
+        private const val ALMANAC_SUBFRAME_4 = 4
+        private const val ALMANAC_SUBFRAME_5 = 5
 
-        /** [length] bits starting at 1-based [first] of a 24-bit word (bit 1 = MSB). */
-        private fun bits(word: Int, first: Int, length: Int): Int =
-            (word ushr (24 - first - length + 1)) and ((1 shl length) - 1)
+        /** Subframe 5 pages 1–24 carry the almanac of SVs 1–24, subframe 4 those of 25–32. */
+        private val SUBFRAME_5_ALMANAC_SVIDS = 1..24
+        private val SUBFRAME_4_ALMANAC_SVIDS = 25..32
 
-        private fun signed(value: Int, width: Int): Int = (value shl (32 - width)) shr (32 - width)
+        /** Word 2 (HOW) */
+        private val SUBFRAME_ID = NavField(word = 2, first = 20, length = 3)
+
+        /** Subframe 1 */
+        private val WEEK = NavField(word = 3, first = 1, length = 10)
+        private val URA_INDEX = NavField(word = 3, first = 13, length = 4)
+        private val SV_HEALTH = NavField(word = 3, first = 17, length = 6)
+
+        /** Subframes 4 and 5: the data ID's SV/page ID */
+        private val PAGE_SV_ID = NavField(word = 3, first = 3, length = 6)
+
+        /** Subframe 4 page 18: ionosphere */
+        private val ALPHA_0 = NavField(word = 3, first = 9, length = 8, signed = true)
+        private val ALPHA_1 = NavField(word = 3, first = 17, length = 8, signed = true)
+        private val ALPHA_2 = NavField(word = 4, first = 1, length = 8, signed = true)
+        private val ALPHA_3 = NavField(word = 4, first = 9, length = 8, signed = true)
+        private val BETA_0 = NavField(word = 4, first = 17, length = 8, signed = true)
+        private val BETA_1 = NavField(word = 5, first = 1, length = 8, signed = true)
+        private val BETA_2 = NavField(word = 5, first = 9, length = 8, signed = true)
+        private val BETA_3 = NavField(word = 5, first = 17, length = 8, signed = true)
+
+        /** Subframe 4 page 18: UTC */
+        private val A1 = NavField(word = 6, first = 1, length = 24, signed = true)
+        private val A0_MSB = NavField(word = 7, first = 1, length = 24)
+        private val A0_LSB = NavField(word = 8, first = 1, length = 8)
+        private val TOT = NavField(word = 8, first = 9, length = 8)
+        private val WNT = NavField(word = 8, first = 17, length = 8)
+        private val DELTA_T_LS = NavField(word = 9, first = 1, length = 8, signed = true)
+        private val WN_LSF = NavField(word = 9, first = 9, length = 8)
+        private val DN = NavField(word = 9, first = 17, length = 8)
+        private val DELTA_T_LSF = NavField(word = 10, first = 1, length = 8, signed = true)
+
+        /** t_ot is broadcast in units of 2^12 s. */
+        private const val TOT_SCALE_BITS = 12
     }
 }

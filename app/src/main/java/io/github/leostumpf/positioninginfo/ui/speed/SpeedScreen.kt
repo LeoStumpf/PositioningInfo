@@ -308,11 +308,9 @@ private fun Readout(state: SpeedUiState, size: TextUnit, inline: Boolean = false
         }
     }
     // Deliberately not tappable: in a car mount a stray touch must never change the unit.
-    val readoutSemantics = Modifier.semantics(
-        mergeDescendants = true,
-    ) {
-        contentDescription = "Speed $speedText ${state.unit.symbol}" +
-            if (state.freshness == FixFreshness.STALE) ", not current" else ""
+    val stale = if (state.freshness == FixFreshness.STALE) ", not current" else ""
+    val readoutSemantics = Modifier.semantics(mergeDescendants = true) {
+        contentDescription = "Speed $speedText ${state.unit.symbol}$stale"
     }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         if (inline) {
@@ -434,10 +432,7 @@ private fun SpeedChart(
                 val py = y(s.mps)
                 if (previous == null || s.atMs - previous > SpeedHistory.GAP_MS) {
                     if (previous != null) {
-                        fill.lineTo(
-                            x(previous),
-                            size.height,
-                        )
+                        fill.lineTo(x(previous), size.height)
                         fill.lineTo(segmentStartX, size.height)
                         fill.close()
                     }

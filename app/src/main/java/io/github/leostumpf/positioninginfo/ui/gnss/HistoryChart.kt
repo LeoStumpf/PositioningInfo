@@ -61,9 +61,7 @@ internal fun HistoryChart(
             Modifier.fillMaxWidth().height(44.dp).semantics {
                 contentDescription = "$label over the last 30 minutes" + (
                     points.takeIf { it.isNotEmpty() }?.let { p ->
-                        ", from ${fmt(
-                            p.minOf { it.second },
-                        )} to ${fmt(p.maxOf { it.second })}$unit"
+                        ", from ${fmt(p.minOf { it.second })} to ${fmt(p.maxOf { it.second })}$unit"
                     } ?: ""
                     )
             },
@@ -85,10 +83,7 @@ internal fun HistoryChart(
             var previous: Long? = null
             points.forEach { (t, v) ->
                 if (previous == null || t - previous > History.GAP_MS) {
-                    path.moveTo(
-                        x(t),
-                        y(v),
-                    )
+                    path.moveTo(x(t), y(v))
                 } else {
                     path.lineTo(x(t), y(v))
                 }

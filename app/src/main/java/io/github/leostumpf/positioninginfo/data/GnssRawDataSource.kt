@@ -192,45 +192,34 @@ private fun GnssMeasurementsEvent.toEpoch(): RawMeasurementEpoch {
             it.accumulatedDeltaRangeState and GnssMeasurement.ADR_STATE_VALID != 0
         },
         hasFullBias = clock.hasFullBiasNanos(),
-        measurements = measurements.map {
-            SignalMeasurement(
-                constellation = Constellation.fromAndroidType(it.constellationType),
-                svid = it.svid,
-                carrierFrequencyHz = if (it.hasCarrierFrequencyHz()) it.carrierFrequencyHz.toDouble() else null,
-                cn0DbHz = it.cn0DbHz,
-                state = it.state,
-                pseudorangeRateMps = it.pseudorangeRateMetersPerSecond,
-                multipath = when (it.multipathIndicator) {
-                    GnssMeasurement.MULTIPATH_INDICATOR_DETECTED -> true
-                    GnssMeasurement.MULTIPATH_INDICATOR_NOT_DETECTED -> false
-                    else -> null
-                },
-                codeType = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                    it.hasCodeType()
-                ) {
-                    it.codeType
-                } else {
-                    null
-                },
-                basebandCn0DbHz = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-                    it.hasBasebandCn0DbHz()
-                ) {
-                    it.basebandCn0DbHz
-                } else {
-                    null
-                },
-                snrDb = if (it.hasSnrInDb()) it.snrInDb else null,
-                receivedSvTimeUncertaintyNs = it.receivedSvTimeUncertaintyNanos.takeIf { u -> u > 0 },
-                carrierPhaseState = it.accumulatedDeltaRangeState,
-                interSignalBiasNs = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-                    it.hasFullInterSignalBiasNanos()
-                ) {
-                    it.fullInterSignalBiasNanos
-                } else {
-                    null
-                },
-            )
+        measurements = measurements.map { it.toSignalMeasurement() },
+    )
+}
+
+private fun GnssMeasurement.toSignalMeasurement(): SignalMeasurement {
+    // Fields Android added later, read only where they exist.
+    val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && hasCodeType()) codeType else null
+    val r = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R
+    val baseband = if (r && hasBasebandCn0DbHz()) basebandCn0DbHz else null
+    val interSignalBias = if (r && hasFullInterSignalBiasNanos()) fullInterSignalBiasNanos else null
+    return SignalMeasurement(
+        constellation = Constellation.fromAndroidType(constellationType),
+        svid = svid,
+        carrierFrequencyHz = if (hasCarrierFrequencyHz()) carrierFrequencyHz.toDouble() else null,
+        cn0DbHz = cn0DbHz,
+        state = state,
+        pseudorangeRateMps = pseudorangeRateMetersPerSecond,
+        multipath = when (multipathIndicator) {
+            GnssMeasurement.MULTIPATH_INDICATOR_DETECTED -> true
+            GnssMeasurement.MULTIPATH_INDICATOR_NOT_DETECTED -> false
+            else -> null
         },
+        codeType = code,
+        basebandCn0DbHz = baseband,
+        snrDb = if (hasSnrInDb()) snrInDb else null,
+        receivedSvTimeUncertaintyNs = receivedSvTimeUncertaintyNanos.takeIf { it > 0 },
+        carrierPhaseState = accumulatedDeltaRangeState,
+        interSignalBiasNs = interSignalBias,
     )
 }
 

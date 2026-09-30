@@ -15,12 +15,15 @@ const val NO_VALUE = "--"
 fun formatSpeed(mps: Double?, unit: SpeedUnit): String {
     if (mps == null) return NO_VALUE
     val value = unit.fromMps(mps)
-    return if (value >= 100.0) {
+    return if (value >= WHOLE_NUMBERS_FROM) {
         String.format(Locale.US, "%.0f", value)
     } else {
         String.format(Locale.US, "%.1f", value)
     }
 }
+
+/** From 100 up the decimal is noise and costs a digit's width. */
+private const val WHOLE_NUMBERS_FROM = 100.0
 
 fun formatSpeed(mps: Float?, unit: SpeedUnit): String = formatSpeed(mps?.toDouble(), unit)
 

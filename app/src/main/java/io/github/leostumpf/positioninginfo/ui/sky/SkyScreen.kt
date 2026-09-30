@@ -133,9 +133,13 @@ fun LazyListScope.skyPlotItems(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Row(
-                    Modifier.weight(
-                        1f,
-                    ).toggleable(value = state.showPaths, role = Role.Switch, onValueChange = { onToggleShowPaths() }),
+                    Modifier
+                        .weight(1f)
+                        .toggleable(
+                            value = state.showPaths,
+                            role = Role.Switch,
+                            onValueChange = { onToggleShowPaths() },
+                        ),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
@@ -254,10 +258,7 @@ private fun LegendDot(filled: Boolean, label: String) = LegendItem(label) {
     Box(
         Modifier.size(10.dp).then(
             if (filled) {
-                Modifier.background(
-                    Palette.TextPrimary,
-                    CircleShape,
-                )
+                Modifier.background(Palette.TextPrimary, CircleShape)
             } else {
                 Modifier.border(2.dp, Palette.TextPrimary, CircleShape)
             },
@@ -332,10 +333,9 @@ private fun SkyPlot(state: SkyUiState, modifier: Modifier = Modifier) {
     val ringColour = Palette.Hairline
     val labelColour = Palette.TextTertiary
     val heard = markers.filter { it.current != null && it.tracked }
-    val description = "Sky plot: ${heard.size.counted(
-        "satellite",
-    )} plotted, ${heard.count { it.usedInFix }} in the fix" +
-        if (state.compassMode) ", turned with the phone" else ", north up"
+    val orientation = if (state.compassMode) "turned with the phone" else "north up"
+    val description =
+        "Sky plot: ${heard.size.counted("satellite")} plotted, ${heard.count { it.usedInFix }} in the fix, $orientation"
     // Square, but never taller than most of the screen: in landscape the full width would
     // put half the plot out of view.
     val maxSide = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() * 0.8f }
@@ -373,11 +373,7 @@ private fun SkyPlot(state: SkyUiState, modifier: Modifier = Modifier) {
             val layout = measurer.measure(text, style)
             val edge = at(SkyPoint(az, 0f))
             val outward = Offset(edge.x - centre.x, edge.y - centre.y) / radius * 10.dp.toPx()
-            drawText(
-                layout,
-                topLeft = edge + outward -
-                    Offset(layout.size.width / 2f, layout.size.height / 2f),
-            )
+            drawText(layout, topLeft = edge + outward - Offset(layout.size.width / 2f, layout.size.height / 2f))
         }
 
         if (state.mapMode) {

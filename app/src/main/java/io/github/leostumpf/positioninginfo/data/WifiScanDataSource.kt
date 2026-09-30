@@ -107,9 +107,9 @@ private fun ScanResult.toAccessPoint() = AccessPoint(
 
         ScanResult.CHANNEL_WIDTH_160MHZ, ScanResult.CHANNEL_WIDTH_80MHZ_PLUS_MHZ -> 160
 
+        // An inlined constant, safe before Android 13.
         ScanResult.CHANNEL_WIDTH_320MHZ -> 320
 
-        // an inlined constant, safe before Android 13
         else -> null
     },
     standard = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {

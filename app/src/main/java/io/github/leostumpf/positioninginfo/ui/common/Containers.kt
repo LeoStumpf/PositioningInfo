@@ -37,9 +37,7 @@ import java.util.Locale
 @Composable
 fun InfoCard(
     modifier: Modifier = Modifier,
-    padding: PaddingValues = PaddingValues(
-        16.dp,
-    ),
+    padding: PaddingValues = PaddingValues(16.dp),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(

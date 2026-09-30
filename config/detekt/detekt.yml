@@ -12,8 +12,6 @@ style:
     # STAGED: switched on with the complexity rules below.
     active: false
   MagicNumber:
-    # STAGED: switched on once every number in the logic is named.
-    active: false
     # Layout sizes (12.dp, 0.55f alpha) inside composables are the design itself; naming each
     # would only move it away from where it is used. Numbers in logic get names.
     ignoreAnnotated: ['Composable']

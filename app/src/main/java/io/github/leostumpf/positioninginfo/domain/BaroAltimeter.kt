@@ -80,11 +80,7 @@ data class BaroAltimeter(
             previous + alpha * (hPa - previous)
         }
         val kept = history.filter { atMs - it.first <= VERTICAL_SPEED_WINDOW_MS }
-        return copy(
-            pressureHpa = smoothed,
-            lastPressureAtMs = atMs,
-            history = kept + (atMs to smoothed),
-        )
+        return copy(pressureHpa = smoothed, lastPressureAtMs = atMs, history = kept + (atMs to smoothed))
     }
 
     fun onGnssAltitude(mslM: Double, verticalAccuracyM: Float?, atMs: Long): BaroAltimeter {
@@ -120,12 +116,19 @@ data class BaroAltimeter(
         private const val MIN_VERTICAL_ACCURACY_M = 0.5
         private const val MIN_VERTICAL_SPEED_SPAN_S = 1.0
 
+        /**
+         * The standard atmosphere's scale height and exponent, from its temperature lapse
+         * rate: h = 44 330 m · (1 − (p/p0)^(1/5.255)).
+         */
+        private const val ISA_HEIGHT_M = 44_330.0
+        private const val ISA_EXPONENT = 5.255
+
         /** International barometric formula: h = 44330 · (1 − (p/p0)^(1/5.255)). */
         fun altitudeM(pressureHpa: Double, seaLevelHpa: Double): Double =
-            44_330.0 * (1.0 - (pressureHpa / seaLevelHpa).pow(1.0 / 5.255))
+            ISA_HEIGHT_M * (1.0 - (pressureHpa / seaLevelHpa).pow(1.0 / ISA_EXPONENT))
 
         /** Inverse of [altitudeM]: the sea-level pressure that puts [pressureHpa] at [altitudeM]. */
         fun seaLevelPressureHpa(pressureHpa: Double, altitudeM: Double): Double =
-            pressureHpa / (1.0 - altitudeM / 44_330.0).pow(5.255)
+            pressureHpa / (1.0 - altitudeM / ISA_HEIGHT_M).pow(ISA_EXPONENT)
     }
 }

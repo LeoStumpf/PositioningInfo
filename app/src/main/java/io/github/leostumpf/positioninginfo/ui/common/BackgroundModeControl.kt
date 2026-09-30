@@ -76,16 +76,10 @@ fun BackgroundModeGate(
             onDismiss = { explaining = false },
             onConfirm = {
                 explaining = false
+                val notifications = Manifest.permission.POST_NOTIFICATIONS
                 val needsAsk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                    ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
-                    PackageManager.PERMISSION_GRANTED
-                if (needsAsk) {
-                    notificationPermission.launch(
-                        Manifest.permission.POST_NOTIFICATIONS,
-                    )
-                } else {
-                    onSetActive(true)
-                }
+                    ContextCompat.checkSelfPermission(context, notifications) != PackageManager.PERMISSION_GRANTED
+                if (needsAsk) notificationPermission.launch(notifications) else onSetActive(true)
             },
         )
     }

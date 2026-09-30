@@ -42,4 +42,13 @@ object Palette {
     val Good = Color(0xFF5ED39A)
     val Degraded = Color(0xFFF3B64A)
     val Bad = Color(0xFFFF7A6B)
+
+    // One colour per constellation, each next to its letter (G07, E24), never alone.
+    val Gps = Color(0xFF6FB7FF)
+    val Glonass = Color(0xFFFF8F80)
+    val Galileo = Color(0xFFF2C94C)
+    val Beidou = Color(0xFFB8A2FF)
+    val Qzss = Color(0xFF5CD6C8)
+    val Navic = Color(0xFFF595C8)
+    val Augmentation = Color(0xFFA0A0A0)
 }

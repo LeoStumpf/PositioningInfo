@@ -35,9 +35,8 @@ class SystemStatusDataSource(context: Context) {
     val powerSaveLocation: PowerSaveLocation
         get() {
             val manager = power ?: return PowerSaveLocation.UNRESTRICTED
-            if (!manager.isPowerSaveMode ||
-                Build.VERSION.SDK_INT < Build.VERSION_CODES.P
-            ) {
+            // Battery saver's effect on location is readable from Android 9.
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P || !manager.isPowerSaveMode) {
                 return PowerSaveLocation.UNRESTRICTED
             }
             return when (manager.locationPowerSaveMode) {

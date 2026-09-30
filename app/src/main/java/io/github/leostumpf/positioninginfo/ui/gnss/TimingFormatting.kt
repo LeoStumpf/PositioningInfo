@@ -3,6 +3,7 @@ package io.github.leostumpf.positioninginfo.ui.gnss
 
 import io.github.leostumpf.positioninginfo.domain.ClockOffset
 import io.github.leostumpf.positioninginfo.domain.formatDuration
+import java.util.Locale
 import kotlin.math.abs
 
 /** How a timing figure should be tinted: settled, still in progress, or worth a look. */
@@ -50,19 +51,20 @@ private const val NETWORK_TOLERANCE_MS = 500L
  */
 internal fun describeOffset(offsetMs: Long, toleranceMs: Long, reference: String): String {
     if (kotlin.math.abs(offsetMs) < toleranceMs) {
-        return if (toleranceMs >=
-            1_000L
-        ) {
-            "in sync (within ${toleranceMs / 1_000} s)"
-        } else {
-            "in sync (within $toleranceMs ms)"
-        }
+        val tolerance = if (toleranceMs >= MS_PER_S) "${toleranceMs / MS_PER_S} s" else "$toleranceMs ms"
+        return "in sync (within $tolerance)"
     }
     val size = kotlin.math.abs(offsetMs)
     val amount = when {
-        size < 10_000L -> String.format(java.util.Locale.US, "%.2f s", size / 1_000.0)
-        size < 3_600_000L -> "${size / 1_000} s"
-        else -> String.format(java.util.Locale.US, "%.1f h", size / 3_600_000.0)
+        size < HUNDREDTHS_BELOW_MS -> String.format(Locale.US, "%.2f s", size / MS_PER_S.toDouble())
+        size < MS_PER_H -> "${size / MS_PER_S} s"
+        else -> String.format(Locale.US, "%.1f h", size / MS_PER_H.toDouble())
     }
     return "$amount ${if (offsetMs > 0) "ahead of" else "behind"} $reference"
 }
+
+private const val MS_PER_S = 1_000L
+private const val MS_PER_H = 3_600_000L
+
+/** Offsets under ten seconds are shown to the hundredth. */
+private const val HUNDREDTHS_BELOW_MS = 10_000L

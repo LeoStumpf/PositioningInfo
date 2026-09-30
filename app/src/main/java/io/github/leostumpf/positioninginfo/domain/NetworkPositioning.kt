@@ -72,10 +72,16 @@ object TimingAdvance {
     const val GSM_METRES_PER_STEP = 553.5
     private const val SPEED_OF_LIGHT_M_PER_S = 299_792_458.0
 
-    fun lteMetres(steps: Int): Double? = steps.takeIf { it in 0..1282 }?.let { it * LTE_METRES_PER_STEP }
-    fun gsmMetres(steps: Int): Double? = steps.takeIf { it in 0..219 }?.let { it * GSM_METRES_PER_STEP }
+    /** The largest values Android documents for each; anything beyond is "unavailable". */
+    private const val LTE_MAX_STEPS = 1_282
+    private const val GSM_MAX_STEPS = 219
+    private const val NR_MAX_MICROS = 20_000
+    private const val S_PER_MICROSECOND = 1e-6
 
-    /** 5G reports the round trip directly in microseconds. */
+    fun lteMetres(steps: Int): Double? = steps.takeIf { it in 0..LTE_MAX_STEPS }?.let { it * LTE_METRES_PER_STEP }
+    fun gsmMetres(steps: Int): Double? = steps.takeIf { it in 0..GSM_MAX_STEPS }?.let { it * GSM_METRES_PER_STEP }
+
+    /** 5G reports the round trip directly in microseconds; half of it is the way there. */
     fun nrMetres(micros: Int): Double? =
-        micros.takeIf { it in 0..20_000 }?.let { it * 1e-6 * SPEED_OF_LIGHT_M_PER_S / 2 }
+        micros.takeIf { it in 0..NR_MAX_MICROS }?.let { it * S_PER_MICROSECOND * SPEED_OF_LIGHT_M_PER_S / 2 }
 }

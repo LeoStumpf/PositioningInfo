@@ -107,9 +107,7 @@ fun SignalScreen(state: SignalUiState, modifier: Modifier = Modifier) {
                 "Speed",
                 state.speedAccuracyMps?.let { "±${it.fmt(2)} m/s" } ?: DASH,
                 detail = state.speedAccuracyMps?.let {
-                    "±${SpeedUnit.KMH.fromMps(
-                        it.toDouble(),
-                    ).fmt(1)} ${SpeedUnit.KMH.symbol}"
+                    "±${SpeedUnit.KMH.fromMps(it.toDouble()).fmt(1)} ${SpeedUnit.KMH.symbol}"
                 },
             )
         }
@@ -123,18 +121,9 @@ fun SignalScreen(state: SignalUiState, modifier: Modifier = Modifier) {
         item {
             ValueRow(
                 "Fix timestamp",
-                state.timeUncertaintyMs?.let {
-                    if (it < 1.0) {
-                        "±${(it * 1_000).fmt(
-                            0,
-                        )} µs"
-                    } else {
-                        "±${it.fmt(1)} ms"
-                    }
-                } ?: DASH,
-                detail = if (state.timeUncertaintyMs ==
-                    null
-                ) {
+                state.timeUncertaintyMs?.let { if (it < 1.0) "±${(it * 1_000).fmt(0)} µs" else "±${it.fmt(1)} ms" }
+                    ?: DASH,
+                detail = if (state.timeUncertaintyMs == null) {
                     "this receiver does not report it"
                 } else {
                     "when the position was valid"
@@ -220,9 +209,7 @@ fun SignalScreen(state: SignalUiState, modifier: Modifier = Modifier) {
         section("Frequency bands")
         when {
             state.bandsUnavailable -> item {
-                Note(
-                    "This receiver does not report carrier frequencies, so the bands in use cannot be determined.",
-                )
+                Note("This receiver does not report carrier frequencies, so the bands in use cannot be determined.")
             }
 
             state.bandsInUse.isEmpty() -> item { Note("No satellites are being used for a fix yet.") }

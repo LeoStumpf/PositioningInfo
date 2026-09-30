@@ -77,22 +77,13 @@ fun TripScreen(
                         else -> StatusBadge("Not recording", Tone.NEUTRAL)
                     }
                     if (points > 0) {
-                        Text(
-                            duration(stats!!.durationMs),
-                            style = StatusLineStyle,
-                            color = Palette.TextSecondary,
-                        )
+                        Text(duration(stats!!.durationMs), style = StatusLineStyle, color = Palette.TextSecondary)
                     }
                 }
-                val km = (stats?.distanceM ?: 0.0) >= 1_000
+                val distanceM = stats?.distanceM ?: 0.0
+                val km = distanceM >= 1_000
                 HeroValue(
-                    value = if (km) {
-                        (stats!!.distanceM / 1_000).fmt(
-                            2,
-                        )
-                    } else {
-                        (stats?.distanceM ?: 0.0).roundToInt().toString()
-                    },
+                    value = if (km) (distanceM / 1_000).fmt(2) else distanceM.roundToInt().toString(),
                     unit = if (km) "km" else "m",
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp), modifier = Modifier.padding(top = 4.dp)) {

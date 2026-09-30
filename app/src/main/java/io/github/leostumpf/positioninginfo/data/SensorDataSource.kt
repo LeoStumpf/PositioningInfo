@@ -96,7 +96,7 @@ class SensorDataSource(context: Context) {
                 longitude.toFloat(),
                 altitudeM.toFloat(),
                 timeMs,
-            ).fieldStrength / 1_000.0
+            ).fieldStrength / NANOTESLA_PER_MICROTESLA
 
         /**
          * Magnetic declination (true minus magnetic north) from the World Magnetic Model the
@@ -106,3 +106,6 @@ class SensorDataSource(context: Context) {
             GeomagneticField(latitude.toFloat(), longitude.toFloat(), altitudeM.toFloat(), timeMs).declination
     }
 }
+
+/** GeomagneticField reports nanotesla; the magnetometer and the page use microtesla. */
+private const val NANOTESLA_PER_MICROTESLA = 1_000.0

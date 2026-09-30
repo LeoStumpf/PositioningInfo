@@ -26,22 +26,26 @@ fun signalColour(cn0DbHz: Float): Color = when {
  * so the map still reads for anyone who cannot tell its green from its red.
  */
 fun signalAlpha(cn0DbHz: Float): Float = when {
-    cn0DbHz >= STRONG_SIGNAL_DB_HZ -> 0.75f
-    cn0DbHz >= DiagnosisInput.STRONG_CN0 -> 0.5f
-    else -> 0.28f
+    cn0DbHz >= STRONG_SIGNAL_DB_HZ -> STRONG_ALPHA
+    cn0DbHz >= DiagnosisInput.STRONG_CN0 -> USABLE_ALPHA
+    else -> WEAK_ALPHA
 }
+
+private const val STRONG_ALPHA = 0.75f
+private const val USABLE_ALPHA = 0.5f
+private const val WEAK_ALPHA = 0.28f
 
 const val STRONG_SIGNAL_DB_HZ = 35f
 
 /** Each system's colour; always shown next to its letter (G07, E24), never on its own. */
 fun Constellation.color(): Color = when (this) {
-    Constellation.GPS -> Color(0xFF6FB7FF)
-    Constellation.GLONASS -> Color(0xFFFF8F80)
-    Constellation.GALILEO -> Color(0xFFF2C94C)
-    Constellation.BEIDOU -> Color(0xFFB8A2FF)
-    Constellation.QZSS -> Color(0xFF5CD6C8)
-    Constellation.IRNSS -> Color(0xFFF595C8)
-    Constellation.SBAS, Constellation.UNKNOWN -> Color(0xFFA0A0A0)
+    Constellation.GPS -> Palette.Gps
+    Constellation.GLONASS -> Palette.Glonass
+    Constellation.GALILEO -> Palette.Galileo
+    Constellation.BEIDOU -> Palette.Beidou
+    Constellation.QZSS -> Palette.Qzss
+    Constellation.IRNSS -> Palette.Navic
+    Constellation.SBAS, Constellation.UNKNOWN -> Palette.Augmentation
 }
 
 private val InstrumentScheme = darkColorScheme(
@@ -63,9 +67,5 @@ private val InstrumentScheme = darkColorScheme(
 
 @Composable
 fun PositioningInfoTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = InstrumentScheme,
-        typography = PositioningInfoTypography,
-        content = content,
-    )
+    MaterialTheme(colorScheme = InstrumentScheme, typography = PositioningInfoTypography, content = content)
 }

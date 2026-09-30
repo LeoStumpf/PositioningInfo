@@ -127,11 +127,8 @@ fun OpenSourceLicencesSheet(onDismiss: () -> Unit) {
 private fun LicenceTextDialog(licence: Licence, onDismiss: () -> Unit) {
     val context = LocalContext.current
     val text = remember(licence) {
-        runCatching {
-            context.assets.open(
-                licence.asset,
-            ).bufferedReader().use { reflow(it.readText()) }
-        }.getOrDefault(licence.label)
+        runCatching { context.assets.open(licence.asset).bufferedReader().use { reflow(it.readText()) } }
+            .getOrDefault(licence.label)
     }
     AlertDialog(
         onDismissRequest = onDismiss,

@@ -30,14 +30,25 @@ class BaselineProfileGenerator {
             device.executeShellCommand("pm grant $packageName android.permission.ACCESS_COARSE_LOCATION")
             pressHome()
             startActivityAndWait()
-            device.wait(Until.hasObject(By.text("01 / 08")), 5_000)
+            device.wait(Until.hasObject(By.text("01 / $PAGES")), START_TIMEOUT_MS)
             // By screen position: the pages redraw twice a second, so a looked-up view is stale
             // by the time it would be swiped.
             val y = device.displayHeight / 2
-            repeat(7) {
-                device.swipe((device.displayWidth * 0.85).toInt(), y, (device.displayWidth * 0.1).toInt(), y, 20)
+            val from = (device.displayWidth * SWIPE_FROM).toInt()
+            val to = (device.displayWidth * SWIPE_TO).toInt()
+            repeat(PAGES.toInt() - 1) {
+                device.swipe(from, y, to, y, SWIPE_STEPS)
                 device.waitForIdle()
             }
         }
     }
 }
+
+/** The app's page count, as its indicator writes it ("01 / 08"). */
+private const val PAGES = "08"
+private const val START_TIMEOUT_MS = 5_000L
+
+/** A swipe from near the right edge to near the left: one page on. */
+private const val SWIPE_FROM = 0.85
+private const val SWIPE_TO = 0.1
+private const val SWIPE_STEPS = 20

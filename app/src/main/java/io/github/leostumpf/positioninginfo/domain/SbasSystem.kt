@@ -30,16 +30,18 @@ enum class SbasSystem(val label: String, val region: String) {
          * stable, but individual satellites do get reassigned between services, so an
          * unrecognised PRN falls back to the generic label rather than guessing at it.
          */
-        fun fromSvid(svid: Int): SbasSystem = when (svid) {
-            120, 121, 123, 124, 126, 136 -> EGNOS
-            122 -> SOUTHPAN
-            125, 140, 141 -> SDCM
-            127, 128, 132 -> GAGAN
-            129, 137 -> MSAS
-            130, 143, 144 -> BDSBAS
-            131, 133, 135, 138 -> WAAS
-            134 -> KASS
-            else -> UNKNOWN_SBAS
-        }
+        fun fromSvid(svid: Int): SbasSystem = PRN_ALLOCATION[svid] ?: UNKNOWN_SBAS
+
+        /** The PRNs each service is allocated. */
+        private val PRN_ALLOCATION: Map<Int, SbasSystem> = mapOf(
+            EGNOS to listOf(120, 121, 123, 124, 126, 136),
+            SOUTHPAN to listOf(122),
+            SDCM to listOf(125, 140, 141),
+            GAGAN to listOf(127, 128, 132),
+            MSAS to listOf(129, 137),
+            BDSBAS to listOf(130, 143, 144),
+            WAAS to listOf(131, 133, 135, 138),
+            KASS to listOf(134),
+        ).flatMap { (system, prns) -> prns.map { it to system } }.toMap()
     }
 }

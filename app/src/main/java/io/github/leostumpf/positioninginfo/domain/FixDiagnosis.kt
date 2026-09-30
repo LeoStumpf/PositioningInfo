@@ -106,10 +106,20 @@ object FixDiagnosis {
      * minute; only without one must the receiver read them from the satellites.
      */
     fun expectedMs(readiness: AlmanacReadiness, dataConnection: Boolean? = null): Long = when (readiness) {
-        AlmanacReadiness.HOT -> 15_000L
-        AlmanacReadiness.WARM -> 60_000L
-        AlmanacReadiness.COLD, AlmanacReadiness.UNKNOWN -> if (dataConnection == true) 2 * 60_000L else 12 * 60_000L
+        AlmanacReadiness.HOT -> HOT_START_MS
+
+        AlmanacReadiness.WARM -> WARM_START_MS
+
+        AlmanacReadiness.COLD, AlmanacReadiness.UNKNOWN ->
+            if (dataConnection == true) ASSISTED_COLD_START_MS else COLD_START_MS
     }
+
+    private const val HOT_START_MS = 15_000L
+    private const val WARM_START_MS = 60_000L
+    private const val ASSISTED_COLD_START_MS = 2 * 60_000L
+
+    /** A full almanac takes 12.5 minutes to broadcast. */
+    private const val COLD_START_MS = 12 * 60_000L
 
     fun evaluate(i: DiagnosisInput): Diagnosis {
         val fixed = i.gpsEnabled && i.usedInFix >= AlmanacStatus.SATELLITES_FOR_FIX
