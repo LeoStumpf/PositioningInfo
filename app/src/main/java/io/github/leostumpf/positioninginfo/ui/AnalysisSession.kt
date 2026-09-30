@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui
 
-import io.github.leostumpf.positioninginfo.domain.counted
+import io.github.leostumpf.positioninginfo.ui.trip.TripRecorder
 import android.annotation.SuppressLint
 import android.app.Application
 import android.hardware.SensorManager
@@ -9,7 +9,6 @@ import android.net.Uri
 import android.os.SystemClock
 import io.github.leostumpf.positioninginfo.data.GnssRawDataSource
 import io.github.leostumpf.positioninginfo.data.SensorDataSource
-import io.github.leostumpf.positioninginfo.data.TripStore
 import io.github.leostumpf.positioninginfo.data.model.AssistanceCapabilities
 import io.github.leostumpf.positioninginfo.data.model.GnssSnapshot
 import io.github.leostumpf.positioninginfo.data.model.HeadingReading
@@ -36,7 +35,6 @@ import io.github.leostumpf.positioninginfo.domain.PositionScatter
 import io.github.leostumpf.positioninginfo.domain.ScatterStats
 import io.github.leostumpf.positioninginfo.domain.SkyPoint
 import io.github.leostumpf.positioninginfo.domain.SpeedUnit
-import io.github.leostumpf.positioninginfo.domain.TripAccumulator
 import io.github.leostumpf.positioninginfo.domain.ClimbSource
 import io.github.leostumpf.positioninginfo.domain.TripPoint
 import io.github.leostumpf.positioninginfo.ui.common.fmt
@@ -51,9 +49,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -75,14 +70,13 @@ class AnalysisSession(
 ) {
     private val rawSource = GnssRawDataSource(application)
     private val sensors = SensorDataSource(application)
-    private val tripStore = TripStore(application)
     private val hasBarometer = sensors.hasBarometer
 
     private val _positionState = MutableStateFlow(PositionUiState(hasBarometer = hasBarometer))
     val positionState: StateFlow<PositionUiState> = _positionState.asStateFlow()
 
-    private val _tripState = MutableStateFlow(TripUiState(climbFromBarometer = hasBarometer))
-    val tripState: StateFlow<TripUiState> = _tripState.asStateFlow()
+    private val tripRecorder = TripRecorder(application, scope, hasBarometer, speedUnit)
+    val tripState: StateFlow<TripUiState> = tripRecorder.state
 
     private val _receiverState = MutableStateFlow(ReceiverUiState())
     val receiverState: StateFlow<ReceiverUiState> = _receiverState.asStateFlow()
@@ -125,31 +119,7 @@ class AnalysisSession(
     private var scatter = PositionScatter()
     private var scatterRunning = false
 
-    private var trip = TripAccumulator()
-    /** Appended in place: copying the list on every fix cost O(n²) over a long trip. */
-    private val tripAltitudes = ArrayList<Double>()
-    private var tripRecording = false
-    /** Recording waits until the saved trip is loaded, so the load cannot overwrite new points. */
-    private var tripLoaded = false
-    /** Bumped by every delete, so a load that was already under way cannot bring a trip back. */
-    private var tripGeneration = 0
-    private var tripMessage: String? = null
 
-    init {
-        scope.launch {
-            val generation = tripGeneration
-            val saved = tripStore.load()
-            if (generation == tripGeneration) {
-                // The file keeps the calibrated barometric height where there was one, else GNSS.
-                val source = if (hasBarometer) ClimbSource.BAROMETER else ClimbSource.GNSS
-                trip = saved.fold(TripAccumulator()) { acc, p -> acc.add(p, p.altitudeM, source) }
-                tripAltitudes.clear()
-                saved.mapNotNullTo(tripAltitudes) { it.altitudeM }
-            }
-            tripLoaded = true
-            publishTrip()
-        }
-    }
 
     /** Starts the raw streams and sensors; the returned jobs are cancelled by the owner. */
     @SuppressLint("MissingPermission")  // only called by startTracking, after its permission check
@@ -227,11 +197,7 @@ class AnalysisSession(
                     PositionScatter.Sample(lat, lon, msl?.first ?: fix.ellipsoidAltitudeM, fix.horizontalAccuracyM),
                 )
             }
-            if (tripRecording && trip.stats.points >= MAX_TRIP_POINTS) {
-                tripRecording = false
-                tripMessage = "The trip is full ($MAX_TRIP_POINTS points). Export it and delete it to record a new one."
-                publishTrip()
-            } else if (tripRecording) {
+            if (tripRecorder.recording) {
                 val point = TripPoint(
                     timeUtcMs = fix.utcTimeMs ?: System.currentTimeMillis(),
                     latitude = lat,
@@ -243,10 +209,7 @@ class AnalysisSession(
                 val (climbAltitude, climbSource) = baro.calibratedAltitudeM?.let { it to ClimbSource.BAROMETER }
                     ?: baro.standardAltitudeM?.let { it to ClimbSource.BAROMETER_STANDARD }
                     ?: (msl?.first to ClimbSource.GNSS)
-                trip = trip.add(point, climbAltitude, climbSource)
-                point.altitudeM?.let { tripAltitudes += it }
-                scope.launch { tripStore.append(point) }
-                publishTrip()
+                tripRecorder.add(point, climbAltitude, climbSource)
             }
         }
         publishPosition()
@@ -267,10 +230,10 @@ class AnalysisSession(
     /** On screen or not; out of sight nothing is published and the compass stops. */
     fun setVisible(value: Boolean) {
         visible = value
+        tripRecorder.visible = value
         updateHeadingJob()
         if (value) {
             publishPosition()
-            publishTrip()
             publishReceiver()
         }
     }
@@ -288,32 +251,13 @@ class AnalysisSession(
         publishPosition()
     }
 
-    fun toggleTrip() {
-        if (!tripLoaded) return
-        tripRecording = !tripRecording
-        tripMessage = null
-        publishTrip()
-    }
+    fun toggleTrip() = tripRecorder.toggle()
 
-    fun clearTrip() {
-        tripRecording = false
-        trip = TripAccumulator()
-        tripAltitudes.clear()
-        tripGeneration++
-        tripMessage = "Trip deleted."
-        scope.launch { tripStore.clear() }
-        publishTrip()
-    }
+    fun clearTrip() = tripRecorder.clear()
 
-    fun exportTrip(uri: Uri) {
-        scope.launch {
-            val ok = tripStore.exportGpx(uri, "Positioning Info trip ${suggestedDate()}")
-            tripMessage = if (ok) "Exported ${trip.stats.points.counted("point")} as GPX." else "Export failed."
-            publishTrip()
-        }
-    }
+    fun exportTrip(uri: Uri) = tripRecorder.export(uri)
 
-    fun suggestedTripFileName(): String = "trip-${suggestedDate().replace(' ', '_').replace(":", "")}.gpx"
+    fun suggestedTripFileName(): String = tripRecorder.suggestedFileName()
 
     fun toggleCompass() {
         compassMode = !compassMode
@@ -337,12 +281,7 @@ class AnalysisSession(
      * decoded NMEA and navigation messages. The live streams keep running.
      */
     fun clearAll() {
-        tripRecording = false
-        trip = TripAccumulator()
-        tripAltitudes.clear()
-        tripGeneration++
-        tripMessage = null
-        scope.launch { tripStore.clear() }
+        tripRecorder.clear(note = null)
         scatter = PositionScatter()
         scatterRunning = false
         obstruction = ObstructionMap()
@@ -354,7 +293,6 @@ class AnalysisSession(
         rawEpochs = 0
         signalDetails = emptyMap()
         firstHeardMs.clear()
-        publishTrip()
         publishPosition()
         publishReceiver()
         onSkyChanged()
@@ -465,18 +403,6 @@ class AnalysisSession(
         )
     }
 
-    private fun publishTrip() {
-        if (!visible) return
-        _tripState.value = TripUiState(
-            recording = tripRecording,
-            stats = trip.stats,
-            unit = speedUnit(),
-            climbFromBarometer = hasBarometer,
-            message = tripMessage,
-            elevationProfile = thin(tripAltitudes, PROFILE_POINTS),
-        )
-    }
-
     private fun publishReceiver() {
         if (!visible) return
         _receiverState.value = ReceiverUiState(
@@ -571,21 +497,8 @@ class AnalysisSession(
         }
     }
 
-    /** Every n-th value, so a long trip still draws cheaply. */
-    private fun thin(values: List<Double>, max: Int): List<Double> {
-        if (values.size <= max) return values.toList()
-        val step = values.size / max + 1
-        return List((values.size + step - 1) / step) { values[it * step] }
-    }
-
-    private fun suggestedDate(): String =
-        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())
-
     private companion object {
         const val GGA_FRESH_MS = 3_000L
-        const val PROFILE_POINTS = 300
-        /** About 55 hours at one fix a second, some 12 MB on disk; the whole file is read at start. */
-        const val MAX_TRIP_POINTS = 200_000
         const val FIELD_SMOOTHING = 0.1
         const val L1_HZ = 1_575.42e6
         const val GPS_EPOCH_MS = 315_964_800_000L
