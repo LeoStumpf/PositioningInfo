@@ -13,6 +13,7 @@ import androidx.lifecycle.viewModelScope
 import io.github.leostumpf.positioninginfo.background.BackgroundMode
 import io.github.leostumpf.positioninginfo.data.AssistanceDataSource
 import io.github.leostumpf.positioninginfo.data.CellInfoDataSource
+import io.github.leostumpf.positioninginfo.data.DemoMode
 import io.github.leostumpf.positioninginfo.data.GnssCapabilityDataSource
 import io.github.leostumpf.positioninginfo.data.GnssStatusDataSource
 import io.github.leostumpf.positioninginfo.data.LocationDataSource
@@ -237,8 +238,9 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         facts.refreshGps()
         firstFix.onStart()
 
-        trackingJobs += scope.launch { locationSource.fixes().collect(::onFix) }
-        trackingJobs += scope.launch { gnssSource.snapshots().collect(::onSnapshot) }
+        val demo = DemoMode.source
+        trackingJobs += scope.launch { (demo?.fixes() ?: locationSource.fixes()).collect(::onFix) }
+        trackingJobs += scope.launch { (demo?.snapshots() ?: gnssSource.snapshots()).collect(::onSnapshot) }
         // Network positioning runs alongside GNSS for the comparison page.
         trackingJobs += network.start()
         trackingJobs += analysis.start()

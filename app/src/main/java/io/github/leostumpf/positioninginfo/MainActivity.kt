@@ -29,6 +29,7 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
+import io.github.leostumpf.positioninginfo.data.DemoMode
 import io.github.leostumpf.positioninginfo.ui.PositioningInfoApp
 import io.github.leostumpf.positioninginfo.ui.PositioningInfoViewModel
 import io.github.leostumpf.positioninginfo.ui.permission.PermissionScreen
@@ -49,6 +50,8 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
         super.onCreate(savedInstanceState)
+        // Scripted data for store screenshots; debug builds only, see DemoMode.
+        if (BuildConfig.DEBUG) DemoMode.requested = intent.getBooleanExtra(DemoMode.EXTRA, false)
         // Back on the last screen only moves the app behind others, as Android 12 and newer
         // do anyway. Before that it finished the activity, and with it the session — which
         // silently ended background mode, although the user had only left the app. Handlers

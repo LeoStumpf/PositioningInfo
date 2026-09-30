@@ -4,6 +4,7 @@ package io.github.leostumpf.positioninginfo.ui
 import android.annotation.SuppressLint
 import android.app.Application
 import android.os.SystemClock
+import io.github.leostumpf.positioninginfo.data.DemoMode
 import io.github.leostumpf.positioninginfo.data.GnssRawDataSource
 import io.github.leostumpf.positioninginfo.data.SensorDataSource
 import io.github.leostumpf.positioninginfo.data.model.AssistanceCapabilities
@@ -51,7 +52,8 @@ class AnalysisSession(
 ) {
     private val rawSource = GnssRawDataSource(application)
     private val sensors = SensorDataSource(application)
-    private val hasBarometer = sensors.hasBarometer
+    private val demo = DemoMode.source
+    private val hasBarometer = sensors.hasBarometer || demo != null
 
     private val _positionState = MutableStateFlow(PositionUiState(hasBarometer = hasBarometer))
     val positionState: StateFlow<PositionUiState> = _positionState.asStateFlow()
@@ -80,12 +82,14 @@ class AnalysisSession(
     fun start(): List<Job> {
         trackingSinceMs = SystemClock.elapsedRealtime()
         val jobs = mutableListOf<Job>()
-        jobs += scope.launch { rawSource.nmea().collect(receiver::onNmea) }
+        jobs += scope.launch { (demo?.nmea() ?: rawSource.nmea()).collect(receiver::onNmea) }
         jobs += scope.launch { rawSource.measurements().collect(receiver::onMeasurements) }
         jobs += scope.launch { rawSource.navigationMessages().collect(receiver::onNavigation) }
         if (hasBarometer) {
             jobs += scope.launch {
-                sensors.pressure().collect { baro = baro.onPressure(it.hPa, it.elapsedRealtimeMs) }
+                (demo?.pressure() ?: sensors.pressure()).collect {
+                    baro = baro.onPressure(it.hPa, it.elapsedRealtimeMs)
+                }
             }
         }
         jobs += scope.launch {

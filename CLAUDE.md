@@ -11,8 +11,10 @@ in [README.md](README.md); this file covers how to work on it.
 - Installed only on the maintainer's phone. Formats of stored files may change without a
   migration until the first store release. After that, every change to `TripCsv` or `TtffEntry`
   needs a new format header and a migration.
+- Store listing: texts in [docs/store-listing.md](docs/store-listing.md), screenshots in
+  `docs/store/`, and the step-by-step upload in [docs/play-upload-guide.md](docs/play-upload-guide.md).
 - Open work: move UI texts into string resources for localisation (only the notification's are
-  resources so far), and store screenshots and descriptions.
+  resources so far).
 
 ## Workflow rules
 
@@ -55,6 +57,24 @@ in [README.md](README.md); this file covers how to work on it.
 - Every Kotlin file starts with `// SPDX-License-Identifier: AGPL-3.0-or-later`.
 - No `INTERNET` permission, ever. No analytics, no crash reporting, no backups; data stays on the
   phone and can be cleared from *Data on this phone*.
+
+## Store screenshots (demo mode)
+
+An emulator's GNSS reports only a few satellites with no positions. For screenshots, debug builds
+have a demo mode: `app/src/debug/.../demo/ScriptedDemoSource.kt` scripts a drive south of Munich
+under a multi-constellation, dual-frequency sky. It is loaded by name through `data/DemoMode.kt`,
+so release builds contain neither the class nor a way to switch it on.
+
+1. Use the AVDs `zc-shot-phone` (1080×1920), `shot-tablet7` (1200×1920) and `shot-tablet10`
+   (2560×1600). Run at most two at a time, because memory is tight.
+2. Install the debug APK. Put the status bar in demo mode:
+   `adb shell settings put global sysui_demo_allowed 1`, then the `com.android.systemui.demo`
+   broadcasts for clock 10:42, full battery and no notifications.
+3. Launch with `adb shell am start -n io.github.leostumpf.positioninginfo.debug/io.github.leostumpf.positioninginfo.MainActivity --ez demo true`.
+4. Start a trip recording, then wait about 6 minutes, so the plot, the elevation profile and the
+   sky paths fill in. The sky runs five times faster than the clock.
+5. Capture the Speed, Trip, GNSS & sky (top and sky plot) and Signal pages with
+   `adb exec-out screencap -p`.
 
 ## Commands
 

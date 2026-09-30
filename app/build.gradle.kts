@@ -159,6 +159,8 @@ tasks.register("printVersion") {
 detekt {
     buildUponDefaultConfig = true
     config.setFrom(rootProject.file("config/detekt/detekt.yml"))
+    // Every source set, including the debug-only demo data and the UI tests.
+    source.setFrom("src/main/java", "src/debug/java", "src/test/java", "src/androidTest/java")
     parallel = true
     // ./gradlew detekt -PdetektAutoCorrect lets the formatting rules fix what they can.
     autoCorrect = providers.gradleProperty("detektAutoCorrect").isPresent
