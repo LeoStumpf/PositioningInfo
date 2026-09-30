@@ -218,6 +218,12 @@ Requires JDK 17+ and the Android SDK (compileSdk 37; targetSdk 36, the level Goo
 ./gradlew :app:bundleRelease     # the bundle (AAB) for Google Play
 ```
 
+**Baseline profile:** `app/src/release/generated/baselineProfiles/baseline-prof.txt` tells Android
+which code to compile ahead of time (startup and the first page swipes), so the first launches are
+not interpreted. It is generated on an emulator or device (API 28+) and committed; regenerate it
+after larger changes with `ANDROID_SERIAL=<device> ./gradlew :app:generateBaselineProfile`
+(module `baselineprofile`, which never ships).
+
 The release app ID is `io.github.leostumpf.positioninginfo`; debug builds add `.debug`, so both can
 be installed side by side.
 

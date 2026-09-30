@@ -22,3 +22,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "PositioningInfo"
 include(":app")
+include(":baselineprofile")
