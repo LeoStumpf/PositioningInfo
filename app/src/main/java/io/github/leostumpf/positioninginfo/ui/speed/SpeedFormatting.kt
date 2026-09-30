@@ -25,7 +25,9 @@ fun formatSpeed(mps: Double?, unit: SpeedUnit): String {
 /** From 100 up the decimal is noise and costs a digit's width. */
 private const val WHOLE_NUMBERS_FROM = 100.0
 
+/** As the [Double] version: [NO_VALUE] when null, whole numbers from 100. */
 fun formatSpeed(mps: Float?, unit: SpeedUnit): String = formatSpeed(mps?.toDouble(), unit)
 
+/** "±4.2 m", or [NO_VALUE] when the fix reports no accuracy. */
 fun formatAccuracy(meters: Float?): String =
     if (meters == null) NO_VALUE else String.format(Locale.US, "±%.1f m", meters)

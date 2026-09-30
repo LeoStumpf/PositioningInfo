@@ -57,6 +57,7 @@ enum class Band {
     }
 }
 
+/** One band's AGC, signal strength and signal count now, beside its baseline (null until one is learned). */
 data class BandStatus(
     val band: Band,
     val agcDb: Double?,
@@ -83,6 +84,7 @@ sealed interface SpoofingIndicator {
     data class DriftJump(val thresholdPpm: Double) : SpoofingIndicator
 }
 
+/** What [InterferenceMonitor] makes of the radio environment right now, for the interference page. */
 data class InterferenceAssessment(
     val bands: List<BandStatus>,
     val jammingSuspected: Boolean,
@@ -245,7 +247,7 @@ data class InterferenceMonitor(
                 bands = statuses,
                 jammingSuspected = jammingStreak >= JAM_PERSIST_EPOCHS,
                 spoofingIndicators = spoofingIndicators(statuses, current),
-                clockDriftPpm = epoch?.clockDriftNsPerS?.let { it / 1000.0 },
+                clockDriftPpm = epoch?.clockDriftNsPerS?.let { it / NS_PER_S_PER_PPM },
                 clockDriftStdDevPpm = if (drifts.size >= 2) stdDev(drifts) else null,
                 clockDiscontinuities = discontinuities,
                 leapSecond = leapSecond,

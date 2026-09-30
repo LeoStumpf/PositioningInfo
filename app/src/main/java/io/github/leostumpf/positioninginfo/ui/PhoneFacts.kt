@@ -55,10 +55,12 @@ class PhoneFacts(
     val networkProviderExists by lazy { network.exists }
     val fusedProviderExists by lazy { fused.exists }
 
+    /** Re-reads the location switch; cheap enough for every tick and sweep. */
     fun refreshGps() {
         gpsEnabled = location.isGpsEnabled
     }
 
+    /** Re-reads the settings, providers, radios and clock offsets that change rarely. */
     fun refreshSlow() {
         powerSave = system.powerSaveLocation
         airplaneMode = system.airplaneMode

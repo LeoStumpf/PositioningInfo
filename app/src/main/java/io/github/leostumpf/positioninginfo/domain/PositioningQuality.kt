@@ -41,6 +41,7 @@ data class PositioningQuality(
 ) {
     companion object {
 
+        /** Judges the fix in [snapshot] by the satellites used in it; SBAS is also listed when only in view. */
         fun from(snapshot: GnssSnapshot): PositioningQuality {
             val used = snapshot.satellites.filter { it.usedInFix }
 

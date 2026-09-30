@@ -14,11 +14,16 @@ import java.util.Locale
 
 const val DASH = "—"
 
+/** The number with a fixed count of decimals and a point, whatever the phone's locale. */
 fun Double.fmt(decimals: Int): String = String.format(Locale.US, "%.${decimals}f", this)
+
+/** The number with a fixed count of decimals and a point, whatever the phone's locale. */
 fun Float.fmt(decimals: Int): String = toDouble().fmt(decimals)
 
 /** A count with a narrow space between thousands, "12 345", the same on every phone. */
 fun Long.grouped(): String = String.format(Locale.US, "%,d", this).replace(',', '\u202F')
+
+/** A count with a narrow space between thousands; see [Long.grouped]. */
 fun Int.grouped(): String = toLong().grouped()
 
 /**

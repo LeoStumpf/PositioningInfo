@@ -41,6 +41,7 @@ class GnssRawDataSource(context: Context) {
     private val locationManager = appContext.getSystemService<LocationManager>()
     private val handler by lazy { Handler(Looper.getMainLooper()) }
 
+    /** Each NMEA sentence as the chip emits it, on the main thread. Completes at once without a location service. */
     @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     fun nmea(): Flow<String> = callbackFlow {
         val manager = locationManager ?: run {
@@ -56,6 +57,7 @@ class GnssRawDataSource(context: Context) {
         awaitClose { manager.removeNmeaListener(listener) }
     }
 
+    /** One epoch of raw measurements per receiver cycle, plus the platform's stream-status reports. */
     @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     fun measurements(): Flow<RawMeasurementUpdate> = callbackFlow {
         val manager = locationManager ?: run {
@@ -82,6 +84,7 @@ class GnssRawDataSource(context: Context) {
         awaitClose { manager.unregisterGnssMeasurementsCallback(callback) }
     }
 
+    /** Each decoded navigation-message frame, plus the platform's stream-status reports. */
     @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     fun navigationMessages(): Flow<NavigationUpdate> = callbackFlow {
         val manager = locationManager ?: run {

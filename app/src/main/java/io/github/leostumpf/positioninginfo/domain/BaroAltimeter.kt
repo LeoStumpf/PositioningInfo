@@ -66,6 +66,10 @@ data class BaroAltimeter(
             return if (sxx > 0.0) sxy / sxx else null
         }
 
+    /**
+     * Takes in a barometer reading in hPa at [atMs] (elapsed realtime). Readings that are not a
+     * positive number, or not later than the previous one, are ignored.
+     */
     fun onPressure(hPa: Float, atMs: Long): BaroAltimeter {
         if (!hPa.isFinite() || hPa <= 0f) return this
         val previous = pressureHpa
@@ -83,6 +87,11 @@ data class BaroAltimeter(
         return copy(pressureHpa = smoothed, lastPressureAtMs = atMs, history = kept + (atMs to smoothed))
     }
 
+    /**
+     * Adds a GNSS altitude above sea level, in metres, as a calibration sample. Ignored before the
+     * first pressure reading and when the vertical accuracy is unknown or worse than
+     * [MAX_VERTICAL_ACCURACY_M].
+     */
     fun onGnssAltitude(mslM: Double, verticalAccuracyM: Float?, atMs: Long): BaroAltimeter {
         val p = pressureHpa ?: return this
         val preciseEnough = verticalAccuracyM != null && verticalAccuracyM <= MAX_VERTICAL_ACCURACY_M

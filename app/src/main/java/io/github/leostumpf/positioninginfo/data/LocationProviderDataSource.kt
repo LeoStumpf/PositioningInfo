@@ -23,6 +23,7 @@ class LocationProviderDataSource(context: Context) {
 
     private val locationManager = context.applicationContext.getSystemService<LocationManager>()
 
+    /** Every listed provider, in display order; empty if the location service cannot be read. */
     fun read(): List<LocationProviderInfo> = runCatching {
         val manager = locationManager ?: return emptyList()
         LocationProviderInfo.sorted(

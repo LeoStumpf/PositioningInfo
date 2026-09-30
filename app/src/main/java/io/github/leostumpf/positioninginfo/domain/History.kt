@@ -19,6 +19,10 @@ data class HistorySample(
  */
 data class History(val samples: List<HistorySample> = emptyList()) {
 
+    /**
+     * Appends [sample] unless it comes less than [INTERVAL_MS] after the last one, and drops
+     * samples older than [WINDOW_MS].
+     */
     fun add(sample: HistorySample): History {
         val last = samples.lastOrNull()
         if (last != null && sample.atMs - last.atMs < INTERVAL_MS) return this
@@ -37,6 +41,7 @@ data class History(val samples: List<HistorySample> = emptyList()) {
 /** How a session started, and how long its first fix took. */
 data class TtffEntry(val utcMs: Long, val ttffMs: Long, val startType: AlmanacReadiness) {
 
+    /** One line of the TTFF log: "utcMs,ttffMs,START_TYPE", read back by [decode]. */
     fun encode(): String = "$utcMs,$ttffMs,${startType.name}"
 
     companion object {
@@ -45,6 +50,7 @@ data class TtffEntry(val utcMs: Long, val ttffMs: Long, val startType: AlmanacRe
         /** A line is time, duration and start type, comma separated. */
         private const val FIELDS = 3
 
+        /** Parses a line written by [encode]; null when it is malformed. */
         fun decode(line: String): TtffEntry? {
             val parts = line.trim().split(',')
             if (parts.size != FIELDS) return null

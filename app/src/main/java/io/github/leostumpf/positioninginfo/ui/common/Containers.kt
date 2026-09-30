@@ -34,6 +34,7 @@ import java.util.Locale
 
 // --- Containers ------------------------------------------------------------------------
 
+/** The standard card: a bordered, rounded surface that stacks its content. */
 @Composable
 fun InfoCard(
     modifier: Modifier = Modifier,
@@ -51,6 +52,7 @@ fun InfoCard(
     )
 }
 
+/** How good a state is, and the colour that says so. */
 enum class Tone(val color: Color) {
     GOOD(Palette.Good),
     DEGRADED(Palette.Degraded),
@@ -128,6 +130,7 @@ fun Note(text: String, modifier: Modifier = Modifier, color: Color = Palette.Tex
     Text(text, style = CaptionStyle, color = color, modifier = modifier)
 }
 
+/** A small pill with a coloured dot and an upper-case label, tinted by its tone. */
 @Composable
 fun StatusBadge(text: String, tone: Tone, modifier: Modifier = Modifier) {
     val shape = RoundedCornerShape(13.dp)

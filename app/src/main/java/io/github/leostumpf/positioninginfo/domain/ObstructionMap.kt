@@ -17,6 +17,7 @@ data class ObstructionCell(
 
 /** Running totals for one bin: enough for a mean and a maximum without keeping every sample. */
 data class ObstructionBin(val sumCn0: Double = 0.0, val maxCn0: Float = 0f, val count: Int = 0) {
+    /** Folds in one signal strength, in dB-Hz. */
     fun add(cn0: Float): ObstructionBin = ObstructionBin(sumCn0 + cn0, maxOf(maxCn0, cn0), count + 1)
 }
 

@@ -87,6 +87,7 @@ class TripRecorder(
         publish()
     }
 
+    /** Starts or pauses recording; ignored until the saved trip has loaded. */
     fun toggle() {
         if (!loaded) return
         recording = !recording
@@ -105,6 +106,7 @@ class TripRecorder(
         publish()
     }
 
+    /** Writes the trip as GPX to [uri] in the background; the outcome is shown as the message. */
     fun export(uri: Uri) {
         scope.launch {
             val ok = store.exportGpx(uri, "Positioning Info trip ${suggestedDate()}")
@@ -113,8 +115,10 @@ class TripRecorder(
         }
     }
 
+    /** A file name for the export, e.g. "trip-2026-09-30_1420.gpx". */
     fun suggestedFileName(): String = "trip-${suggestedDate().replace(' ', '_').replace(":", "")}.gpx"
 
+    /** Rebuilds [state] from the trip so far, unless the app is out of sight. */
     fun publish() {
         if (!visible) return
         _state.value = TripUiState(

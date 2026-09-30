@@ -28,6 +28,10 @@ data class NetworkUiState(
     val providers: List<LocationProviderInfo> = emptyList(),
 ) {
     companion object {
+        /**
+         * The page from the latest network fix, compared against [gnss] when that is fresh and
+         * precise enough; otherwise says why not. [sources] and [providers] are added by the caller.
+         */
         fun from(
             providerEnabled: Boolean,
             fix: NetworkFix?,

@@ -32,6 +32,10 @@ class CellInfoDataSource(context: Context) {
     val hasTelephony: Boolean get() = telephony != null &&
         appContext.packageManager.hasSystemFeature("android.hardware.telephony")
 
+    /**
+     * The cells in range every five seconds, the serving cell first. Completes at once, empty,
+     * on a device without a modem.
+     */
     @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     fun cells(): Flow<List<CellTower>> = flow {
         val manager = telephony ?: return@flow

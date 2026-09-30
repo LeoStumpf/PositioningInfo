@@ -45,6 +45,7 @@ data class DiagnosisInput(
     }
 }
 
+/** How a check or the verdict stands: fine, worth a look, the blocker, or just for information. */
 enum class CheckStatus { OK, WARN, FAIL, INFO }
 
 /** One link of the chain a fix depends on, in the order the receiver goes through them. */
@@ -78,7 +79,9 @@ enum class Verdict {
     ACQUIRING,
 }
 
+/** The answer to "why no fix?": the verdict, every check behind it, and what it was reached from. */
 data class Diagnosis(
+    /** Location on and at least [AlmanacStatus.SATELLITES_FOR_FIX] satellites used in a fix. */
     val fixed: Boolean,
     val verdict: Verdict,
     val verdictStatus: CheckStatus,
@@ -118,9 +121,10 @@ object FixDiagnosis {
     private const val WARM_START_MS = 60_000L
     private const val ASSISTED_COLD_START_MS = 2 * 60_000L
 
-    /** A full almanac takes 12.5 minutes to broadcast. */
+    /** About the 12.5 minutes a full almanac takes to broadcast; the page says "up to 12 minutes". */
     private const val COLD_START_MS = 12 * 60_000L
 
+    /** Walks every check and settles on the verdict for this moment; pure, so cheap to call per update. */
     fun evaluate(i: DiagnosisInput): Diagnosis {
         val fixed = i.gpsEnabled && i.usedInFix >= AlmanacStatus.SATELLITES_FOR_FIX
         val expected = expectedMs(i.readiness, i.dataConnection)

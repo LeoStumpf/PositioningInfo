@@ -20,6 +20,7 @@ class BaselineProfileGenerator {
     @get:Rule
     val rule = BaselineProfileRule()
 
+    /** Grants location, starts the app on its first page and swipes once to each of the others. */
     @Test
     fun startAndSwipeThroughThePages() {
         val packageName = InstrumentationRegistry.getArguments().getString("targetAppId")

@@ -25,6 +25,7 @@ class GnssCapabilityDataSource(context: Context) {
 
     private val locationManager = context.applicationContext.getSystemService<LocationManager>()
 
+    /** The chip's declarations, as far as this Android version exposes them. Never throws. */
     fun read(): AssistanceCapabilities = runCatching { readUnsafe() }
         // Nothing on this screen is worth crashing a speedometer for. A vendor that
         // diverges from the platform API degrades to "not reported" instead.

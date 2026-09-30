@@ -17,6 +17,7 @@ data class SpeedHistory(
     val intervalMs: Long = INTERVAL_MS,
     val startedAtMs: Long? = null,
 ) {
+    /** Adds a speed in m/s at [atMs] (elapsed realtime); within the current interval only a faster one counts. */
     fun add(atMs: Long, mps: Float): SpeedHistory {
         val start = startedAtMs ?: atMs
         val last = samples.lastOrNull()

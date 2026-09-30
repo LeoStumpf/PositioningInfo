@@ -135,4 +135,11 @@ class CoordinateFormatsTest {
         // The first character encodes latitude in 20° steps from -90: at most 'C' (index 8).
         assertTrue(code, code[0] in "23456789C")
     }
+
+    @Test
+    fun `a longitude a hair below 180 degrees stays in the last plus code column`() {
+        // Rounding would carry it to 180°, whose column letter does not exist.
+        val code = CoordinateFormats.plusCode(0.0, 179.99999999)
+        assertEquals('V', code[1])
+    }
 }

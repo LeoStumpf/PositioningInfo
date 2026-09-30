@@ -69,6 +69,15 @@ class SkyTrackerTest {
     }
 
     @Test
+    fun `setting time counts from now when the newest sample is older`() {
+        // 1° up at the newest sample and dropping 2° a minute: it sets half a minute after that
+        // sample. Asked 0.4 minutes later, that is 0.1 minutes from now.
+        val history = samples(az0 = 90f, el0 = 9f, azRate = 0f, elRate = -2f, minutes = 4)
+        val setsIn = SkyProjection.of(history, nowMs = history.last().atMs + 24_000L)!!.setsInMinutes
+        assertEquals(0.1f, setsIn!!, 0.05f)
+    }
+
+    @Test
     fun `no projection without enough history`() {
         val short = samples(az0 = 90f, el0 = 40f, azRate = 1f, elRate = 0f, minutes = 1)
         assertNull(SkyProjection.of(short, short.last().atMs))

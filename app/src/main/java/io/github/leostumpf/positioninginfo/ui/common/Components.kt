@@ -88,6 +88,10 @@ fun PageScaffold(page: Page, modifier: Modifier = Modifier, content: LazyListSco
     if (glossaryOpen) GlossarySheet(page, onDismiss = { glossaryOpen = false })
 }
 
+/**
+ * A page's number and title with the glossary button and any [actions] beside it. With large text
+ * or on a narrow screen the buttons move above the title.
+ */
 @Composable
 fun PageHeader(
     page: Page,
@@ -130,6 +134,7 @@ fun PageHeader(
     }
 }
 
+/** The page's glossary as a bottom sheet: each term and what it means. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GlossarySheet(page: Page, onDismiss: () -> Unit) {
@@ -184,6 +189,7 @@ fun LazyListScope.section(title: String, trailing: String? = null, trailingColor
     item { SectionHeader(title, Modifier.padding(top = 32.dp, bottom = 10.dp), trailing, trailingColor) }
 }
 
+/** The overline, hairline and optional trailing note of [section], for use outside a list. */
 @Composable
 fun SectionHeader(
     title: String,

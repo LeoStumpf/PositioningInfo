@@ -87,6 +87,7 @@ fun Diagnosis.detail(): String {
     }
 }
 
+/** The check's name in the chain; the timing row reads "Searching for" until the first fix. */
 fun DiagnosisCheck.label(input: DiagnosisInput): String = when (kind) {
     CheckKind.LOCATION -> "Location service"
     CheckKind.SOURCE -> "Position source"
@@ -99,6 +100,7 @@ fun DiagnosisCheck.label(input: DiagnosisInput): String = when (kind) {
     CheckKind.TIMING -> if (input.firstFixMs != null) "Time to first fix" else "Searching for"
 }
 
+/** What the check found, in a few words, e.g. "on" or "warm · almanac only". */
 fun DiagnosisCheck.value(i: DiagnosisInput): String = when (kind) {
     CheckKind.LOCATION -> if (i.gpsEnabled) "on" else "off"
 

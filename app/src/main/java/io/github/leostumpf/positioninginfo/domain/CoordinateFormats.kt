@@ -21,12 +21,14 @@ data class UtmCoordinate(val zone: Int, val band: Char, val easting: Double, val
  */
 object CoordinateFormats {
 
+    /** Decimal degrees to six places (about 0.1 m), e.g. "52.520008° N, 13.404954° E". */
     fun decimal(lat: Double, lon: Double): String {
         val la = String.format(Locale.ROOT, "%.6f", abs(lat))
         val lo = String.format(Locale.ROOT, "%.6f", abs(lon))
         return "$la° ${hemisphere(lat, la, 'N', 'S')}, $lo° ${hemisphere(lon, lo, 'E', 'W')}"
     }
 
+    /** Degrees, minutes and seconds to a tenth, e.g. "52°31′12.0″ N, 13°24′17.8″ E". */
     fun dms(lat: Double, lon: Double): String = "${dmsPart(lat, 'N', 'S')}, ${dmsPart(lon, 'E', 'W')}"
 
     /**
@@ -50,8 +52,10 @@ object CoordinateFormats {
     private fun hemisphere(value: Double, printed: String, positive: Char, negative: Char): Char =
         if (value < 0 && printed.any { it in '1'..'9' }) negative else positive
 
+    /** The UTM grid position; null outside UTM's 80° S to 84° N. */
     fun utm(lat: Double, lon: Double): UtmCoordinate? = UtmGrid.utm(lat, lon)
 
+    /** The MGRS reference to the metre (truncated, not rounded); null outside UTM's 80° S to 84° N. */
     fun mgrs(lat: Double, lon: Double): String? = UtmGrid.mgrs(lat, lon)
 
     private const val HALF_TURN_DEG = 180.0
@@ -69,21 +73,25 @@ object CoordinateFormats {
     private const val OLC_LAT_UNITS_MAX = 180L * 8_000 - 1
     private const val OLC_LON_PRECISION = 8.192e6
     private const val OLC_LON_DIVISOR = 1_024L
+    private const val OLC_LON_UNITS_MAX = 360L * 8_000 - 1
 
     /** Height of a 10-digit code's cell, taken off the pole so it still has a cell to name. */
     private const val OLC_PRECISION = 1.0 / 8000
 
+    /** The full 10-digit Plus Code (Open Location Code), a cell 1/8000° on each side. */
     fun plusCode(lat: Double, lon: Double): String {
         var la = lat.coerceIn(-QUARTER_TURN_DEG, QUARTER_TURN_DEG)
         if (la == QUARTER_TURN_DEG) la -= OLC_PRECISION
         val lo = normaliseLongitude(lon)
         // Integer arithmetic, like the reference implementation, so that values sitting exactly
         // on a cell edge do not fall into the cell below through floating point error.
-        // Clamped: a latitude a hair below 90° rounds up to the pole, which has no cell.
-        // Latitude in 1/8000° steps, longitude in 1/8192°, as the reference implementation does.
+        // Clamped: a latitude a hair below 90° rounds up to the pole, and a longitude a hair
+        // below 180° up to the antimeridian; neither has a cell of its own.
+        // Both end up in 1/8000° steps, reached through the reference implementation's finer precisions.
         var latUnits = (((la + QUARTER_TURN_DEG) * OLC_LAT_PRECISION).roundToLong() / OLC_LAT_DIVISOR)
             .coerceAtMost(OLC_LAT_UNITS_MAX)
-        var lonUnits = ((lo + HALF_TURN_DEG) * OLC_LON_PRECISION).roundToLong() / OLC_LON_DIVISOR
+        var lonUnits = (((lo + HALF_TURN_DEG) * OLC_LON_PRECISION).roundToLong() / OLC_LON_DIVISOR)
+            .coerceAtMost(OLC_LON_UNITS_MAX)
         val digits = CharArray(OLC_PAIR_LENGTH)
         for (pair in OLC_PAIR_LENGTH / 2 - 1 downTo 0) {
             digits[pair * 2] = OLC_ALPHABET[(latUnits % OLC_BASE).toInt()]
@@ -108,6 +116,7 @@ object CoordinateFormats {
     /** Kept off the last edge so the final field and square still exist. */
     private const val EDGE = 1e-9
 
+    /** The six-character Maidenhead locator (field, square, subsquare), e.g. "JO62qm". */
     fun maidenhead(lat: Double, lon: Double): String {
         // Just below the pole and the antimeridian, so the last field still exists.
         val x = (normaliseLongitude(lon) + HALF_TURN_DEG).coerceIn(0.0, FULL_TURN_DEG - EDGE)

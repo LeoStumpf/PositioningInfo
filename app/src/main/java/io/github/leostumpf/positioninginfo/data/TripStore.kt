@@ -29,6 +29,7 @@ class TripStore(context: Context) {
     private val file = File(appContext.filesDir, "trip.csv")
     private val lock = Mutex()
 
+    /** The recorded points in order; empty if there is no trip or the file cannot be read. */
     suspend fun load(): List<TripPoint> = lock.withLock { withContext(Dispatchers.IO) { read() } }
 
     /** False if the point could not be written. */
@@ -43,10 +44,12 @@ class TripStore(context: Context) {
         }
     }
 
+    /** Deletes the recorded trip. */
     suspend fun clear() {
         lock.withLock { withContext(Dispatchers.IO) { file.delete() } }
     }
 
+    /** Writes the whole trip as a GPX track called [name] to [uri]; false if that failed. */
     suspend fun exportGpx(uri: Uri, name: String): Boolean = lock.withLock {
         withContext(Dispatchers.IO) {
             runCatching {

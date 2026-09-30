@@ -16,7 +16,10 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.conflate
 
-/** The phone's own sensors: barometer for altitude, rotation vector for a compass. */
+/**
+ * The phone's own sensors: barometer for altitude, rotation vector for a compass, and the
+ * magnetometer to judge how far that compass can be trusted.
+ */
 class SensorDataSource(context: Context) {
 
     private val sensorManager = context.applicationContext.getSystemService<SensorManager>()
@@ -24,6 +27,7 @@ class SensorDataSource(context: Context) {
     val hasBarometer: Boolean get() = sensorManager?.getDefaultSensor(Sensor.TYPE_PRESSURE) != null
     val hasCompass: Boolean get() = sensorManager?.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR) != null
 
+    /** Barometer readings, newest only if the collector lags. Completes at once without a barometer. */
     fun pressure(): Flow<PressureReading> = callbackFlow {
         val manager = sensorManager
         val sensor = manager?.getDefaultSensor(Sensor.TYPE_PRESSURE)

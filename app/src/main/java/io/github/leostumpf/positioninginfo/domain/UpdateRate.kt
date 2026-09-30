@@ -10,6 +10,7 @@ package io.github.leostumpf.positioninginfo.domain
  */
 data class UpdateRate(val timesMs: List<Long> = emptyList()) {
 
+    /** Notes a fix arriving at [elapsedMs] (elapsed realtime), keeping the last [WINDOW] intervals. */
     fun onFix(elapsedMs: Long): UpdateRate {
         val last = timesMs.lastOrNull()
         // A repeated or out-of-order timestamp is not a new fix.

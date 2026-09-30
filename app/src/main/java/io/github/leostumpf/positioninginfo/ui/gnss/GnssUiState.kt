@@ -48,6 +48,10 @@ data class GnssUiState(
 ) {
 
     companion object {
+        /**
+         * The page from the almanac status and the satellite list, strongest signals first. The
+         * decoration, history, log, settings and diagnosis are added by the caller.
+         */
         fun from(
             status: AlmanacStatus,
             satellites: List<SatelliteInfo>,
@@ -107,6 +111,7 @@ data class SignalRow(val key: String, val satellite: SatelliteInfo) {
     val baseKey: String get() = key.substringBefore('#')
 
     companion object {
+        /** Rows for [signals] in the same order, each with a key unique within the list. */
         fun keyed(signals: List<SatelliteInfo>): List<SignalRow> {
             val seen = mutableMapOf<String, Int>()
             return signals.map { sat ->

@@ -52,6 +52,7 @@ object BackgroundMode {
         return false
     }
 
+    /** Stops the service and marks background mode off; safe to call from anywhere, even when not running. */
     fun stop(context: Context) {
         context.stopService(Intent(context, BackgroundTrackingService::class.java))
         _active.value = false

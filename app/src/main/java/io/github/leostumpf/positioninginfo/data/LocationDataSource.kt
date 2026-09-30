@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.callbackFlow
  *
  * Deliberately uses the AOSP location APIs and the raw GPS provider rather than Play
  * Services' fused provider: the fused provider blends in network and sensor sources, is
- * proprietary, and cannot supply the GNSS status this app is built to grow into. The GPS
+ * proprietary, and cannot supply the GNSS status and raw data this app shows. The GPS
  * provider hands over the receiver's own Doppler-derived speed, which is exactly what a
  * speedometer wants.
  */
@@ -38,6 +38,10 @@ class LocationDataSource(context: Context) {
             locationManager?.isProviderEnabled(LocationManager.GPS_PROVIDER) == true
         }.getOrDefault(false)
 
+    /**
+     * A fix about once a second from the GPS provider, starting with the last known one marked
+     * as cached. Completes at once on a device without a GPS provider.
+     */
     @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     fun fixes(): Flow<SpeedFix> = callbackFlow {
         val manager = locationManager

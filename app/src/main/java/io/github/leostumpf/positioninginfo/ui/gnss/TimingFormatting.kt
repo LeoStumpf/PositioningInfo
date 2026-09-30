@@ -9,8 +9,10 @@ import kotlin.math.abs
 /** How a timing figure should be tinted: settled, still in progress, or worth a look. */
 enum class TimingTone { GOOD, PENDING, WARN, NONE }
 
+/** A timing figure as shown, and how to tint it. */
 data class TimingText(val text: String, val tone: TimingTone)
 
+/** Time to first fix, or "searching…" with the time so far; "--" while location is off. */
 fun TimingUiState.firstFixText(gpsEnabled: Boolean): TimingText = when {
     firstFixMs != null -> TimingText(formatDuration(firstFixMs), TimingTone.GOOD)
     !gpsEnabled -> TimingText("--", TimingTone.NONE)

@@ -30,6 +30,10 @@ class GnssStatusDataSource(context: Context) {
     private val appContext = context.applicationContext
     private val locationManager = appContext.getSystemService<LocationManager>()
 
+    /**
+     * A snapshot on every satellite status update; [GnssSnapshot.EMPTY] when the receiver stops
+     * or the callback cannot be registered.
+     */
     @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     fun snapshots(): Flow<GnssSnapshot> = callbackFlow {
         val manager = locationManager

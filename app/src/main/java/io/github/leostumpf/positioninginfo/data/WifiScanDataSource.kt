@@ -38,6 +38,10 @@ class WifiScanDataSource(context: Context) {
             wifi?.let { it.isWifiEnabled || it.isScanAlwaysAvailable } == true
         }.getOrDefault(false)
 
+    /**
+     * The access points in the latest scan, strongest first: at once, after every system scan,
+     * and re-read every ten seconds. Completes at once on a device without Wi-Fi.
+     */
     @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     fun accessPoints(): Flow<List<AccessPoint>> = callbackFlow {
         val manager = wifi

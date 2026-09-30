@@ -23,6 +23,7 @@ enum class FixFreshness {
         const val STALE_AFTER_MS: Long = 3_000L
         const val EXPIRED_AFTER_MS: Long = 10_000L
 
+        /** The state for a fix [ageMs] milliseconds old; a negative age counts as fresh. */
         fun ofAge(ageMs: Long): FixFreshness = when {
             ageMs >= EXPIRED_AFTER_MS -> EXPIRED
             ageMs >= STALE_AFTER_MS -> STALE

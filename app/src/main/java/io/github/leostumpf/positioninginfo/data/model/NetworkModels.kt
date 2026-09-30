@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.data.model
 
-/** A position from the platform network provider: Wi-Fi and cell towers, no satellites. */
+/**
+ * A position from the platform network provider (Wi-Fi and cell towers, no satellites), or
+ * from the fused provider, which reports through the same type.
+ */
 data class NetworkFix(
     val latitude: Double,
     val longitude: Double,
@@ -58,6 +61,7 @@ data class CellTower(
 /** One reported signal figure, e.g. RSRP −95 dBm. */
 data class SignalMeasure(val name: String, val value: Int, val unit: String)
 
+/** One Wi-Fi access point from a scan; signal strength in dBm, frequency in MHz. */
 data class AccessPoint(
     val ssid: String?,
     val bssid: String,

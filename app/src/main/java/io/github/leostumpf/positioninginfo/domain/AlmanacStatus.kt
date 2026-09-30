@@ -40,6 +40,7 @@ data class ConstellationSummary(
     val usedInFix: Int,
 )
 
+/** Satellite counts by kind of orbital data held, and the start type they add up to. */
 data class AlmanacStatus(
     val readiness: AlmanacReadiness,
     val visible: Int,
@@ -63,6 +64,7 @@ data class AlmanacStatus(
         /** A three-dimensional fix needs four satellites. */
         const val SATELLITES_FOR_FIX = 4
 
+        /** Judges one sweep of satellite status; counts are of physical satellites, not signals. */
         fun from(snapshot: GnssSnapshot): AlmanacStatus {
             val sats = snapshot.satellites
             return AlmanacStatus(

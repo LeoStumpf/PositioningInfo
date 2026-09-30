@@ -18,11 +18,13 @@ class AccuracyTest internal constructor(private val onChanged: () -> Unit) {
     var running = false
         private set
 
+    /** Starts or pauses collecting; the samples so far are kept. */
     fun toggle() {
         running = !running
         onChanged()
     }
 
+    /** Stops the test and discards its samples. */
     fun reset() {
         scatter = PositionScatter()
         running = false

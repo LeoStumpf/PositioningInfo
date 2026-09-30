@@ -24,7 +24,7 @@ data class SkyUiState(
     val mapMode: Boolean = false,
     /** Draw each satellite's path and projection, or only where it is now. */
     val showPaths: Boolean = true,
-    /** True heading of the phone's top edge, when the compass is running. */
+    /** Heading of the phone's top edge while the compass runs: true, or magnetic before a fix. */
     val headingDegrees: Float? = null,
     val headingText: String? = null,
     val compassUnreliable: Boolean = false,
@@ -35,6 +35,7 @@ data class SkyUiState(
     val obstructionSamples: Int = 0,
 ) {
     companion object {
+        /** The plot, setting times and events from the tracker; the compass and map are added later. */
         fun from(tracker: SkyTracker, nowMs: Long) = SkyUiState(
             markers = tracker.tracks.values
                 .sortedBy { it.usedInFix } // satellites in the fix are drawn on top
@@ -58,6 +59,7 @@ data class SkyUiState(
     }
 }
 
+/** One satellite on the sky plot: where it is, where it has been and where it is heading. */
 data class SkyMarker(
     val key: String,
     val label: String,
@@ -66,11 +68,14 @@ data class SkyMarker(
     val current: SkyPoint?,
     /** The path so far, split wherever the satellite was out of sight. */
     val trail: List<List<SkyPoint>>,
+    /** Where it is expected to go next; empty once out of sight. */
     val projection: List<SkyPoint>,
+    /** Whether its signal is actually heard, rather than known only from the almanac. */
     val tracked: Boolean,
     val usedInFix: Boolean,
 )
 
+/** A satellite expected to drop below the horizon in [minutes]. */
 data class UpcomingSet(val id: SatelliteId, val minutes: Float)
 
 /** An event, with the satellite kept apart from the words so it can be drawn in its colour. */

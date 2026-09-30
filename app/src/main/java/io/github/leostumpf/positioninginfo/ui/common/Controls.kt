@@ -54,6 +54,7 @@ import io.github.leostumpf.positioninginfo.ui.theme.Palette
 private val ButtonShape = RoundedCornerShape(12.dp)
 private val ButtonHeight = 48.dp
 
+/** The filled button for a page's main action. */
 @Composable
 fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
     Button(
@@ -70,6 +71,7 @@ fun PrimaryButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifi
     ) { Text(text, style = BodyStyle.copy(fontWeight = FontWeight.Medium)) }
 }
 
+/** An outlined button for a lesser action, with an optional leading icon. */
 @Composable
 fun SecondaryButton(
     text: String,
@@ -111,6 +113,7 @@ fun QuietButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
     ) { Text(text, style = BodyStyle.copy(fontWeight = FontWeight.Medium)) }
 }
 
+/** A round, outlined icon button; 48 dp by default so it stays an easy touch target. */
 @Composable
 fun CircleIconButton(
     icon: ImageVector,

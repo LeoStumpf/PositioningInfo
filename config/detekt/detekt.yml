@@ -22,11 +22,13 @@ style:
 
 comments:
   # Every public class and function says what it is for: the app is maintained by reading it.
-  # STAGED: switched on once every public class and function is documented.
   UndocumentedPublicClass:
-    active: false
+    active: true
+    # A plain `companion object` holds the class's factories and constants; those are
+    # documented themselves, the wrapper needs no sentence of its own.
+    ignoreDefaultCompanionObject: true
   UndocumentedPublicFunction:
-    active: false
+    active: true
 
 complexity:
   CyclomaticComplexMethod:

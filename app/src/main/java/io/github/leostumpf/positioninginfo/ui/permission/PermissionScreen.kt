@@ -24,6 +24,10 @@ import androidx.compose.ui.unit.dp
 private val PermissionState.needsSettings: Boolean
     get() = this == PermissionState.NEEDS_SETTINGS || this == PermissionState.APPROXIMATE_NEEDS_SETTINGS
 
+/**
+ * Shown instead of the app until precise location is allowed: why it is needed, and one button
+ * that asks again or, once the system will no longer ask, opens the app settings.
+ */
 @Composable
 fun PermissionScreen(
     state: PermissionState,
@@ -32,7 +36,7 @@ fun PermissionScreen(
     modifier: Modifier = Modifier,
 ) {
     // Scrolls, so the button stays reachable in landscape or with a large font; otherwise
-    // centred as before. This screen stands between the user and the whole app.
+    // centred. This screen stands between the user and the whole app.
     BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()

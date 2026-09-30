@@ -11,12 +11,13 @@ package io.github.leostumpf.positioninginfo.domain
  */
 object SpeedFilter {
 
-    /** Used when the receiver reports no speed accuracy of its own (below API 26 data). */
+    /** Used when the receiver reports no speed accuracy of its own (before API 26); also the lowest floor. */
     const val FALLBACK_NOISE_FLOOR_MPS: Float = 0.5f
 
     /** Never treat an implausibly large accuracy figure as licence to zero real motion. */
     const val MAX_NOISE_FLOOR_MPS: Float = 2.0f
 
+    /** [speedMps], or zero when it is below the noise floor [speedAccuracyMps] implies; both in m/s. */
     fun apply(speedMps: Float, speedAccuracyMps: Float?): Float {
         val floor = (speedAccuracyMps ?: FALLBACK_NOISE_FLOOR_MPS)
             .coerceIn(FALLBACK_NOISE_FLOOR_MPS, MAX_NOISE_FLOOR_MPS)

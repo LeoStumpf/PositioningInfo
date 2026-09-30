@@ -38,7 +38,7 @@ import kotlinx.coroutines.launch
  * signal map for the sky view.
  *
  * Owned by [PositioningInfoViewModel], which feeds it fixes, snapshots and ticks and cancels its
- * jobs together with its own when the app leaves the foreground. The pages' actions go
+ * jobs together with its own whenever tracking stops. The pages' actions go
  * straight to the part they concern: [trip], [accuracyTest] and [sky].
  */
 class AnalysisSession(
@@ -100,6 +100,10 @@ class AnalysisSession(
         return jobs
     }
 
+    /**
+     * Takes a new fix: calibrates the barometer against its sea-level height and adds it to the
+     * accuracy test and, while recording, the trip. A cached fix is only shown, never counted.
+     */
     fun onFix(fix: SpeedFix) {
         lastFix = fix
         if (fix.isCached) return publishPosition()
@@ -136,11 +140,13 @@ class AnalysisSession(
         trip.add(point, climbAltitude, climbSource)
     }
 
+    /** Takes a satellite sweep for the receiver internals and the signal map. */
     fun onSnapshot(snapshot: GnssSnapshot) {
         receiver.onSnapshot(snapshot)
         sky.onSnapshot(snapshot)
     }
 
+    /** Republishes the position and receiver pages, so ages and timers move without new data. */
     fun onTick() {
         publishPosition()
         publishReceiver()
@@ -175,10 +181,13 @@ class AnalysisSession(
 
     // --- decoration of the pages the main ViewModel builds ------------------------------
 
+    /** Adds the compass, heading line and signal map to the sky view. */
     fun decorateSky(state: SkyUiState): SkyUiState = sky.decorate(state, lastFix)
 
+    /** Adds each signal's acquisition stage, Doppler and multipath from the raw measurements. */
     fun decorateGnss(state: GnssUiState): GnssUiState = receiver.decorateGnss(state)
 
+    /** Adds the computed DOP of the satellites in the fix and the chip's own DOP from NMEA. */
     fun decorateSignal(state: SignalUiState): SignalUiState = receiver.decorateSignal(state)
 
     // --- publishing --------------------------------------------------------------------

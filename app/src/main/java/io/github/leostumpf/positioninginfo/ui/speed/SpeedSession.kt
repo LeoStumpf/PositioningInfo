@@ -39,6 +39,7 @@ class SpeedSession internal constructor(
         }
     }
 
+    /** Stores the unit every page shows speeds in; [state] follows once it is saved. */
     fun setUnit(unit: SpeedUnit) {
         scope.launch { unitPreference.set(unit) }
     }

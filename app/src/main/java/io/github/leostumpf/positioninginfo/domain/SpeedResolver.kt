@@ -28,6 +28,7 @@ data class SpeedReading(
  */
 object SpeedResolver {
 
+    /** The reading to show for [fix] at [nowElapsedMs]; no fix means an expired, empty reading. */
     fun resolve(fix: SpeedFix?, nowElapsedMs: Long): SpeedReading {
         if (fix == null) return SpeedReading(speedMps = null, freshness = FixFreshness.EXPIRED)
 

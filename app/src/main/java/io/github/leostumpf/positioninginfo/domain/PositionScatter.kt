@@ -7,6 +7,7 @@ import kotlin.math.sqrt
 /** One fix relative to the mean position, in metres on the local tangent plane. */
 data class ScatterPoint(val eastM: Double, val northM: Double)
 
+/** How far a stationary phone's fixes spread around their mean; distances in metres. */
 data class ScatterStats(
     val count: Int,
     val meanLatitude: Double,
@@ -22,7 +23,7 @@ data class ScatterStats(
     val twoDrmsM: Double,
     /** Mean of the receiver's claimed 68 % radius; null when no fix carried one. */
     val meanClaimedAccuracyM: Double?,
-    /** Share of fixes whose distance to the mean is within their own claimed accuracy. */
+    /** Share of the fixes carrying a claimed accuracy that lie within it of the mean; null when none carried one. */
     val fractionWithinClaimed: Double?,
     /** Sample standard deviation of the altitudes; null below two altitudes. */
     val altitudeStdDevM: Double?,
@@ -42,8 +43,10 @@ data class ScatterStats(
  */
 data class PositionScatter(val samples: List<Sample> = emptyList()) {
 
+    /** One fix: degrees, altitude in metres, and the receiver's claimed 68 % radius in metres. */
     data class Sample(val latitude: Double, val longitude: Double, val altitudeM: Double?, val claimedAccuracyM: Float?)
 
+    /** Appends [sample], dropping the oldest once [MAX_SAMPLES] are held. */
     fun add(sample: Sample): PositionScatter {
         val kept = if (samples.size >= MAX_SAMPLES) samples.drop(samples.size - MAX_SAMPLES + 1) else samples
         return PositionScatter(kept + sample)

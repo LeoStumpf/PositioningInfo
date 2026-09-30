@@ -7,6 +7,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
 
+/** One recorded fix: UTC time, degrees, altitude in metres, speed in m/s and horizontal accuracy in metres. */
 data class TripPoint(
     val timeUtcMs: Long,
     val latitude: Double,
@@ -16,6 +17,7 @@ data class TripPoint(
     val accuracyM: Float?,
 )
 
+/** Totals of a trip so far; distances and heights in metres, times in milliseconds, speeds in m/s. */
 data class TripStats(
     val points: Int,
     val distanceM: Double,
@@ -180,6 +182,7 @@ data class TripAccumulator(
  * left empty: `time,lat,lon,alt,speed,accuracy`.
  */
 object TripCsv {
+    /** One CSV line for [p], without the line break. */
     fun encode(p: TripPoint): String = listOf(
         p.timeUtcMs.toString(),
         p.latitude.toString(),
@@ -213,6 +216,7 @@ object Gpx {
     private val TIME_FORMAT: DateTimeFormatter =
         DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.ROOT).withZone(ZoneOffset.UTC)
 
+    /** Writes [points] as a single-segment track called [name]; the caller closes [out]. */
     fun write(points: List<TripPoint>, name: String, out: Appendable) {
         out.append("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n")
         out.append(

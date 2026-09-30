@@ -10,7 +10,7 @@ import io.github.leostumpf.positioninginfo.domain.SignalBand
 /** Everything the signals-and-accuracy screen draws. */
 data class SignalUiState(
     val resolution: ResolutionClass = ResolutionClass.NO_FIX,
-    /** Accuracy the receiver reports for the current fix — the measured figure, not an estimate. */
+    /** Accuracy Android reports with the current fix (68 %), rather than inferred from the signals. */
     val measuredAccuracyM: Float? = null,
     val bandsInUse: List<SignalBand> = emptyList(),
     val sbasInView: List<SbasSystem> = emptyList(),
@@ -35,6 +35,7 @@ data class SignalUiState(
     val isMock: Boolean = false,
 ) {
     companion object {
+        /** The page from the signal quality; the DOP and per-fix figures are added by the caller. */
         fun from(quality: PositioningQuality, measuredAccuracyM: Float?) = SignalUiState(
             resolution = quality.resolution,
             measuredAccuracyM = measuredAccuracyM,

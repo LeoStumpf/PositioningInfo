@@ -11,13 +11,16 @@ enum class SpeedUnit(val symbol: String, private val factorFromMps: Double) {
     KNOTS("kn", 1.943844),
     ;
 
+    /** Converts a speed in metres per second into this unit. */
     fun fromMps(mps: Double): Double = mps * factorFromMps
 
+    /** The unit after this one, wrapping round: what a tap on the unit cycles to. */
     fun next(): SpeedUnit = entries[(ordinal + 1) % entries.size]
 
     companion object {
         val DEFAULT = KMH
 
+        /** The unit stored under [name], or [DEFAULT] when it is null or unknown. */
         fun fromName(name: String?): SpeedUnit = entries.firstOrNull { it.name == name } ?: DEFAULT
     }
 }

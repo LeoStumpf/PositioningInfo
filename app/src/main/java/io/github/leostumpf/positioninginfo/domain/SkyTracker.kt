@@ -11,6 +11,7 @@ import kotlin.math.sqrt
 /** A direction in the sky: compass bearing and height above the horizon. */
 data class SkyPoint(val azimuthDegrees: Float, val elevationDegrees: Float)
 
+/** Where a satellite was at [atMs], elapsed-realtime milliseconds. */
 data class SkySample(val atMs: Long, val point: SkyPoint)
 
 /** One physical satellite, however many bands it is heard on. */
@@ -32,6 +33,7 @@ data class SkyTrack(
     val usedInFix: Boolean,
 )
 
+/** A satellite coming into or going out of the receiver's list, at [atMs] (elapsed realtime). */
 data class SkyEvent(
     val id: SatelliteId,
     val kind: Kind,
@@ -39,6 +41,7 @@ data class SkyEvent(
     /** Elevation when it happened: low means it rose or set, high means it was blocked or acquired. */
     val elevationDegrees: Float,
 ) {
+    /** Whether the satellite came into the list or dropped out of it. */
     enum class Kind { APPEARED, LOST }
 }
 
@@ -60,6 +63,10 @@ data class SkyTracker(
     val lastSnapshotMs: Long? = null,
 ) {
 
+    /**
+     * Records where each located satellite is at [nowMs] (elapsed realtime) and notes those that
+     * appeared or were lost. Quiet about arrivals for [SETTLE_MS] after a new session starts.
+     */
     fun onSnapshot(satellites: List<SatelliteInfo>, nowMs: Long): SkyTracker {
         // After a gap (the app was in the background) every satellite would otherwise be
         // reported lost and then found again. The gap is not news, so start over quietly.
@@ -192,10 +199,12 @@ data class SkyProjection(
             val degPerMin = Math.toDegrees(sqrt(rate.sumOf { it * it }))
             if (degPerMin < MIN_RATE_DEG_PER_MIN) return null
 
-            val sinceLastMin = (nowMs - last.atMs) / 60_000.0
+            val sinceLastMin = (nowMs - last.atMs) / MS_PER_MIN
             val points = mutableListOf<SkyPoint>()
             var setsIn: Float? = null
+            // The path starts at the newest sample (t = 0), then steps a minute at a time from now.
             var prev = toPoint(start)
+            var prevT = 0.0
             points += prev
             for (step in 1..HORIZON_MINUTES) {
                 val t = sinceLastMin + step
@@ -203,12 +212,13 @@ data class SkyProjection(
                 if (next.elevationDegrees < 0f) {
                     // Interpolate the crossing and end the path on the horizon.
                     val f = prev.elevationDegrees / (prev.elevationDegrees - next.elevationDegrees)
-                    setsIn = ((t - 1 + f) - sinceLastMin).toFloat().coerceAtLeast(0f)
+                    setsIn = (prevT + f * (t - prevT) - sinceLastMin).toFloat().coerceAtLeast(0f)
                     points += SkyPoint(interpolateAzimuth(prev.azimuthDegrees, next.azimuthDegrees, f), 0f)
                     break
                 }
                 points += next
                 prev = next
+                prevT = t
             }
             return SkyProjection(points, setsIn)
         }

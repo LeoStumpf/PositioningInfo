@@ -59,7 +59,7 @@ import kotlinx.coroutines.plus
 /**
  * Owns the one GNSS session the whole app shares.
  *
- * Both screens are driven from a single receiver subscription rather than a ViewModel
+ * Every page is driven from a single receiver subscription rather than a ViewModel
  * each: registering the status callback twice would double the work for identical data,
  * and two independent subscriptions could momentarily disagree about what is overhead.
  */
@@ -210,6 +210,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         if (!BackgroundMode.active.value) stopTracking()
     }
 
+    /** Starts or stops background mode, the foreground service that keeps tracking out of sight. */
     fun setBackgroundMode(enabled: Boolean) {
         val context = getApplication<Application>()
         if (enabled) BackgroundMode.start(context) else BackgroundMode.stop(context)
@@ -302,6 +303,10 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         startTracking()
     }
 
+    /**
+     * Asks the receiver to download predicted orbits and inject the time; whether the phone
+     * accepted the request shows on the GNSS page.
+     */
     fun fetchAssistance() {
         publishAssistance(
             if (assistanceSource.injectAssistanceData()) {

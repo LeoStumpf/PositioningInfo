@@ -44,17 +44,20 @@ class SkyAnalysis internal constructor(
     /** Tracking runs and the app is on screen: only then do the compass sensors run. */
     private var active = false
 
+    /** Turns compass mode on or off; the compass sensors run only while it is on. */
     fun toggleCompass() {
         compassMode = !compassMode
         updateSensors()
         onChanged()
     }
 
+    /** Shows or hides the satellites' paths across the sky. */
     fun toggleShowPaths() {
         showPaths = !showPaths
         onChanged()
     }
 
+    /** Shows or hides the signal map; it keeps collecting either way. */
     fun toggleMap() {
         mapMode = !mapMode
         onChanged()

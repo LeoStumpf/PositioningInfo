@@ -65,6 +65,7 @@ private val InstrumentScheme = darkColorScheme(
     error = Palette.Bad,
 )
 
+/** The app's one theme: always dark, with the instrument palette and type. */
 @Composable
 fun PositioningInfoTheme(content: @Composable () -> Unit) {
     MaterialTheme(colorScheme = InstrumentScheme, typography = PositioningInfoTypography, content = content)

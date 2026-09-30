@@ -73,8 +73,10 @@ data class Rmc(override val talker: String, val valid: Boolean, val speedKnots: 
     override val type get() = "RMC"
 }
 
+/** A sentence type not decoded here, kept only so it can be counted. */
 data class OtherSentence(override val talker: String, override val type: String) : NmeaSentence
 
+/** Turns single NMEA lines into [NmeaSentence]s; stateless. */
 object NmeaParser {
 
     private class Malformed : Exception()
@@ -278,6 +280,7 @@ data class NmeaState(
     val total: Int = 0,
     val rejected: Int = 0,
 ) {
+    /** Counts [line] and keeps it if it is the latest of its decoded kind; a broken line only counts as rejected. */
     fun onLine(line: String): NmeaState {
         val sentence = NmeaParser.parse(line)
             ?: return copy(total = total + 1, rejected = rejected + 1)

@@ -23,6 +23,7 @@ data class CompassTrust(val measuredUt: Double, val expectedUt: Double) {
             else -> Level.DISTURBED
         }
 
+    /** The verdict: within [RELIABLE], within [SUSPECT], or further off than that. */
     enum class Level { RELIABLE, SUSPECT, DISTURBED }
 
     companion object {

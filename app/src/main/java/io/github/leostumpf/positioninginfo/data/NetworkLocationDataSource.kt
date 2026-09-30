@@ -40,6 +40,10 @@ class NetworkLocationDataSource(
             locationManager?.isProviderEnabled(provider) == true
         }.getOrDefault(false)
 
+    /**
+     * Positions from the provider, asked for every five seconds, starting with its last known
+     * one marked as cached. Completes at once when the phone lacks the provider.
+     */
     @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     fun fixes(): Flow<NetworkFix> = callbackFlow {
         val manager = locationManager

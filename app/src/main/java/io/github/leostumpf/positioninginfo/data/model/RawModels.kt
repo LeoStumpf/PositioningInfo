@@ -41,8 +41,12 @@ data class SignalMeasurement(
     val interSignalBiasNs: Double? = null,
 )
 
+/** What the raw-measurement stream delivers: a status change or a batch of measurements. */
 sealed interface RawMeasurementUpdate {
+    /** The platform's report of whether raw measurements are available. */
     data class Status(val status: RawStreamStatus) : RawMeasurementUpdate
+
+    /** One batch of measurements. */
     data class Epoch(val value: RawMeasurementEpoch) : RawMeasurementUpdate
 }
 
@@ -59,11 +63,16 @@ data class NavigationFrame(
     override fun hashCode(): Int = System.identityHashCode(this)
 }
 
+/** What the navigation-message stream delivers: a status change or a decoded frame. */
 sealed interface NavigationUpdate {
+    /** The platform's report of whether navigation messages are available. */
     data class Status(val status: RawStreamStatus) : NavigationUpdate
+
+    /** One frame as broadcast by a satellite. */
     data class Frame(val value: NavigationFrame) : NavigationUpdate
 }
 
+/** One barometer reading: pressure in hPa, and when it was taken on the elapsed-realtime clock. */
 data class PressureReading(val hPa: Float, val elapsedRealtimeMs: Long)
 
 /** Where the top edge of the phone points, from the rotation-vector sensor. */

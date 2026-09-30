@@ -34,6 +34,10 @@ import io.github.leostumpf.positioninginfo.ui.PositioningInfoViewModel
 import io.github.leostumpf.positioninginfo.ui.permission.PermissionScreen
 import io.github.leostumpf.positioninginfo.ui.permission.PermissionState
 import io.github.leostumpf.positioninginfo.ui.theme.PositioningInfoTheme
+/**
+ * The app's only activity: asks for precise location, then shows the pages and ties tracking
+ * to whether the app is on screen.
+ */
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         // Edge-to-edge is enforced from Android 15 at this targetSdk, so it is opted into on
