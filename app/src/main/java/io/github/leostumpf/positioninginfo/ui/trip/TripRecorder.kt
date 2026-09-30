@@ -4,7 +4,6 @@ package io.github.leostumpf.positioninginfo.ui.trip
 import android.app.Application
 import android.net.Uri
 import io.github.leostumpf.positioninginfo.data.TripStore
-import io.github.leostumpf.positioninginfo.domain.ClimbSource
 import io.github.leostumpf.positioninginfo.domain.SpeedUnit
 import io.github.leostumpf.positioninginfo.domain.TripAccumulator
 import io.github.leostumpf.positioninginfo.domain.TripPoint
@@ -62,9 +61,8 @@ class TripRecorder(
             val started = generation
             val saved = store.load()
             if (started == generation) {
-                // The file keeps the calibrated barometric height where there was one, else GNSS.
-                val source = if (hasBarometer) ClimbSource.BAROMETER else ClimbSource.GNSS
-                trip = saved.fold(TripAccumulator()) { acc, p -> acc.add(p, p.altitudeM, source) }
+                // Each point carries the climb height and source it was counted from live.
+                trip = saved.fold(TripAccumulator(), TripAccumulator::add)
                 altitudes.clear()
                 saved.mapNotNullTo(altitudes) { it.altitudeM }
             }
@@ -74,13 +72,13 @@ class TripRecorder(
     }
 
     /** A new point while [recording]; the trip stops by itself once it is full. */
-    fun add(point: TripPoint, climbAltitudeM: Double?, climbSource: ClimbSource) {
+    fun add(point: TripPoint) {
         if (!recording) return
         if (trip.stats.points >= MAX_POINTS) {
             recording = false
             message = "The trip is full (${MAX_POINTS.counted("point")}). Export it and delete it to record a new one."
         } else {
-            trip = trip.add(point, climbAltitudeM, climbSource)
+            trip = trip.add(point)
             point.altitudeM?.let { altitudes += it }
             scope.launch { store.append(point) }
         }

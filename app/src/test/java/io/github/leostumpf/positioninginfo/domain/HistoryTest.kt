@@ -3,6 +3,7 @@ package io.github.leostumpf.positioninginfo.domain
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HistoryTest {
@@ -29,5 +30,15 @@ class HistoryTest {
         assertEquals(e, TtffEntry.decode(e.encode()))
         assertNull(TtffEntry.decode("garbage"))
         assertNull(TtffEntry.decode("1,2,NOPE"))
+    }
+
+    @Test
+    fun `the first-fix log is read only under its own header`() {
+        val entries = listOf(
+            TtffEntry(1_000L, 4_700L, AlmanacReadiness.HOT),
+            TtffEntry(2_000L, 31_000L, AlmanacReadiness.WARM),
+        )
+        assertEquals(entries, TtffEntry.decodeFile(TtffEntry.encodeFile(entries).lines()))
+        assertTrue(TtffEntry.decodeFile(entries.map { it.encode() }).isEmpty())
     }
 }

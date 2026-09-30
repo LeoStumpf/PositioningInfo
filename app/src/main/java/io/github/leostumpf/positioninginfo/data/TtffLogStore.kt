@@ -35,7 +35,7 @@ class TtffLogStore(context: Context) {
             // If saving fails the log is unchanged, and so is what the page shows.
             val tmp = File(dir, "ttff.csv.tmp")
             val saved = try {
-                tmp.writeText(entries.joinToString("\n") { it.encode() } + "\n")
+                tmp.writeText(TtffEntry.encodeFile(entries))
                 tmp.renameTo(file)
             } catch (_: IOException) {
                 false
@@ -53,7 +53,7 @@ class TtffLogStore(context: Context) {
     suspend fun count(): Int = load().size
 
     private fun read(): List<TtffEntry> = try {
-        if (!file.exists()) emptyList() else file.readLines().mapNotNull(TtffEntry::decode)
+        if (!file.exists()) emptyList() else TtffEntry.decodeFile(file.readLines())
     } catch (_: IOException) {
         emptyList()
     }

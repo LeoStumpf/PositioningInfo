@@ -47,6 +47,17 @@ data class TtffEntry(val utcMs: Long, val ttffMs: Long, val startType: AlmanacRe
     companion object {
         const val MAX_ENTRIES = 20
 
+        /** First line of the log file; bumped whenever the line format changes. */
+        const val HEADER = "# Positioning Info first fixes, format 1"
+
+        /** The entries of a whole file, [HEADER] first; empty when the header is missing or different. */
+        fun decodeFile(lines: List<String>): List<TtffEntry> =
+            if (lines.firstOrNull()?.trim() != HEADER) emptyList() else lines.drop(1).mapNotNull(::decode)
+
+        /** A whole file for [entries], [HEADER] first. */
+        fun encodeFile(entries: List<TtffEntry>): String =
+            (listOf(HEADER) + entries.map { it.encode() }).joinToString("\n", postfix = "\n")
+
         /** A line is time, duration and start type, comma separated. */
         private const val FIELDS = 3
 

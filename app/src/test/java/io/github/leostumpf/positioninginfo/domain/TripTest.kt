@@ -14,6 +14,13 @@ import kotlin.random.Random
 
 class TripTest {
 
+    /** Adds [p] with the climb height from [source], as the recorder does for a live fix. */
+    private fun TripAccumulator.add(
+        p: TripPoint,
+        climbAltitudeM: Double?,
+        source: ClimbSource = ClimbSource.BAROMETER,
+    ) = add(p.copy(climbAltitudeM = climbAltitudeM, climbSource = source.takeIf { climbAltitudeM != null }))
+
     private val baseLat = 48.137
     private val baseLon = 11.575
     private val metresPerDegLat = Math.toRadians(1.0) * 6_371_000.0
@@ -165,10 +172,12 @@ class TripTest {
 
     @Test
     fun `non-finite or out-of-range values in the file are skipped`() {
-        assertNull(TripCsv.decode("1000,NaN,11.5,500,1,5"))
-        assertNull(TripCsv.decode("1000,48.1,Infinity,500,1,5"))
-        assertNull(TripCsv.decode("1000,95.0,11.5,500,1,5"))
-        assertNull(TripCsv.decode("1000,48.1,11.5,NaN,1,5"))
+        assertNull(TripCsv.decode("1000,NaN,11.5,500,1,5,500,B"))
+        assertNull(TripCsv.decode("1000,48.1,Infinity,500,1,5,500,B"))
+        assertNull(TripCsv.decode("1000,95.0,11.5,500,1,5,500,B"))
+        assertNull(TripCsv.decode("1000,48.1,11.5,NaN,1,5,500,B"))
+        assertNull(TripCsv.decode("1000,48.1,11.5,500,1,5,Infinity,B"))
+        assertNull(TripCsv.decode("1000,48.1,11.5,500,1,5,500,X"))
     }
 
     @Test
@@ -190,19 +199,59 @@ class TripTest {
 
     @Test
     fun `CSV round trip keeps every field, nulls included`() {
-        val full = TripPoint(1_790_000_000_123L, 48.1370001, -11.5750002, 523.25, 3.5f, 4.25f)
+        val full = TripPoint(
+            timeUtcMs = 1_790_000_000_123L,
+            latitude = 48.1370001,
+            longitude = -11.5750002,
+            altitudeM = 523.25,
+            speedMps = 3.5f,
+            accuracyM = 4.25f,
+            climbAltitudeM = 488.5,
+            climbSource = ClimbSource.BAROMETER_STANDARD,
+        )
         val empty = TripPoint(0L, -33.9, 151.2, null, null, null)
         assertEquals(full, TripCsv.decode(TripCsv.encode(full)))
         assertEquals(empty, TripCsv.decode(TripCsv.encode(empty)))
-        assertEquals("0,-33.9,151.2,,,", TripCsv.encode(empty))
+        assertEquals("0,-33.9,151.2,,,,,", TripCsv.encode(empty))
+        ClimbSource.entries.forEach { assertEquals(it, ClimbSource.fromCode(it.code)) }
     }
 
     @Test
     fun `CSV rejects malformed lines`() {
         assertNull(TripCsv.decode(""))
         assertNull(TripCsv.decode("123,48.1"))
-        assertNull(TripCsv.decode("abc,48.1,11.5,,,"))
-        assertNull(TripCsv.decode("1,48,1,11.5,,,"))
+        assertNull(TripCsv.decode("abc,48.1,11.5,,,,,"))
+        assertNull(TripCsv.decode("1,48,1,11.5,,,,,"))
+        // The earlier six-field format is not read as this one.
+        assertNull(TripCsv.decode("1000,48.1,11.5,500,1,5"))
+    }
+
+    @Test
+    fun `a trip file is read only under its own header`() {
+        val line = TripCsv.encode(TripPoint(1_000L, 48.1, 11.5, 500.0, 1f, 5f, 480.0, ClimbSource.GNSS))
+        assertEquals(1, TripCsv.decodeFile(listOf(TripCsv.HEADER, line)).size)
+        assertTrue(TripCsv.decodeFile(listOf(line)).isEmpty())
+        assertTrue(TripCsv.decodeFile(listOf("# Positioning Info trip, format 1", line)).isEmpty())
+        assertTrue(TripCsv.decodeFile(emptyList()).isEmpty())
+    }
+
+    @Test
+    fun `a reloaded trip counts the same climb as the live one`() {
+        // Standard-atmosphere barometer until calibration, then the calibrated barometer: the
+        // switch is no climb, and replaying the saved lines must give exactly the live totals.
+        val points = (0 until 40).map { i ->
+            val (height, source) = if (i < 20) {
+                300.0 + i to ClimbSource.BAROMETER_STANDARD
+            } else {
+                450.0 + i to ClimbSource.BAROMETER
+            }
+            TripPoint(i * 1_000L, 48.1, 11.5, height + 5, 1f, 5f, height, source)
+        }
+        val live = points.fold(TripAccumulator(), TripAccumulator::add)
+        val lines = listOf(TripCsv.HEADER) + points.map(TripCsv::encode)
+        val reloaded = TripCsv.decodeFile(lines).fold(TripAccumulator(), TripAccumulator::add)
+        assertEquals(live.stats, reloaded.stats)
+        assertTrue(live.stats.ascentM < 40.0)
     }
 
     @Test

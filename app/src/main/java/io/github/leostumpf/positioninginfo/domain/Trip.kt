@@ -12,9 +12,17 @@ data class TripPoint(
     val timeUtcMs: Long,
     val latitude: Double,
     val longitude: Double,
+    /** The best height above sea level at the time: calibrated barometer, else GNSS. For the profile and GPX. */
     val altitudeM: Double?,
     val speedMps: Float?,
     val accuracyM: Float?,
+    /**
+     * The height ascent and descent are counted from, and its source. Kept apart from [altitudeM]
+     * because before calibration the barometer's standard-atmosphere height is smoother than GNSS
+     * but tens of metres off; saving both lets a reloaded trip count exactly what was shown live.
+     */
+    val climbAltitudeM: Double? = null,
+    val climbSource: ClimbSource? = null,
 )
 
 /** Totals of a trip so far; distances and heights in metres, times in milliseconds, speeds in m/s. */
@@ -37,15 +45,21 @@ data class TripStats(
  * atmosphere is off by about 8 m per hPa of weather, GNSS height by its geoid and its noise —
  * so a switch between them is a jump in the reference, not a climb.
  */
-enum class ClimbSource(val hysteresisM: Double) {
+enum class ClimbSource(val hysteresisM: Double, val code: Char) {
     /** Barometer calibrated against GNSS: smooth to a metre or so. */
-    BAROMETER(3.0),
+    BAROMETER(3.0, 'B'),
 
     /** Barometer on the standard atmosphere, before calibration: smooth, but offset. */
-    BAROMETER_STANDARD(3.0),
+    BAROMETER_STANDARD(3.0, 'S'),
 
     /** GNSS height alone: 5–10 m of slowly wandering noise, so a wider band. */
-    GNSS(10.0),
+    GNSS(10.0, 'G'),
+    ;
+
+    companion object {
+        /** The source saved as [code] in a trip file; null for an unknown code. */
+        fun fromCode(code: Char): ClimbSource? = entries.firstOrNull { it.code == code }
+    }
 }
 
 /**
@@ -75,16 +89,16 @@ data class TripAccumulator(
     private val climbSource: ClimbSource? = null,
 ) {
     /**
-     * [climbAltitudeM] is the altitude to use for ascent/descent, from [source]; may be null.
-     * When the source changes, the new altitude becomes the reference without counting the
-     * step between the two.
+     * Adds [point]. Ascent and descent come from its [TripPoint.climbAltitudeM]; when its
+     * [TripPoint.climbSource] differs from the last one, the new altitude becomes the reference
+     * without counting the step between the two.
      */
-    fun add(point: TripPoint, climbAltitudeM: Double?, source: ClimbSource = ClimbSource.BAROMETER): TripAccumulator {
+    fun add(point: TripPoint): TripAccumulator {
         val first = firstTimeMs ?: point.timeUtcMs
         val (distanceStep, newAnchor) = distanceStep(point)
         val distance = stats.distanceM + distanceStep
         val moving = stats.movingTimeMs + movingTimeStep(point, distanceStep)
-        val climb = climbStep(climbAltitudeM, source)
+        val climb = climbStep(point.climbAltitudeM, point.climbSource)
         val lastTime = maxOf(point.timeUtcMs, previous?.timeUtcMs ?: point.timeUtcMs)
         return TripAccumulator(
             stats = TripStats(
@@ -149,10 +163,10 @@ data class TripAccumulator(
         val source: ClimbSource?,
     )
 
-    private fun climbStep(altitudeM: Double?, source: ClimbSource): ClimbStep {
+    private fun climbStep(altitudeM: Double?, source: ClimbSource?): ClimbStep {
         val ref = climbReferenceM
         return when {
-            altitudeM == null || !altitudeM.isFinite() -> ClimbStep(0.0, 0.0, ref, climbSource)
+            altitudeM == null || !altitudeM.isFinite() || source == null -> ClimbStep(0.0, 0.0, ref, climbSource)
 
             // A new source starts a new reference: the step between two sources is no climb.
             ref == null || source != climbSource -> ClimbStep(0.0, 0.0, altitudeM, source)
@@ -179,9 +193,14 @@ data class TripAccumulator(
 /**
  * One trip point per line, so a recording can be appended to a file as it happens and
  * survive the process being killed. Locale independent ('.' decimals); nullable fields are
- * left empty: `time,lat,lon,alt,speed,accuracy`.
+ * left empty: `time,lat,lon,alt,speed,accuracy,climbAlt,climbSource`, the source as its
+ * [ClimbSource.code]. The file starts with [HEADER]; a file without it is from another format
+ * and is not read.
  */
 object TripCsv {
+    /** First line of every trip file; bumped whenever the line format changes. */
+    const val HEADER = "# Positioning Info trip, format 2"
+
     /** One CSV line for [p], without the line break. */
     fun encode(p: TripPoint): String = listOf(
         p.timeUtcMs.toString(),
@@ -190,10 +209,15 @@ object TripCsv {
         p.altitudeM?.toString().orEmpty(),
         p.speedMps?.toString().orEmpty(),
         p.accuracyM?.toString().orEmpty(),
+        p.climbAltitudeM?.toString().orEmpty(),
+        p.climbSource?.code?.toString().orEmpty(),
     ).joinToString(",")
 
-    /** Time, latitude, longitude, altitude, speed, accuracy; the last three may be empty. */
-    private const val FIELDS = 6
+    /** The points of a whole file, [HEADER] first; empty when the header is missing or different. */
+    fun decodeFile(lines: List<String>): List<TripPoint> =
+        if (lines.firstOrNull()?.trim() != HEADER) emptyList() else lines.drop(1).mapNotNull(::decode)
+
+    private const val FIELDS = 8
 
     /** Null for a malformed line, for example one truncated by a crash mid-write. */
     fun decode(line: String): TripPoint? {
@@ -204,11 +228,20 @@ object TripCsv {
         // as invalid coordinates in an exported GPX.
         val lat = f[1].toDoubleOrNull()?.takeIf { it.isFinite() && it in -90.0..90.0 } ?: return null
         val lon = f[2].toDoubleOrNull()?.takeIf { it.isFinite() && it in -180.0..180.0 } ?: return null
-        val alt = if (f[3].isEmpty()) null else f[3].toDoubleOrNull()?.takeIf { it.isFinite() } ?: return null
-        val speed = if (f[4].isEmpty()) null else f[4].toFloatOrNull()?.takeIf { it.isFinite() } ?: return null
-        val acc = if (f[5].isEmpty()) null else f[5].toFloatOrNull()?.takeIf { it.isFinite() } ?: return null
-        return TripPoint(time, lat, lon, alt, speed, acc)
+        val alt = optional(f[3]) { it.toDoubleOrNull()?.takeIf(Double::isFinite) } ?: return null
+        val speed = optional(f[4]) { it.toFloatOrNull()?.takeIf(Float::isFinite) } ?: return null
+        val acc = optional(f[5]) { it.toFloatOrNull()?.takeIf(Float::isFinite) } ?: return null
+        val climbAlt = optional(f[6]) { it.toDoubleOrNull()?.takeIf(Double::isFinite) } ?: return null
+        val source = optional(f[7]) { it.singleOrNull()?.let(ClimbSource::fromCode) } ?: return null
+        return TripPoint(time, lat, lon, alt.value, speed.value, acc.value, climbAlt.value, source.value)
     }
+
+    /** A field that may be empty: [Field] of null when empty, null when present but invalid. */
+    private fun <T : Any> optional(text: String, parse: (String) -> T?): Field<T>? =
+        if (text.isEmpty()) Field(null) else parse(text)?.let { Field(it) }
+
+    /** A decoded optional field; wrapped so "empty" and "invalid" can be told apart. */
+    private class Field<T : Any>(val value: T?)
 }
 
 /** GPX 1.1 export, the format every mapping tool can import. */

@@ -29,13 +29,22 @@ class TripStore(context: Context) {
     private val file = File(appContext.filesDir, "trip.csv")
     private val lock = Mutex()
 
-    /** The recorded points in order; empty if there is no trip or the file cannot be read. */
-    suspend fun load(): List<TripPoint> = lock.withLock { withContext(Dispatchers.IO) { read() } }
+    /**
+     * The recorded points in order; empty if there is no trip or the file cannot be read. A file
+     * in another format is deleted, so new points are not appended to lines nobody can read.
+     */
+    suspend fun load(): List<TripPoint> = lock.withLock {
+        withContext(Dispatchers.IO) {
+            if (file.exists() && !hasCurrentHeader()) file.delete()
+            read()
+        }
+    }
 
     /** False if the point could not be written. */
     suspend fun append(point: TripPoint): Boolean = lock.withLock {
         withContext(Dispatchers.IO) {
             try {
+                if (!file.exists() || file.length() == 0L) file.writeText(TripCsv.HEADER + "\n")
                 file.appendText(TripCsv.encode(point) + "\n")
                 true
             } catch (_: IOException) {
@@ -62,8 +71,14 @@ class TripStore(context: Context) {
     }
 
     private fun read(): List<TripPoint> = try {
-        if (!file.exists()) emptyList() else file.readLines().mapNotNull(TripCsv::decode)
+        if (!file.exists()) emptyList() else TripCsv.decodeFile(file.readLines())
     } catch (_: IOException) {
         emptyList()
+    }
+
+    private fun hasCurrentHeader(): Boolean = try {
+        file.bufferedReader().use { it.readLine()?.trim() == TripCsv.HEADER }
+    } catch (_: IOException) {
+        false
     }
 }

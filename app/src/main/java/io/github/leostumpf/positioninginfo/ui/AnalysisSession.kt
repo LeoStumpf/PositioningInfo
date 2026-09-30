@@ -126,18 +126,22 @@ class AnalysisSession(
      * else standard-atmosphere barometer, else GNSS.
      */
     private fun recordTripPoint(fix: SpeedFix, lat: Double, lon: Double, mslM: Double?) {
-        val point = TripPoint(
-            timeUtcMs = fix.utcTimeMs ?: System.currentTimeMillis(),
-            latitude = lat,
-            longitude = lon,
-            altitudeM = baro.calibratedAltitudeM ?: mslM,
-            speedMps = fix.speedMps,
-            accuracyM = fix.horizontalAccuracyM,
-        )
         val (climbAltitude, climbSource) = baro.calibratedAltitudeM?.let { it to ClimbSource.BAROMETER }
             ?: baro.standardAltitudeM?.let { it to ClimbSource.BAROMETER_STANDARD }
-            ?: (mslM to ClimbSource.GNSS)
-        trip.add(point, climbAltitude, climbSource)
+            ?: mslM?.let { it to ClimbSource.GNSS }
+            ?: (null to null)
+        trip.add(
+            TripPoint(
+                timeUtcMs = fix.utcTimeMs ?: System.currentTimeMillis(),
+                latitude = lat,
+                longitude = lon,
+                altitudeM = baro.calibratedAltitudeM ?: mslM,
+                speedMps = fix.speedMps,
+                accuracyM = fix.horizontalAccuracyM,
+                climbAltitudeM = climbAltitude,
+                climbSource = climbSource,
+            ),
+        )
     }
 
     /** Takes a satellite sweep for the receiver internals and the signal map. */
