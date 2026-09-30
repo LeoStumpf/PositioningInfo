@@ -22,7 +22,7 @@ A GPX file you export is sent by your own action, to a place you choose — not 
 
 Needed because the manifest declares `FOREGROUND_SERVICE_LOCATION`.
 
-- **Type:** Location
+- **Type:** Location, task **Other** (German: *Sonstiger*)
 - **Task:** User-initiated — keeps GNSS readings running with the screen off while recording a
   trip, running the accuracy test, or filling the signal map. Off by default; the user switches it
   on after a disclosure dialog; a permanent notification with a Stop button is shown; it ends when

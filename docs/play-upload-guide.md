@@ -65,8 +65,10 @@ goes where the user sends it, so it counts as neither collection nor sharing.
 ### Foreground service permissions
 
 1. Tick **Location**.
-2. Task: *User-initiated location updates during a user-started activity*, or the closest wording
-   shown.
+2. Task: **Other** (German: *Sonstiger*). The other choices do not fit: *Background location
+   updates* suggests the background location permission, which the app never requests;
+   *User-initiated location sharing* means sending the location to others; *Navigation* and
+   *Geofencing* are not what the app does.
 3. Description (paste):
 
    ```
