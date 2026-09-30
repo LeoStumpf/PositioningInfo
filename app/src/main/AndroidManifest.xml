@@ -12,6 +12,8 @@
     <uses-permission android:name="android.permission.ACCESS_LOCATION_EXTRA_COMMANDS" />
     <!-- Install-time permission for listing nearby Wi-Fi access points on the network page. -->
     <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <!-- Install-time permission for asking the system for a fresh Wi-Fi scan now and then. -->
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <!--
       Read-only: lets the diagnosis tell whether a data connection exists for the system's
       A-GNSS download. It grants no network access — the app has no INTERNET permission.

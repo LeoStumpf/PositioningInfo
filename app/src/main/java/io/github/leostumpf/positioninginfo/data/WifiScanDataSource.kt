@@ -119,10 +119,11 @@ private fun ScanResult.toAccessPoint() = AccessPoint(
     security = capabilities.orEmpty().let { c ->
         when {
             "SAE" in c || "WPA3" in c -> "WPA3"
+            // Before RSN: an OWE network advertises itself as [RSN-OWE-CCMP].
+            "OWE" in c -> "Enhanced open (OWE)"
             "WPA2" in c || "RSN" in c -> "WPA2"
             "WPA" in c -> "WPA"
             "WEP" in c -> "WEP"
-            "OWE" in c -> "Enhanced open (OWE)"
             else -> "open"
         }
     },

@@ -6,6 +6,7 @@ import android.annotation.SuppressLint
 import android.app.Application
 import android.content.pm.PackageManager
 import android.os.SystemClock
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -57,6 +58,7 @@ import io.github.leostumpf.positioninginfo.domain.NetworkComparison
 import io.github.leostumpf.positioninginfo.ui.signal.SignalUiState
 import io.github.leostumpf.positioninginfo.ui.sky.SkyUiState
 import io.github.leostumpf.positioninginfo.ui.speed.SpeedUiState
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -68,6 +70,7 @@ import kotlinx.coroutines.flow.stateIn
 import io.github.leostumpf.positioninginfo.ui.common.DataInventory
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.plus
 
 /**
  * Owns the one GNSS session the whole app shares.
@@ -77,6 +80,15 @@ import kotlinx.coroutines.launch
  * and two independent subscriptions could momentarily disagree about what is overhead.
  */
 class PositioningInfoViewModel(application: Application) : AndroidViewModel(application) {
+
+    /**
+     * Every coroutine of the session runs here. A platform callback or a file operation that
+     * throws ends only its own stream — that card stops updating until the next start —
+     * rather than taking the whole app down with it.
+     */
+    private val scope = viewModelScope + CoroutineExceptionHandler { _, e ->
+        Log.w(TAG, "A data stream failed and was stopped", e)
+    }
 
     private val locationSource = LocationDataSource(application)
     private val gnssSource = GnssStatusDataSource(application)
@@ -144,7 +156,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     /** Position formats, altitude, accuracy test, trip, receiver internals, compass and signal map. */
     val analysis = AnalysisSession(
         application = application,
-        scope = viewModelScope,
+        scope = scope,
         capabilities = capabilities,
         speedUnit = { _speedState.value.unit },
         onSkyChanged = { publishSky(SystemClock.elapsedRealtime()) },
@@ -164,7 +176,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
                 unitChanged = speed.unit != SpeedUnit.DEFAULT,
                 historySamples = gnss.history.size,
             )
-        }.stateIn(viewModelScope, SharingStarted.Eagerly, DataInventory())
+        }.stateIn(scope, SharingStarted.Eagerly, DataInventory())
     }
 
     /**
@@ -177,7 +189,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         ttffLog = emptyList()
         skyTracker = SkyTracker()
         analysis.clearAll()
-        viewModelScope.launch {
+        scope.launch {
             ttffStore.clear()
             unitPreference.clear()
         }
@@ -186,15 +198,15 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     }
 
     init {
-        viewModelScope.launch {
+        scope.launch {
             ttffLog = ttffStore.load()
             _gnssState.update { it.copy(ttffLog = ttffLog) }
         }
-        viewModelScope.launch {
+        scope.launch {
             unitPreference.unit.collect { unit -> _speedState.update { it.copy(unit = unit) } }
         }
         // Stopped from the notification while the app is out of sight: release the receiver.
-        viewModelScope.launch {
+        scope.launch {
             BackgroundMode.active.collect { active -> if (!active && !uiVisible) stopTracking() }
         }
     }
@@ -243,7 +255,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         firstFixTimer = FirstFixTimer(startedAtMs = SystemClock.elapsedRealtime())
         sessionStartType = null
 
-        trackingJobs += viewModelScope.launch {
+        trackingJobs += scope.launch {
             locationSource.fixes().collect { fix ->
                 lastFix = fix
                 if (!fix.isCached) updateRate = updateRate.onFix(fix.elapsedRealtimeMs)
@@ -257,31 +269,31 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
                 analysis.onFix(fix)
             }
         }
-        trackingJobs += viewModelScope.launch {
+        trackingJobs += scope.launch {
             gnssSource.snapshots().collect(::publishGnss)
         }
         // Network positioning runs alongside GNSS for the comparison page. All three are
         // cheap: the network provider does one lookup every few seconds, and the cell and
         // Wi-Fi readings mostly return what the radios already know.
-        trackingJobs += viewModelScope.launch {
+        trackingJobs += scope.launch {
             networkLocationSource.fixes().collect { networkFix = it; publishNetwork() }
         }
         if (fusedLocationSource.exists) {
-            trackingJobs += viewModelScope.launch {
+            trackingJobs += scope.launch {
                 fusedLocationSource.fixes().collect { fusedFix = it; publishNetwork() }
             }
         }
-        trackingJobs += viewModelScope.launch {
+        trackingJobs += scope.launch {
             cellSource.cells().collect { cells = it; publishNetwork() }
         }
-        trackingJobs += viewModelScope.launch {
+        trackingJobs += scope.launch {
             wifiSource.accessPoints().collect { accessPoints = it; publishNetwork() }
         }
         trackingJobs += analysis.start()
         // A fix ages whether or not a new one arrives, so the reading has to be
         // re-evaluated on a timer as well as on new data — otherwise a lost signal would
         // leave the last number frozen on screen indefinitely.
-        trackingJobs += viewModelScope.launch {
+        trackingJobs += scope.launch {
             while (true) {
                 // Settings, providers and the system clocks change rarely; a few seconds is fresh enough.
                 if (ticks++ % SLOW_TICKS == 0) readPhoneState()
@@ -314,7 +326,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     }
 
     fun setUnit(unit: SpeedUnit) {
-        viewModelScope.launch { unitPreference.set(unit) }
+        scope.launch { unitPreference.set(unit) }
     }
 
     fun resetSession() {
@@ -465,7 +477,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
 
     private fun logFirstFix(ttffMs: Long) {
         val entry = TtffEntry(System.currentTimeMillis(), ttffMs, sessionStartType ?: AlmanacReadiness.UNKNOWN)
-        viewModelScope.launch {
+        scope.launch {
             ttffLog = ttffStore.add(entry)
             _gnssState.update { it.copy(ttffLog = ttffLog) }
         }
@@ -569,6 +581,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         ) == PackageManager.PERMISSION_GRANTED
 
     private companion object {
+        const val TAG = "PositioningInfo"
         const val FRESHNESS_TICK_MS = 500L
         const val SLOW_TICKS = 10
     }

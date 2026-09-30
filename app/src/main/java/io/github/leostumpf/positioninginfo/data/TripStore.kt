@@ -7,38 +7,60 @@ import io.github.leostumpf.positioninginfo.domain.Gpx
 import io.github.leostumpf.positioninginfo.domain.TripCsv
 import io.github.leostumpf.positioninginfo.domain.TripPoint
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.IOException
 
 /**
  * Keeps the recorded track in the app's private storage, one line per point, appended as
  * it is recorded — so a trip survives the app being closed or killed.
  *
  * The only way out is [exportGpx], to a document the user picked themselves.
+ *
+ * Every file operation runs under one lock, in the order it was asked for: appends land in
+ * recording order, and a [clear] cannot be overtaken by an append queued before it and
+ * leave a deleted trip behind. A full or failing disk costs points, never the app.
  */
 class TripStore(context: Context) {
 
     private val appContext = context.applicationContext
     private val file = File(appContext.filesDir, "trip.csv")
+    private val lock = Mutex()
 
-    suspend fun load(): List<TripPoint> = withContext(Dispatchers.IO) {
+    suspend fun load(): List<TripPoint> = lock.withLock { withContext(Dispatchers.IO) { read() } }
+
+    /** False if the point could not be written. */
+    suspend fun append(point: TripPoint): Boolean = lock.withLock {
+        withContext(Dispatchers.IO) {
+            try {
+                file.appendText(TripCsv.encode(point) + "\n")
+                true
+            } catch (_: IOException) {
+                false
+            }
+        }
+    }
+
+    suspend fun clear() {
+        lock.withLock { withContext(Dispatchers.IO) { file.delete() } }
+    }
+
+    suspend fun exportGpx(uri: Uri, name: String): Boolean = lock.withLock {
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val points = read()
+                appContext.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
+                    Gpx.write(points, name, writer)
+                } ?: error("no output stream")
+            }.isSuccess
+        }
+    }
+
+    private fun read(): List<TripPoint> = try {
         if (!file.exists()) emptyList() else file.readLines().mapNotNull(TripCsv::decode)
-    }
-
-    suspend fun append(point: TripPoint) = withContext(Dispatchers.IO) {
-        file.appendText(TripCsv.encode(point) + "\n")
-    }
-
-    suspend fun clear() = withContext(Dispatchers.IO) {
-        file.delete()
-    }
-
-    suspend fun exportGpx(uri: Uri, name: String): Boolean = withContext(Dispatchers.IO) {
-        val points = load()
-        runCatching {
-            appContext.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { writer ->
-                Gpx.write(points, name, writer)
-            } ?: error("no output stream")
-        }.isSuccess
+    } catch (_: IOException) {
+        emptyList()
     }
 }

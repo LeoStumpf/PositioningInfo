@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.common
 
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -133,6 +135,7 @@ private fun BackgroundModeDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
                 .clip(RoundedCornerShape(24.dp))
                 .background(Palette.Sheet)
                 .border(1.dp, Palette.CardBorder, RoundedCornerShape(24.dp))
+                .verticalScroll(rememberScrollState())
                 .padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -144,8 +147,8 @@ private fun BackgroundModeDialog(onDismiss: () -> Unit, onConfirm: () -> Unit) {
                 style = BodyStyle, color = Palette.TextSecondary,
             )
             Text(
-                "Background mode keeps it running with the screen off or in other apps: for " +
-                    "recording a trip, the accuracy test, or letting the signal map fill in.",
+                "Background mode keeps using your location with the screen off or while you are in " +
+                    "other apps: for recording a trip, the accuracy test, or letting the signal map fill in.",
                 style = BodyStyle, color = Palette.TextSecondary,
             )
             Column(

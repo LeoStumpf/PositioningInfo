@@ -37,7 +37,9 @@ data class TripStats(
  * let a parked phone "travel" kilometres. So a segment only counts once the position has
  * moved further than its own uncertainty (at least [MIN_SEGMENT_M]) from the last counted
  * point, or the receiver reports real motion (> [MOVING_SPEED_MPS]). Fixes worse than
- * [MAX_ACCURACY_M] never contribute distance. Ascent and descent use a [CLIMB_HYSTERESIS_M]
+ * [MAX_ACCURACY_M] never contribute distance. Across a reception gap longer than [MAX_GAP_MS]
+ * the jump in position still counts, and so does the gap's time as moving time whenever the
+ * jump implies travel — distance and moving time always cover the same stretches. Ascent and descent use a [CLIMB_HYSTERESIS_M]
  * hysteresis for the same reason: altitude noise must not add up to phantom climbing.
  *
  * Immutable: [add] returns a new instance.
@@ -81,6 +83,13 @@ data class TripAccumulator(
                     ?: (NetworkComparison.distanceM(prev.latitude, prev.longitude, point.latitude, point.longitude) /
                         (dt / 1000.0))
                 if (speed > MOVING_SPEED_MPS) moving += dt
+            } else if (dt > MAX_GAP_MS && distance > stats.distanceM) {
+                // A gap the track jumped across — a tunnel, or the app closed on the way. Its
+                // distance was counted above, so its time must be too, or the average moving
+                // speed would divide the whole jump by the few seconds either side of it. The
+                // displacement over the gap decides whether it was travelled or stood.
+                val gapSpeed = (distance - stats.distanceM) / (dt / 1000.0)
+                if (gapSpeed > MOVING_SPEED_MPS) moving += dt
             }
         }
 
@@ -123,7 +132,7 @@ data class TripAccumulator(
         const val MAX_ACCURACY_M = 30f
         const val MIN_SEGMENT_M = 3.0
         const val MOVING_SPEED_MPS = 0.5f
-        /** Intervals above this are reception gaps, not time spent moving. */
+        /** Intervals above this are reception gaps, judged by their overall displacement. */
         const val MAX_GAP_MS = 30_000L
         const val CLIMB_HYSTERESIS_M = 3.0
     }

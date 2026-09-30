@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.data
 
+import androidx.annotation.RequiresApi
 import android.content.Context
 import android.location.LocationManager
 import android.location.provider.ProviderProperties
@@ -40,6 +41,7 @@ class LocationProviderDataSource(context: Context) {
     }.getOrDefault(emptyList())
 }
 
+@RequiresApi(Build.VERSION_CODES.S)
 private fun ProviderProperties.toTraits() = ProviderTraits(
     accuracy = when (accuracy) {
         ProviderProperties.ACCURACY_FINE -> ProviderAccuracy.FINE

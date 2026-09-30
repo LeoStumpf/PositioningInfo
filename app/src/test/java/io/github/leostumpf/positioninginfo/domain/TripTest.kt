@@ -90,14 +90,26 @@ class TripTest {
     }
 
     @Test
-    fun `reception gaps count in duration but not in moving time`() {
+    fun `a gap travelled through counts as moving, so the average stays true`() {
         val trip = TripAccumulator()
             .add(point(0, 0.0, 0.0, speed = 10f), null)
             .add(point(1_000, 0.0, 10.0, speed = 10f), null)
             .add(point(121_000, 0.0, 1_210.0, speed = 10f), null)  // two minutes in a tunnel
             .add(point(122_000, 0.0, 1_220.0, speed = 10f), null)
         assertEquals(122_000L, trip.stats.durationMs)
+        assertEquals(122_000L, trip.stats.movingTimeMs)
+        assertEquals(10.0, trip.stats.avgMovingSpeedMps!!, 0.5)
+    }
+
+    @Test
+    fun `a gap spent standing still is not moving time`() {
+        val trip = TripAccumulator()
+            .add(point(0, 0.0, 0.0, speed = 10f), null)
+            .add(point(1_000, 0.0, 10.0, speed = 10f), null)
+            .add(point(601_000, 0.0, 10.0, speed = 0f), null)  // ten minutes parked, app closed
+            .add(point(602_000, 0.0, 20.0, speed = 10f), null)
         assertEquals(2_000L, trip.stats.movingTimeMs)
+        assertEquals(10.0, trip.stats.avgMovingSpeedMps!!, 0.5)
     }
 
     @Test

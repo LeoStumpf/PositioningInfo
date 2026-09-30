@@ -5,12 +5,14 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Build
+import android.telephony.CellIdentity
 import android.telephony.CellIdentityNr
 import android.telephony.CellInfo
 import android.telephony.CellInfoGsm
 import android.telephony.CellInfoLte
 import android.telephony.CellInfoNr
 import android.telephony.CellInfoWcdma
+import android.telephony.CellSignalStrength
 import android.telephony.CellSignalStrengthNr
 import android.telephony.TelephonyManager
 import androidx.annotation.RequiresPermission
@@ -88,13 +90,20 @@ private fun identity(areaLabel: String, area: Int?, cellLabel: String, cell: Lon
         .joinToString(" · ")
         .ifEmpty { null }
 
-private fun CellInfo.toCellTower(): CellTower? {
-    val operator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-        cellIdentity.operatorAlphaLong?.toString()?.takeIf { it.isNotBlank() }
+// CellInfo.getCellIdentity() and getCellSignalStrength() exist on the base class only from
+// Android 11; below that, calling them throws NoSuchMethodError. So both are read from the
+// typed subclass inside each branch, never from the base type. The typed identities only
+// share the CellIdentity base class from Android 9, hence the cast behind the check.
+private fun operatorOf(id: Any): String? =
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+        (id as CellIdentity).operatorAlphaLong?.toString()?.takeIf { it.isNotBlank() }
     } else {
         null
     }
-    val level = cellSignalStrength.level.takeIf { it in 0..4 }
+
+private fun levelOf(s: CellSignalStrength): Int? = s.level.takeIf { it in 0..4 }
+
+private fun CellInfo.toCellTower(): CellTower? {
     val bandsOf: (() -> IntArray?) -> List<Int> = { get ->
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) runCatching { get()?.toList() }.getOrNull().orEmpty() else emptyList()
     }
@@ -111,7 +120,7 @@ private fun CellInfo.toCellTower(): CellTower? {
                 physicalIdLabel = "PCI",
                 signalDbm = s.dbm.valid(),
                 timingAdvanceDistanceM = s.timingAdvance.valid()?.takeIf { isRegistered }?.let(TimingAdvance::lteMetres),
-                operatorName = operator,
+                operatorName = operatorOf(id),
                 channel = id.earfcn.valid(),
                 channelLabel = "EARFCN",
                 bands = bandsOf { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) id.bands else null },
@@ -121,7 +130,7 @@ private fun CellInfo.toCellTower(): CellTower? {
                     s.rssnr.valid()?.let { SignalMeasure("SINR", it, "dB") },
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) s.rssi.valid()?.let { SignalMeasure("RSSI", it, "dBm") } else null,
                 ),
-                level = level,
+                level = levelOf(s),
                 timingAdvanceSteps = s.timingAdvance.valid()?.takeIf { isRegistered },
             )
         }
@@ -142,7 +151,7 @@ private fun CellInfo.toCellTower(): CellTower? {
                 } else {
                     null
                 },
-                operatorName = operator,
+                operatorName = operatorOf(id),
                 channel = id.nrarfcn.valid(),
                 channelLabel = "NR-ARFCN",
                 bands = bandsOf { if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) id.bands else null },
@@ -151,7 +160,7 @@ private fun CellInfo.toCellTower(): CellTower? {
                     s.ssRsrq.valid()?.let { SignalMeasure("SS-RSRQ", it, "dB") },
                     s.ssSinr.valid()?.let { SignalMeasure("SS-SINR", it, "dB") },
                 ),
-                level = level,
+                level = levelOf(s),
             )
         }
 
@@ -167,14 +176,14 @@ private fun CellInfo.toCellTower(): CellTower? {
                 physicalIdLabel = "BSIC",
                 signalDbm = s.dbm.valid(),
                 timingAdvanceDistanceM = s.timingAdvance.valid()?.takeIf { isRegistered }?.let(TimingAdvance::gsmMetres),
-                operatorName = operator,
+                operatorName = operatorOf(id),
                 channel = id.arfcn.valid(),
                 channelLabel = "ARFCN",
                 quality = listOfNotNull(
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) s.rssi.valid()?.let { SignalMeasure("RSSI", it, "dBm") } else null,
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) s.bitErrorRate.takeIf { it in 0..7 }?.let { SignalMeasure("Bit error rate class", it, "") } else null,
                 ),
-                level = level,
+                level = levelOf(s),
                 timingAdvanceSteps = s.timingAdvance.valid()?.takeIf { isRegistered },
             )
         }
@@ -191,13 +200,13 @@ private fun CellInfo.toCellTower(): CellTower? {
                 physicalIdLabel = "PSC",
                 signalDbm = s.dbm.valid(),
                 timingAdvanceDistanceM = null,
-                operatorName = operator,
+                operatorName = operatorOf(id),
                 channel = id.uarfcn.valid(),
                 channelLabel = "UARFCN",
                 quality = listOfNotNull(
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) s.ecNo.valid()?.let { SignalMeasure("Ec/No", it, "dB") } else null,
                 ),
-                level = level,
+                level = levelOf(s),
             )
         }
 
