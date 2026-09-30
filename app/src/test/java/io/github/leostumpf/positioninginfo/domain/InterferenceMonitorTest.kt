@@ -97,7 +97,7 @@ class InterferenceMonitorTest {
     @Test
     fun `a slightly stronger sky with more power is not flagged`() {
         val m = stable().onEpoch(epoch(70_000, agcDb = 45.0, meanCn0 = 38.5))
-        assertTrue(m.assessment.spoofingIndicators.none { it.contains("stronger than the sky") })
+        assertTrue(m.assessment.spoofingIndicators.none { it is SpoofingIndicator.PowerWithStrongerSignals })
     }
 
     @Test
@@ -105,7 +105,7 @@ class InterferenceMonitorTest {
         val m = InterferenceMonitor()
             .onEpoch(epoch(0, driftNsPerS = 100.0, discontinuity = 3))
             .onEpoch(epoch(1000, driftNsPerS = 700.0, discontinuity = 4))
-        assertTrue(m.assessment.spoofingIndicators.none { it.contains("drift jumped") })
+        assertTrue(m.assessment.spoofingIndicators.none { it is SpoofingIndicator.DriftJump })
         assertEquals(0.0, m.assessment.clockDriftStdDevPpm ?: 0.0, 1e-12)
     }
 
@@ -114,7 +114,7 @@ class InterferenceMonitorTest {
         val m = InterferenceMonitor()
             .onEpoch(epoch(0, driftNsPerS = 100.0))
             .onEpoch(epoch(20_000, driftNsPerS = 700.0))
-        assertTrue(m.assessment.spoofingIndicators.none { it.contains("drift jumped") })
+        assertTrue(m.assessment.spoofingIndicators.none { it is SpoofingIndicator.DriftJump })
     }
 
     @Test
@@ -140,7 +140,9 @@ class InterferenceMonitorTest {
         val m = stable().onEpoch(epoch(70_000, signals = uniform))
         val indicators = m.assessment.spoofingIndicators
         assertEquals(1, indicators.size)
-        assertTrue(indicators[0].contains("alike"))
+        val uniformIndicator = indicators[0] as SpoofingIndicator.UniformStrength
+        assertEquals(Band.L1_E1_B1, uniformIndicator.band)
+        assertEquals(8, uniformIndicator.signals)
     }
 
     @Test
@@ -155,7 +157,7 @@ class InterferenceMonitorTest {
     fun `more power in the band with stronger signals is flagged`() {
         val m = stable().onEpoch(epoch(70_000, agcDb = 45.0, meanCn0 = 44.0))
         assertFalse(m.assessment.jammingSuspected)
-        assertTrue(m.assessment.spoofingIndicators.any { it.contains("stronger than the sky") })
+        assertTrue(m.assessment.spoofingIndicators.any { it is SpoofingIndicator.PowerWithStrongerSignals })
     }
 
     @Test
@@ -182,7 +184,7 @@ class InterferenceMonitorTest {
         val m = InterferenceMonitor()
             .onEpoch(epoch(0, driftNsPerS = 100.0))
             .onEpoch(epoch(1000, driftNsPerS = 700.0))
-        assertTrue(m.assessment.spoofingIndicators.any { it.contains("drift jumped") })
+        assertTrue(m.assessment.spoofingIndicators.any { it is SpoofingIndicator.DriftJump })
     }
 
     @Test
@@ -196,7 +198,7 @@ class InterferenceMonitorTest {
         m = m.onEpoch(epoch(3000, discontinuity = 10))
         assertEquals(3, m.assessment.clockDiscontinuities)
         // Routine on phone chips (duty cycling), so counted but not flagged.
-        assertTrue(m.assessment.spoofingIndicators.none { it.contains("discontinuit") })
+        assertTrue(m.assessment.spoofingIndicators.none { it is SpoofingIndicator.DriftJump })
     }
 
     @Test

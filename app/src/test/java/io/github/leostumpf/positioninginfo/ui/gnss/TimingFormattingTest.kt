@@ -61,4 +61,13 @@ class TimingFormattingTest {
             TimingUiState(clockOffsetMs = 3_000L, networkOffsetMs = 1_000L).networkVsGnssText()?.text,
         )
     }
+
+    @Test
+    fun `clock offsets in words`() {
+        assertEquals("in sync (within 1 s)", describeOffset(-400, 1_000, "GNSS time"))
+        assertEquals("in sync (within 100 ms)", describeOffset(40, 100, "network time"))
+        assertEquals("0.25 s ahead of network time", describeOffset(250, 100, "network time"))
+        assertEquals("3.10 s behind GNSS time", describeOffset(-3_100, 1_000, "GNSS time"))
+        assertEquals("125 s ahead of GNSS time", describeOffset(125_400, 1_000, "GNSS time"))
+    }
 }

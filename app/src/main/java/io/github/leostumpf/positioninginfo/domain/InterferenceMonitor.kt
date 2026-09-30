@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.domain
 
-import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.sqrt
 
@@ -66,11 +65,23 @@ data class BandStatus(
     val signalsBaseline: Double? = null,
 )
 
+/** Something in the signals that a spoofer could cause, though other things can too. */
+sealed interface SpoofingIndicator {
+    /** At least six signals on [band] within a narrow spread of strength, all strong. */
+    data class UniformStrength(val band: Band, val signals: Int, val meanDbHz: Double, val spreadDb: Double) : SpoofingIndicator
+
+    /** More power in [band] (the gain turned down by [agcDropDb]) while the signals got stronger. */
+    data class PowerWithStrongerSignals(val band: Band, val agcDropDb: Double) : SpoofingIndicator
+
+    /** The receiver clock's drift jumped by more than [thresholdPpm] between epochs. */
+    data class DriftJump(val thresholdPpm: Double) : SpoofingIndicator
+}
+
 data class InterferenceAssessment(
     val bands: List<BandStatus>,
     val jammingSuspected: Boolean,
-    /** Human-readable, cautiously worded: each is a reason to look closer, not a verdict. */
-    val spoofingIndicators: List<String>,
+    /** Each is a reason to look closer, not a verdict; the page words them cautiously. */
+    val spoofingIndicators: List<SpoofingIndicator>,
     val clockDriftPpm: Double?,
     /** Over the last [InterferenceMonitor.DRIFT_WINDOW_MS]. */
     val clockDriftStdDevPpm: Double?,
@@ -229,16 +240,14 @@ data class InterferenceMonitor(
             )
         }
 
-    private fun spoofingIndicators(statuses: List<BandStatus>, current: Map<Band, BandMeasurement>): List<String> {
-        val out = mutableListOf<String>()
+    private fun spoofingIndicators(statuses: List<BandStatus>, current: Map<Band, BandMeasurement>): List<SpoofingIndicator> {
+        val out = mutableListOf<SpoofingIndicator>()
         for ((band, m) in current) {
             if (m.cn0s.size >= SPOOF_UNIFORM_MIN_SIGNALS) {
                 val mean = m.cn0s.average()
                 val sd = stdDev(m.cn0s)
                 if (sd < SPOOF_UNIFORM_MAX_STDDEV && mean > SPOOF_UNIFORM_MIN_MEAN) {
-                    out += "${band.label}: ${m.cn0s.size} signals are unusually alike in strength " +
-                        "(%.0f dB-Hz ± %.1f). Real satellites at different elevations usually differ more; ".format(Locale.US, mean, sd) +
-                        "one transmitter could make them alike."
+                    out += SpoofingIndicator.UniformStrength(band, m.cn0s.size, mean, sd)
                 }
             }
         }
@@ -247,15 +256,13 @@ data class InterferenceMonitor(
             val mean = s.meanCn0DbHz ?: continue
             val baseline = s.cn0BaselineDbHz ?: continue
             if (drop >= SPOOF_AGC_SHIFT_DB && mean - baseline >= SPOOF_CN0_RISE_DB) {
-                out += "${s.band.label}: more power in the band (AGC %.0f dB below baseline) ".format(Locale.US, drop) +
-                    "while signals got stronger. This could be a source stronger than the sky."
+                out += SpoofingIndicator.PowerWithStrongerSignals(s.band, drop)
             }
         }
         val jumpAt = lastDriftJumpMs
         val now = lastEpoch?.atMs
         if (jumpAt != null && now != null && now - jumpAt <= DRIFT_WINDOW_MS) {
-            out += "The clock drift jumped by more than %.1f ppm between epochs, which an oscillator ".format(Locale.US, DRIFT_JUMP_PPM) +
-                "rarely does on its own."
+            out += SpoofingIndicator.DriftJump(DRIFT_JUMP_PPM)
         }
         return out
     }
@@ -293,13 +300,6 @@ data class InterferenceMonitor(
         const val DRIFT_JUMP_PPM = 0.5
         /** Epochs further apart than this are not compared for a drift jump. */
         const val DRIFT_JUMP_MAX_GAP_MS = 2_000L
-
-        private val Band.label: String
-            get() = when (this) {
-                Band.L1_E1_B1 -> "L1/E1/B1"
-                Band.L5_E5A_B2A -> "L5/E5a/B2a"
-                Band.OTHER -> "Other band"
-            }
 
         /**
          * Groups an epoch by band. Several constellations report their own AGC on the same

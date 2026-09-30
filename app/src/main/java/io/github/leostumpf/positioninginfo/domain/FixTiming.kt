@@ -76,20 +76,3 @@ object ClockOffset {
         return phoneWallAtFix - gnssUtc
     }
 }
-
-/**
- * One clock's offset in words: "in sync" inside [toleranceMs], otherwise how far and which
- * way. [offsetMs] is the first clock minus [reference], positive when it is ahead.
- */
-fun describeOffset(offsetMs: Long, toleranceMs: Long, reference: String): String {
-    if (kotlin.math.abs(offsetMs) < toleranceMs) {
-        return if (toleranceMs >= 1_000L) "in sync (within ${toleranceMs / 1_000} s)" else "in sync (within $toleranceMs ms)"
-    }
-    val size = kotlin.math.abs(offsetMs)
-    val amount = when {
-        size < 10_000L -> String.format(java.util.Locale.US, "%.2f s", size / 1_000.0)
-        size < 3_600_000L -> "${size / 1_000} s"
-        else -> String.format(java.util.Locale.US, "%.1f h", size / 3_600_000.0)
-    }
-    return "$amount ${if (offsetMs > 0) "ahead of" else "behind"} $reference"
-}

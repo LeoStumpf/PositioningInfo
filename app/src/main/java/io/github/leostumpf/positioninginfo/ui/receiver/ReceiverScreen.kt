@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.receiver
 
+import io.github.leostumpf.positioninginfo.domain.SpoofingIndicator
 import io.github.leostumpf.positioninginfo.ui.common.tinted
 import io.github.leostumpf.positioninginfo.domain.InterferenceMonitor
 import io.github.leostumpf.positioninginfo.domain.counted
@@ -247,7 +248,7 @@ fun ReceiverScreen(state: ReceiverUiState, modifier: Modifier = Modifier) {
 private fun Verdict(a: InterferenceAssessment) {
     val (title, subtitle, tone) = when {
         a.jammingSuspected -> Triple("Possible jamming", "Gain and signal strength dropped together", Tone.BAD)
-        a.spoofingIndicators.isNotEmpty() -> Triple("Spoofing indicators", a.spoofingIndicators.first(), Tone.DEGRADED)
+        a.spoofingIndicators.isNotEmpty() -> Triple("Spoofing indicators", a.spoofingIndicators.first().describe(), Tone.DEGRADED)
         a.epochs < BASELINE_EPOCHS -> Triple("Learning the baseline…", "Judged after the first minute", Tone.NEUTRAL)
         else -> Triple("No interference detected", "Gain and signal strength match the baseline", Tone.GOOD)
     }
@@ -266,7 +267,7 @@ private fun Verdict(a: InterferenceAssessment) {
             Text(subtitle, style = CaptionStyle, color = Palette.TextSecondary)
         }
     }
-    a.spoofingIndicators.drop(1).forEach { Note("• $it", Modifier.padding(top = 6.dp), color = Palette.Degraded) }
+    a.spoofingIndicators.drop(1).forEach { Note("• ${it.describe()}", Modifier.padding(top = 6.dp), color = Palette.Degraded) }
 }
 
 private val BandWeights = listOf(1.4f, 1f, 1f, 0.6f)
@@ -286,7 +287,7 @@ private fun BandRow(b: BandStatus) {
     Column {
         Row(Modifier.fillMaxWidth().padding(vertical = 10.dp), verticalAlignment = Alignment.Bottom) {
             Text(
-                when (b.band) { Band.L1_E1_B1 -> "L1/E1/B1"; Band.L5_E5A_B2A -> "L5/E5a/B2a"; Band.OTHER -> "Other" },
+                b.band.label(),
                 style = BodyStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary, modifier = Modifier.weight(BandWeights[0]),
             )
             ValueWithDelta(b.agcDb, b.agcDropDb?.let { -it }, alarm = (b.agcDropDb ?: 0.0) >= 6.0, modifier = Modifier.weight(BandWeights[1]))
@@ -361,3 +362,23 @@ internal fun fullWeek(broadcast: Int, current: Int?): Int? {
 
 /** One epoch a second for [InterferenceMonitor.BASELINE_MS]: the baseline minute. */
 private const val BASELINE_EPOCHS = (InterferenceMonitor.BASELINE_MS / 1_000).toInt()
+
+internal fun Band.label(): String = when (this) {
+    Band.L1_E1_B1 -> "L1/E1/B1"
+    Band.L5_E5A_B2A -> "L5/E5a/B2a"
+    Band.OTHER -> "Other"
+}
+
+/** An indicator in words: cautious, because each is a reason to look closer, not a verdict. */
+internal fun SpoofingIndicator.describe(): String = when (this) {
+    is SpoofingIndicator.UniformStrength ->
+        "${band.label()}: $signals signals are unusually alike in strength " +
+            "(%.0f dB-Hz ± %.1f). Real satellites at different elevations usually differ more; ".format(Locale.US, meanDbHz, spreadDb) +
+            "one transmitter could make them alike."
+    is SpoofingIndicator.PowerWithStrongerSignals ->
+        "${band.label()}: more power in the band (AGC %.0f dB below baseline) ".format(Locale.US, agcDropDb) +
+            "while signals got stronger. This could be a source stronger than the sky."
+    is SpoofingIndicator.DriftJump ->
+        "The clock drift jumped by more than %.1f ppm between epochs, which an oscillator ".format(Locale.US, thresholdPpm) +
+            "rarely does on its own."
+}
