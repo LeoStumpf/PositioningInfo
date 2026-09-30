@@ -111,6 +111,15 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+
+    // Instrumented UI tests (app/src/androidTest), run on a device or emulator with
+    // ./gradlew connectedDebugAndroidTest; nothing of this reaches the release build.
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.test.rules)
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
 
 // A signed release lands in releases/ when that path exists — on the laptop it is a link to

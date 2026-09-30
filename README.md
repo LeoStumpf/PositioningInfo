@@ -212,6 +212,7 @@ Requires JDK 17+ and the Android SDK (compileSdk 36).
 ```sh
 ./gradlew :app:assembleDebug     # build
 ./gradlew :app:test              # unit tests
+./gradlew :app:connectedDebugAndroidTest  # UI tests on a connected device or emulator
 ./gradlew :app:lintRelease       # lint, as CI runs it
 ./gradlew :app:installDebug      # install to a connected device
 ./gradlew :app:bundleRelease     # the bundle (AAB) for Google Play
@@ -226,7 +227,8 @@ never lowers it (Play refuses any upload not above the last one). `versionName` 
 `appVersionName` in `gradle.properties` and raised before each store release. `./gradlew -q
 printVersion` shows both. (Builds up to `1.0.35` were numbered by commit count.)
 
-**CI** (`.github/workflows/ci.yml`) runs the unit tests and lint, and builds a signed release on every
+**CI** (`.github/workflows/ci.yml`) runs the unit tests and lint, the UI tests on an emulator (a
+separate job), and builds a signed release on every
 push to `main`: the APK, the bundle (AAB) for Google Play and R8's mapping file are kept as a workflow
 artifact for 30 days (Actions → CI → latest run → Artifacts). Each signed build of `main` is tagged
 `build-<versionCode>`, so every distributed build maps to its exact source.
