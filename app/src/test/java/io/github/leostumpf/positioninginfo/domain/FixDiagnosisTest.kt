@@ -29,7 +29,7 @@ class FixDiagnosisTest {
     @Test
     fun `nothing heard after losing the fix is no signal, not acquiring`() {
         val d = FixDiagnosis.evaluate(input(heard = 0, strong = 0, searchingMs = null, firstFixMs = 4_000L))
-        assertEquals("No satellite signals", d.verdict)
+        assertEquals(Verdict.NO_SIGNALS, d.verdict)
         assertEquals(CheckStatus.FAIL, d.verdictStatus)
     }
 
@@ -38,12 +38,7 @@ class FixDiagnosisTest {
         val d = FixDiagnosis.evaluate(
             input(heard = 8, strong = 6, readiness = AlmanacReadiness.COLD, data = false, searchingMs = null, firstFixMs = 4_000L),
         )
-        assertEquals("Fix lost, reacquiring", d.verdict)
-    }
-
-    @Test
-    fun `one satellite is singular`() {
-        assertEquals("Only 1 satellite heard", FixDiagnosis.evaluate(input(heard = 1, strong = 1)).verdict)
+        assertEquals(Verdict.FIX_LOST, d.verdict)
     }
 
     @Test
@@ -55,14 +50,14 @@ class FixDiagnosisTest {
     @Test
     fun `location off comes before everything else`() {
         val d = FixDiagnosis.evaluate(input(gpsEnabled = false, heard = 0))
-        assertEquals("Location is switched off", d.verdict)
+        assertEquals(Verdict.LOCATION_OFF, d.verdict)
         assertEquals(CheckStatus.FAIL, d.verdictStatus)
         assertFalse(d.fixed)
     }
 
     @Test
     fun `a simulated position is called out`() {
-        assertEquals("The position is simulated", FixDiagnosis.evaluate(input(isMock = true, used = 8)).verdict)
+        assertEquals(Verdict.SIMULATED, FixDiagnosis.evaluate(input(isMock = true, used = 8)).verdict)
     }
 
     @Test
@@ -70,8 +65,7 @@ class FixDiagnosisTest {
         val d = FixDiagnosis.evaluate(input(used = 8, pdop = 1.6, searchingMs = null, firstFixMs = 3_000L))
         assertTrue(d.fixed)
         assertEquals(CheckStatus.OK, d.verdictStatus)
-        assertEquals("All checks pass", d.verdict)
-        assertTrue(d.detail.contains("3.0 s"))
+        assertEquals(Verdict.ALL_PASS, d.verdict)
     }
 
     @Test
@@ -81,41 +75,41 @@ class FixDiagnosisTest {
 
     @Test
     fun `nothing heard after the grace period means no sky`() {
-        assertEquals("No satellite signals", FixDiagnosis.evaluate(input(heard = 0, strong = 0, searchingMs = 30_000L)).verdict)
+        assertEquals(Verdict.NO_SIGNALS, FixDiagnosis.evaluate(input(heard = 0, strong = 0, searchingMs = 30_000L)).verdict)
         // Right after starting, silence is normal.
-        assertEquals("Acquiring", FixDiagnosis.evaluate(input(heard = 0, strong = 0, searchingMs = 2_000L)).verdict)
+        assertEquals(Verdict.ACQUIRING, FixDiagnosis.evaluate(input(heard = 0, strong = 0, searchingMs = 2_000L)).verdict)
     }
 
     @Test
     fun `too few satellites are counted`() {
-        assertEquals("Only 3 satellites heard", FixDiagnosis.evaluate(input(heard = 3, strong = 3)).verdict)
+        assertEquals(Verdict.TOO_FEW_HEARD, FixDiagnosis.evaluate(input(heard = 3, strong = 3)).verdict)
     }
 
     @Test
     fun `many weak signals mean they cannot be decoded`() {
-        assertEquals("Signals too weak", FixDiagnosis.evaluate(input(heard = 9, strong = 2)).verdict)
+        assertEquals(Verdict.SIGNALS_TOO_WEAK, FixDiagnosis.evaluate(input(heard = 9, strong = 2)).verdict)
     }
 
     @Test
     fun `a cold start without data is explained`() {
         val d = FixDiagnosis.evaluate(input(readiness = AlmanacReadiness.COLD, data = false))
-        assertEquals("Learning orbits from the satellites", d.verdict)
+        assertEquals(Verdict.LEARNING_ORBITS, d.verdict)
     }
 
     @Test
     fun `slow hot start is flagged`() {
-        assertEquals("Taking longer than expected", FixDiagnosis.evaluate(input(searchingMs = 40_000L)).verdict)
+        assertEquals(Verdict.SLOWER_THAN_EXPECTED, FixDiagnosis.evaluate(input(searchingMs = 40_000L)).verdict)
     }
 
     @Test
     fun `every check is listed in chain order`() {
-        val labels = FixDiagnosis.evaluate(input()).checks.map { it.label }
+        val kinds = FixDiagnosis.evaluate(input()).checks.map { it.kind }
         assertEquals(
             listOf(
-                "Location service", "Position source", "Battery saver", "Data for assistance",
-                "Satellites heard", "Usable signals", "Orbital data", "Geometry", "Searching for",
+                CheckKind.LOCATION, CheckKind.SOURCE, CheckKind.BATTERY_SAVER, CheckKind.DATA,
+                CheckKind.SATELLITES_HEARD, CheckKind.USABLE_SIGNALS, CheckKind.ORBITS, CheckKind.GEOMETRY, CheckKind.TIMING,
             ),
-            labels,
+            kinds,
         )
     }
 

@@ -65,21 +65,21 @@ internal fun DiagnosisCard(d: Diagnosis, modifier: Modifier = Modifier) {
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Box(Modifier.size(8.dp).background(tone.color, CircleShape))
-            Text(d.verdict, style = BodyStyle.copy(fontWeight = FontWeight.Medium, fontSize = 17.sp), color = Palette.TextPrimary)
+            Text(d.title(), style = BodyStyle.copy(fontWeight = FontWeight.Medium, fontSize = 17.sp), color = Palette.TextPrimary)
         }
-        Text(d.detail, style = BodyStyle.copy(fontSize = 13.sp, lineHeight = 19.sp), color = Palette.TextSecondary)
+        Text(d.detail(), style = BodyStyle.copy(fontSize = 13.sp, lineHeight = 19.sp), color = Palette.TextSecondary)
         if (expanded) {
             Column(Modifier.padding(top = 6.dp)) {
                 d.checks.forEachIndexed { i, check ->
                     Row(Modifier.fillMaxWidth().padding(vertical = 7.dp), verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Box(Modifier.padding(top = 7.dp).size(6.dp).background(check.status.tone().color, CircleShape))
                         Column(Modifier.weight(1f)) {
-                            Text(check.label, style = BodyStyle.copy(fontSize = 14.sp), color = Palette.TextSecondary)
+                            Text(check.label(d.input), style = BodyStyle.copy(fontSize = 14.sp), color = Palette.TextSecondary)
                             if (check.status != CheckStatus.OK) {
-                                check.hint?.let { Text(it, style = BodyStyle.copy(fontSize = 12.sp, lineHeight = 17.sp), color = Palette.TextTertiary) }
+                                check.hint(d.input, d.expectedMs)?.let { Text(it, style = BodyStyle.copy(fontSize = 12.sp, lineHeight = 17.sp), color = Palette.TextTertiary) }
                             }
                         }
-                        Text(check.value, style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary, textAlign = TextAlign.End, modifier = Modifier.widthIn(max = 180.dp))
+                        Text(check.value(d.input), style = DataStyle.copy(fontSize = 13.sp), color = Palette.TextPrimary, textAlign = TextAlign.End, modifier = Modifier.widthIn(max = 180.dp))
                     }
                     if (i < d.checks.lastIndex) HorizontalDivider(color = Palette.Divider)
                 }

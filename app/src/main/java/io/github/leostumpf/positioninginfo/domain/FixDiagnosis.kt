@@ -43,16 +43,37 @@ data class DiagnosisInput(
 
 enum class CheckStatus { OK, WARN, FAIL, INFO }
 
-data class DiagnosisCheck(val label: String, val value: String, val status: CheckStatus, val hint: String? = null)
+/** One link of the chain a fix depends on, in the order the receiver goes through them. */
+enum class CheckKind { LOCATION, SOURCE, BATTERY_SAVER, DATA, SATELLITES_HEARD, USABLE_SIGNALS, ORBITS, GEOMETRY, TIMING }
+
+/** A link and how it stands; the wording, from the same input, is the page's business. */
+data class DiagnosisCheck(val kind: CheckKind, val status: CheckStatus)
+
+/** The one-line answer: what is (or would be) stopping a fix, most fundamental first. */
+enum class Verdict {
+    LOCATION_OFF,
+    SIMULATED,
+    POOR_GEOMETRY,
+    ALL_PASS,
+    NO_SIGNALS,
+    TOO_FEW_HEARD,
+    SIGNALS_TOO_WEAK,
+    FIX_LOST,
+    LEARNING_ORBITS,
+    SLOWER_THAN_EXPECTED,
+    ACQUIRING,
+}
 
 data class Diagnosis(
     val fixed: Boolean,
-    /** The one-line answer: what is (or would be) stopping a fix. */
-    val verdict: String,
+    val verdict: Verdict,
     val verdictStatus: CheckStatus,
-    val detail: String,
     /** Every check in the order the receiver goes through them. */
     val checks: List<DiagnosisCheck>,
+    /** What the verdict was reached from, for the wording and its figures. */
+    val input: DiagnosisInput,
+    /** How long this start usually takes, see [FixDiagnosis.expectedMs]. */
+    val expectedMs: Long,
 )
 
 /**
@@ -60,8 +81,8 @@ data class Diagnosis(
  * switched on, a real receiver, power, satellites heard, signals strong enough, orbits
  * known, geometry — and naming the first link that fails.
  *
- * The receiver never says why it has no fix, so this is inference from what it does say,
- * worded as such.
+ * The receiver never says why it has no fix, so this is inference from what it does say.
+ * This decides; how it is put into words lives with the page (ui/gnss/DiagnosisText.kt).
  */
 object FixDiagnosis {
 
@@ -78,177 +99,93 @@ object FixDiagnosis {
 
     fun evaluate(i: DiagnosisInput): Diagnosis {
         val fixed = i.gpsEnabled && i.usedInFix >= AlmanacStatus.SATELLITES_FOR_FIX
-        val checks = checks(i)
-        val (verdict, status, detail) = verdict(i, fixed)
-        return Diagnosis(fixed, verdict, status, detail, checks)
+        val expected = expectedMs(i.readiness, i.dataConnection)
+        val verdict = verdict(i, fixed, expected)
+        return Diagnosis(fixed, verdict, verdict.status(), checks(i, expected), i, expected)
     }
 
-    private fun verdict(i: DiagnosisInput, fixed: Boolean): Triple<String, CheckStatus, String> {
+    private fun verdict(i: DiagnosisInput, fixed: Boolean, expected: Long): Verdict {
         val searching = i.searchingMs ?: 0L
-        val expected = expectedMs(i.readiness, i.dataConnection)
         // Fixed earlier this session and not now: the orbits are known, so "searching since
         // start" and "learning orbits" no longer apply.
         val lostFix = !fixed && i.searchingMs == null && i.firstFixMs != null
+        val needed = AlmanacStatus.SATELLITES_FOR_FIX
         return when {
-            !i.gpsEnabled -> Triple(
-                "Location is switched off", CheckStatus.FAIL,
-                "The receiver is not running at all. Switch location on in the quick settings.",
-            )
-            i.isMock -> Triple(
-                "The position is simulated", CheckStatus.FAIL,
-                "A mock-location app is supplying positions, so the receiver's own fix is not what apps see.",
-            )
-            fixed && (i.pdop ?: 0.0) > POOR_PDOP -> Triple(
-                "Fixed, but with poor geometry", CheckStatus.WARN,
-                "The satellites in use are bunched together (PDOP ${String.format(java.util.Locale.US, "%.1f", i.pdop)}), so the position " +
-                    "is less precise than the signals would allow. Open sky helps.",
-            )
-            fixed -> Triple(
-                "All checks pass", CheckStatus.OK,
-                "Fixed on ${i.usedInFix.counted("satellite")}." +
-                    (i.firstFixMs?.let { " This session's first fix took ${formatDuration(it)}." } ?: ""),
-            )
-            i.satellitesHeard == 0 && (lostFix || searching > NO_SIGNAL_GRACE_MS) -> Triple(
-                "No satellite signals", CheckStatus.FAIL,
-                "Nothing is heard at all — almost always a roof, walls or a car body in the way. " +
-                    "GNSS signals need a view of the sky; try near a window or outside.",
-            )
-            i.satellitesHeard in 1 until AlmanacStatus.SATELLITES_FOR_FIX -> Triple(
-                "Only ${i.satellitesHeard.counted("satellite")} heard", CheckStatus.FAIL,
-                "A fix needs at least ${AlmanacStatus.SATELLITES_FOR_FIX}: three for position, one for the " +
-                    "receiver's own clock. More of the sky has to be visible.",
-            )
-            i.satellitesStrong < AlmanacStatus.SATELLITES_FOR_FIX && i.satellitesHeard >= AlmanacStatus.SATELLITES_FOR_FIX -> Triple(
-                "Signals too weak", CheckStatus.WARN,
-                "${i.satellitesHeard.counted("satellite")} ${if (i.satellitesHeard == 1) "is" else "are"} heard, but only ${i.satellitesStrong} strongly enough to " +
-                    "decode their data. Typical indoors or under dense trees.",
-            )
-            lostFix -> Triple(
-                "Fix lost, reacquiring", CheckStatus.INFO,
-                "The receiver had a fix this session and still holds the orbits, so it usually " +
-                    "recovers within seconds once enough of the sky is in view again.",
-            )
-            i.readiness == AlmanacReadiness.COLD && i.dataConnection == false -> Triple(
-                "Learning orbits from the satellites", CheckStatus.WARN,
-                "No orbital data is stored and there is no data connection for assistance, so the " +
-                    "receiver must download orbits from the satellites themselves — up to 12 minutes " +
-                    "with a clear view of the sky.",
-            )
-            searching > expected -> Triple(
-                "Taking longer than expected", CheckStatus.WARN,
-                "Searching for ${formatDuration(searching)}; a ${i.readiness.name.lowercase()} start usually " +
-                    "fixes within ${formatDuration(expected)}. Signals are probably marginal.",
-            )
-            else -> Triple(
-                "Acquiring", CheckStatus.INFO,
-                "Signals are there and the receiver is working through them. Expected within " +
-                    "${formatDuration(expected)} of starting (${formatDuration(searching)} so far).",
-            )
+            !i.gpsEnabled -> Verdict.LOCATION_OFF
+            i.isMock -> Verdict.SIMULATED
+            fixed && (i.pdop ?: 0.0) > POOR_PDOP -> Verdict.POOR_GEOMETRY
+            fixed -> Verdict.ALL_PASS
+            i.satellitesHeard == 0 && (lostFix || searching > NO_SIGNAL_GRACE_MS) -> Verdict.NO_SIGNALS
+            i.satellitesHeard in 1 until needed -> Verdict.TOO_FEW_HEARD
+            i.satellitesStrong < needed && i.satellitesHeard >= needed -> Verdict.SIGNALS_TOO_WEAK
+            lostFix -> Verdict.FIX_LOST
+            i.readiness == AlmanacReadiness.COLD && i.dataConnection == false -> Verdict.LEARNING_ORBITS
+            searching > expected -> Verdict.SLOWER_THAN_EXPECTED
+            else -> Verdict.ACQUIRING
         }
     }
 
-    private fun checks(i: DiagnosisInput): List<DiagnosisCheck> = buildList {
-        add(
+    private fun Verdict.status(): CheckStatus = when (this) {
+        Verdict.LOCATION_OFF, Verdict.SIMULATED, Verdict.NO_SIGNALS, Verdict.TOO_FEW_HEARD -> CheckStatus.FAIL
+        Verdict.POOR_GEOMETRY, Verdict.SIGNALS_TOO_WEAK, Verdict.LEARNING_ORBITS, Verdict.SLOWER_THAN_EXPECTED -> CheckStatus.WARN
+        Verdict.ALL_PASS -> CheckStatus.OK
+        Verdict.FIX_LOST, Verdict.ACQUIRING -> CheckStatus.INFO
+    }
+
+    private fun checks(i: DiagnosisInput, expected: Long): List<DiagnosisCheck> {
+        val needed = AlmanacStatus.SATELLITES_FOR_FIX
+        return listOf(
+            DiagnosisCheck(CheckKind.LOCATION, if (i.gpsEnabled) CheckStatus.OK else CheckStatus.FAIL),
+            DiagnosisCheck(CheckKind.SOURCE, if (i.isMock) CheckStatus.FAIL else CheckStatus.OK),
             DiagnosisCheck(
-                "Location service", if (i.gpsEnabled) "on" else "off",
-                if (i.gpsEnabled) CheckStatus.OK else CheckStatus.FAIL,
+                CheckKind.BATTERY_SAVER,
+                when (i.powerSave) {
+                    PowerSaveLocation.UNRESTRICTED -> CheckStatus.OK
+                    PowerSaveLocation.GNSS_OFF_SCREEN_OFF, PowerSaveLocation.ALL_OFF_SCREEN_OFF,
+                    PowerSaveLocation.FOREGROUND_ONLY -> CheckStatus.WARN
+                    PowerSaveLocation.THROTTLED_SCREEN_OFF -> CheckStatus.INFO
+                },
             ),
-        )
-        add(
             DiagnosisCheck(
-                "Position source", if (i.isMock) "simulated" else "receiver",
-                if (i.isMock) CheckStatus.FAIL else CheckStatus.OK,
+                CheckKind.DATA,
+                if (!i.airplaneMode && i.dataConnection == true) CheckStatus.OK else CheckStatus.INFO,
             ),
-        )
-        add(
-            when (i.powerSave) {
-                PowerSaveLocation.UNRESTRICTED -> DiagnosisCheck("Battery saver", "no effect on location", CheckStatus.OK)
-                PowerSaveLocation.GNSS_OFF_SCREEN_OFF, PowerSaveLocation.ALL_OFF_SCREEN_OFF -> DiagnosisCheck(
-                    "Battery saver", "location off with screen off", CheckStatus.WARN,
-                    "Background mode cannot record with the screen off while battery saver is on.",
-                )
-                PowerSaveLocation.FOREGROUND_ONLY -> DiagnosisCheck(
-                    "Battery saver", "foreground apps only", CheckStatus.WARN,
-                    "Background mode stops working while battery saver is on.",
-                )
-                PowerSaveLocation.THROTTLED_SCREEN_OFF -> DiagnosisCheck(
-                    "Battery saver", "slowed with screen off", CheckStatus.INFO,
-                )
-            },
-        )
-        add(
-            when {
-                i.airplaneMode -> DiagnosisCheck(
-                    "Data for assistance", "airplane mode", CheckStatus.INFO,
-                    "Without data the receiver cannot download orbits (A-GNSS); cold starts take minutes.",
-                )
-                i.dataConnection == true -> DiagnosisCheck("Data for assistance", "available", CheckStatus.OK)
-                i.dataConnection == false -> DiagnosisCheck(
-                    "Data for assistance", "none", CheckStatus.INFO,
-                    "Without data the receiver cannot download orbits (A-GNSS); cold starts take minutes.",
-                )
-                else -> DiagnosisCheck("Data for assistance", "unknown", CheckStatus.INFO)
-            },
-        )
-        add(
             DiagnosisCheck(
-                "Satellites heard", "${i.satellitesHeard}",
+                CheckKind.SATELLITES_HEARD,
                 when {
-                    i.satellitesHeard >= AlmanacStatus.SATELLITES_FOR_FIX -> CheckStatus.OK
+                    i.satellitesHeard >= needed -> CheckStatus.OK
                     i.satellitesHeard > 0 -> CheckStatus.WARN
                     else -> CheckStatus.FAIL
                 },
-                "At least ${AlmanacStatus.SATELLITES_FOR_FIX} needed.",
             ),
-        )
-        add(
+            DiagnosisCheck(CheckKind.USABLE_SIGNALS, if (i.satellitesStrong >= needed) CheckStatus.OK else CheckStatus.WARN),
             DiagnosisCheck(
-                "Usable signals", "${i.satellitesStrong}",
-                if (i.satellitesStrong >= AlmanacStatus.SATELLITES_FOR_FIX) CheckStatus.OK else CheckStatus.WARN,
-                "Satellites at ${DiagnosisInput.STRONG_CN0.toInt()} dB-Hz or more, enough to decode their data.",
-            ),
-        )
-        add(
-            DiagnosisCheck(
-                "Orbital data",
-                when (i.readiness) {
-                    AlmanacReadiness.HOT -> "hot · ephemeris for ${i.withEphemeris}"
-                    AlmanacReadiness.WARM -> "warm · almanac only"
-                    AlmanacReadiness.COLD -> "cold · nothing stored"
-                    AlmanacReadiness.UNKNOWN -> "unknown"
-                },
+                CheckKind.ORBITS,
                 when (i.readiness) {
                     AlmanacReadiness.HOT -> CheckStatus.OK
-                    AlmanacReadiness.WARM -> CheckStatus.INFO
+                    AlmanacReadiness.WARM, AlmanacReadiness.UNKNOWN -> CheckStatus.INFO
                     AlmanacReadiness.COLD -> CheckStatus.WARN
-                    AlmanacReadiness.UNKNOWN -> CheckStatus.INFO
                 },
             ),
-        )
-        add(
             DiagnosisCheck(
-                "Geometry", i.pdop?.let { String.format(java.util.Locale.US, "PDOP %.1f", it) } ?: "needs a fix",
+                CheckKind.GEOMETRY,
                 when {
                     i.pdop == null -> CheckStatus.INFO
                     i.pdop > POOR_PDOP -> CheckStatus.WARN
                     else -> CheckStatus.OK
                 },
             ),
-        )
-        add(
-            when {
-                i.firstFixMs != null -> DiagnosisCheck("Time to first fix", formatDuration(i.firstFixMs), CheckStatus.OK)
-                i.searchingMs != null -> DiagnosisCheck(
-                    "Searching for", formatDuration(i.searchingMs),
-                    if (i.searchingMs > expectedMs(i.readiness, i.dataConnection)) CheckStatus.WARN else CheckStatus.INFO,
-                    "Expected within ${formatDuration(expectedMs(i.readiness, i.dataConnection))} for this start.",
-                )
-                else -> DiagnosisCheck("Searching for", "—", CheckStatus.INFO)
-            },
+            DiagnosisCheck(
+                CheckKind.TIMING,
+                when {
+                    i.firstFixMs != null -> CheckStatus.OK
+                    i.searchingMs != null && i.searchingMs > expected -> CheckStatus.WARN
+                    else -> CheckStatus.INFO
+                },
+            ),
         )
     }
 
-    /** "4.7 s", "38 s", "1 min 20 s", "12 min" — the same precision as the timing section. */
     const val POOR_PDOP = 6.0
     const val NO_SIGNAL_GRACE_MS = 20_000L
 }
