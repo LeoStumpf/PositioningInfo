@@ -11,6 +11,7 @@ import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.addCallback
+import androidx.activity.compose.LocalActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -66,7 +67,7 @@ class MainActivity : ComponentActivity() {
 @Composable
 private fun PositioningInfoRoot() {
     val context = LocalContext.current
-    val activity = context as ComponentActivity
+    val activity = LocalActivity.current
     var hasFineLocation by remember { mutableStateOf(context.hasFineLocation()) }
     // Re-checked on every resume: the "Open app settings" route grants the permission
     // outside the app, and nothing else would notice when the user comes back.
@@ -89,7 +90,7 @@ private fun PositioningInfoRoot() {
     // re-prompt for an upgrade to precise, so the only route left is app settings.
     val state = when {
         !wasDenied -> PermissionState.NEEDS_REQUEST
-        activity.shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) ->
+        activity?.shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) == true ->
             PermissionState.DENIED
         else -> PermissionState.NEEDS_SETTINGS
     }

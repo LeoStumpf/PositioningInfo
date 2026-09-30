@@ -41,7 +41,9 @@ class LocationDataSource(context: Context) {
     @RequiresPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     fun fixes(): Flow<SpeedFix> = callbackFlow {
         val manager = locationManager
-        if (manager == null) {
+        // No GPS provider — an emulator, or a device Play would not offer the app to —
+        // means no fixes, not a crash.
+        if (manager == null || LocationManager.GPS_PROVIDER !in manager.allProviders) {
             close()
             return@callbackFlow
         }

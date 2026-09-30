@@ -144,6 +144,10 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     /** What the receiver held when this session started: hot, warm or cold. */
     private var sessionStartType: AlmanacReadiness? = null
     private var firstFixTimer: FirstFixTimer? = null
+    /** When the receiver was last released; null before the first start, or after a cold start. */
+    private var releasedAtMs: Long? = null
+    /** Whether this session's first fix goes into the log; see [startTracking]. */
+    private var logThisFirstFix = true
     private var clockOffsetMs: Long? = null
     private var networkOffsetMs: Long? = null
     private var systemGnssOffsetMs: Long? = null
@@ -251,9 +255,14 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         if (trackingJobs.isNotEmpty()) return
         if (!hasLocationPermission()) return
 
-        // Each start is a new receiver session, so it gets its own time to first fix.
-        firstFixTimer = FirstFixTimer(startedAtMs = SystemClock.elapsedRealtime())
+        // Each start is a new receiver session, so it gets its own time to first fix. Only
+        // a receiver that was really off gets its first fix logged, though: a glance at
+        // another app or a rotation restarts the session within seconds, and logging each
+        // of those near-instant "hot starts" would push the real measurements out of the log.
+        val startedAt = SystemClock.elapsedRealtime()
+        firstFixTimer = FirstFixTimer(startedAtMs = startedAt)
         sessionStartType = null
+        logThisFirstFix = releasedAtMs.let { it == null || startedAt - it >= MIN_RELEASE_FOR_TTFF_LOG_MS }
 
         trackingJobs += scope.launch {
             locationSource.fixes().collect { fix ->
@@ -262,7 +271,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
                 val hadFirstFix = firstFixTimer?.hasFix == true
                 firstFixTimer = firstFixTimer?.onFix(fix)
                 val ttff = firstFixTimer?.firstFixAfterMs
-                if (!hadFirstFix && ttff != null) logFirstFix(ttff)
+                if (!hadFirstFix && ttff != null && logThisFirstFix) logFirstFix(ttff)
                 ClockOffset.of(fix, System.currentTimeMillis(), SystemClock.elapsedRealtime())
                     ?.let { clockOffsetMs = it }
                 publishSpeed(fix)
@@ -283,8 +292,10 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
                 fusedLocationSource.fixes().collect { fusedFix = it; publishNetwork() }
             }
         }
-        trackingJobs += scope.launch {
-            cellSource.cells().collect { cells = it; publishNetwork() }
+        if (cellSource.hasTelephony) {
+            trackingJobs += scope.launch {
+                cellSource.cells().collect { cells = it; publishNetwork() }
+            }
         }
         trackingJobs += scope.launch {
             wifiSource.accessPoints().collect { accessPoints = it; publishNetwork() }
@@ -320,6 +331,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
     }
 
     fun stopTracking() {
+        if (trackingJobs.isNotEmpty()) releasedAtMs = SystemClock.elapsedRealtime()
         trackingJobs.forEach(Job::cancel)
         trackingJobs.clear()
         skyTracker = skyTracker.onPause()
@@ -347,6 +359,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         if (!accepted) return
         stopTracking()
         lastFix = null
+        releasedAtMs = null  // a cold start is exactly what the log is for
         startTracking()
     }
 
@@ -584,5 +597,7 @@ class PositioningInfoViewModel(application: Application) : AndroidViewModel(appl
         const val TAG = "PositioningInfo"
         const val FRESHNESS_TICK_MS = 500L
         const val SLOW_TICKS = 10
+        /** A receiver released for less than this restarts hot; its first fix is not logged. */
+        const val MIN_RELEASE_FOR_TTFF_LOG_MS = 60_000L
     }
 }
