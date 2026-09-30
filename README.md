@@ -198,6 +198,8 @@ speed unit. Everything else — history, sky paths, signal map, accuracy test, c
 memory only. **Settings › Data on this phone** (gear on the speed page, and on the About page) lists
 it all and clears it with one button.
 
+The full [privacy policy](PRIVACY.md) is linked from the About page and the store listing.
+
 Permissions beyond location: `ACCESS_WIFI_STATE` (list access points), `ACCESS_NETWORK_STATE`
 (tell whether a data connection exists for the system's A-GNSS download — read-only, no network
 use), `ACCESS_LOCATION_EXTRA_COMMANDS` (cold start / A-GNSS request), and the foreground-service and

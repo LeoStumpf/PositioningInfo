@@ -31,6 +31,7 @@ import io.github.leostumpf.positioninginfo.ui.theme.TitleStyle
 
 const val SOURCE_URL = "https://github.com/LeoStumpf/PositioningInfo"
 const val LICENSE_URL = "https://www.gnu.org/licenses/agpl-3.0.html"
+const val PRIVACY_URL = "https://github.com/LeoStumpf/PositioningInfo/blob/main/PRIVACY.md"
 
 /**
  * What the app is, its licence and where the source is.
@@ -76,6 +77,7 @@ fun AboutSection() {
             ValueRow("Copyright", "© 2026 Leo Stumpf")
             ValueRow("Written by", "Claude (Anthropic)", detail = "under Leo Stumpf's direction — see the README", divider = false)
         }
+        QuietButton("Privacy policy", onClick = { uriHandler.openUri(PRIVACY_URL) })
         QuietButton("Open-source licences", onClick = { showLicences = true })
     }
     if (showLicences) OpenSourceLicencesSheet(onDismiss = { showLicences = false })
