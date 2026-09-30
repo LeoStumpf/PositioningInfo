@@ -105,7 +105,7 @@ object FixDiagnosis {
             )
             fixed -> Triple(
                 "All checks pass", CheckStatus.OK,
-                "Fixed on ${i.usedInFix} satellites." +
+                "Fixed on ${i.usedInFix.counted("satellite")}." +
                     (i.firstFixMs?.let { " This session's first fix took ${formatDuration(it)}." } ?: ""),
             )
             i.satellitesHeard == 0 && (lostFix || searching > NO_SIGNAL_GRACE_MS) -> Triple(
@@ -114,13 +114,13 @@ object FixDiagnosis {
                     "GNSS signals need a view of the sky; try near a window or outside.",
             )
             i.satellitesHeard in 1 until AlmanacStatus.SATELLITES_FOR_FIX -> Triple(
-                "Only ${i.satellitesHeard} satellite${if (i.satellitesHeard == 1) "" else "s"} heard", CheckStatus.FAIL,
+                "Only ${i.satellitesHeard.counted("satellite")} heard", CheckStatus.FAIL,
                 "A fix needs at least ${AlmanacStatus.SATELLITES_FOR_FIX}: three for position, one for the " +
                     "receiver's own clock. More of the sky has to be visible.",
             )
             i.satellitesStrong < AlmanacStatus.SATELLITES_FOR_FIX && i.satellitesHeard >= AlmanacStatus.SATELLITES_FOR_FIX -> Triple(
                 "Signals too weak", CheckStatus.WARN,
-                "${i.satellitesHeard} satellites are heard, but only ${i.satellitesStrong} strongly enough to " +
+                "${i.satellitesHeard.counted("satellite")} ${if (i.satellitesHeard == 1) "is" else "are"} heard, but only ${i.satellitesStrong} strongly enough to " +
                     "decode their data. Typical indoors or under dense trees.",
             )
             lostFix -> Triple(

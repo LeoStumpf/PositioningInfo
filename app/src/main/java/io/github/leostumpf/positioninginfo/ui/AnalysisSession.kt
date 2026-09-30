@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui
 
+import io.github.leostumpf.positioninginfo.domain.counted
 import android.annotation.SuppressLint
 import android.app.Application
 import android.hardware.SensorManager
@@ -307,7 +308,7 @@ class AnalysisSession(
     fun exportTrip(uri: Uri) {
         scope.launch {
             val ok = tripStore.exportGpx(uri, "Positioning Info trip ${suggestedDate()}")
-            tripMessage = if (ok) "Exported ${trip.stats.points} points as GPX." else "Export failed."
+            tripMessage = if (ok) "Exported ${trip.stats.points.counted("point")} as GPX." else "Export failed."
             publishTrip()
         }
     }

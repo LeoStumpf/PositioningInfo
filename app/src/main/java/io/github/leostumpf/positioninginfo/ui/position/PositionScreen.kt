@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.position
 
+import io.github.leostumpf.positioninginfo.domain.counted
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -141,7 +142,7 @@ fun PositionScreen(
                         "Barometer",
                         metres(state.baroCalibratedM),
                         detail = if (state.calibrationSamples > 0) {
-                            "calibrated from ${state.calibrationSamples} GNSS heights"
+                            "calibrated from ${state.calibrationSamples.counted("GNSS height")}"
                         } else {
                             "waiting for a GNSS height within ±10 m"
                         },
@@ -160,7 +161,7 @@ fun PositionScreen(
             item { Note("This phone has no barometer.", modifier = Modifier.padding(top = 8.dp)) }
         }
 
-        section("Accuracy test", trailing = state.scatter?.let { "${it.count} fixes" })
+        section("Accuracy test", trailing = state.scatter?.let { it.count.counted("fix", "fixes") })
         val stats = state.scatter
         if (stats != null) {
             item {

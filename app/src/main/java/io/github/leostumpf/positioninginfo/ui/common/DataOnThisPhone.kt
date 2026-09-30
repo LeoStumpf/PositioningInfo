@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.common
 
+import io.github.leostumpf.positioninginfo.domain.counted
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
@@ -35,12 +36,12 @@ fun DataOnThisPhone(inventory: DataInventory, onClearAll: () -> Unit) {
             "Nothing ever leaves this phone — the app has no internet access. This is what it keeps:",
             modifier = Modifier.padding(bottom = 6.dp),
         )
-        ValueRow("Recorded trip", if (inventory.tripPoints > 0) "${inventory.tripPoints} points" else "none", detail = "on the phone")
-        ValueRow("Recent first fixes", if (inventory.firstFixEntries > 0) "${inventory.firstFixEntries} entries" else "none", detail = "on the phone")
+        ValueRow("Recorded trip", if (inventory.tripPoints > 0) inventory.tripPoints.counted("point") else "none", detail = "on the phone")
+        ValueRow("Recent first fixes", if (inventory.firstFixEntries > 0) inventory.firstFixEntries.counted("entry", "entries") else "none", detail = "on the phone")
         ValueRow("Speed unit", if (inventory.unitChanged) "changed" else "default", detail = "on the phone")
         ValueRow(
             "Session data",
-            if (inventory.historySamples > 0) "${inventory.historySamples} samples" else "none",
+            if (inventory.historySamples > 0) inventory.historySamples.counted("sample") else "none",
             detail = "in memory: history, sky paths, signal map, accuracy test, calibrations",
             divider = false,
         )

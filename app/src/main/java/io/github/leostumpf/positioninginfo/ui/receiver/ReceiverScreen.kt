@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.receiver
 
+import io.github.leostumpf.positioninginfo.domain.counted
 import java.util.Locale
 import io.github.leostumpf.positioninginfo.ui.common.grouped
 import io.github.leostumpf.positioninginfo.ui.common.TileRow
@@ -339,7 +340,7 @@ private fun Capability(label: String, available: Boolean, last: Boolean = false)
     ValueRow(label, if (available) "yes" else "no", valueColor = if (available) Palette.Good else Palette.TextTertiary, divider = !last)
 }
 
-private fun signals(n: Int) = if (n == 1) "1 signal" else "$n signals"
+private fun signals(n: Int) = n.counted("signal")
 
 private const val NAV_PATIENCE_MS = 90_000L
 

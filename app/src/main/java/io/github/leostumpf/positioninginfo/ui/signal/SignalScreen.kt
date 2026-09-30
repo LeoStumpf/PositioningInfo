@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.signal
 
+import io.github.leostumpf.positioninginfo.domain.counted
 import io.github.leostumpf.positioninginfo.ui.common.TileRow
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.border
@@ -130,7 +131,7 @@ fun SignalScreen(state: SignalUiState, modifier: Modifier = Modifier) {
             item {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
                     StatusBadge(dop.rating.label, dop.rating.tone())
-                    Text("from ${state.dopSatellites} satellites in the fix", style = CaptionStyle, color = Palette.TextTertiary)
+                    Text("from ${state.dopSatellites.counted("satellite")} in the fix", style = CaptionStyle, color = Palette.TextTertiary)
                 }
             }
             item {

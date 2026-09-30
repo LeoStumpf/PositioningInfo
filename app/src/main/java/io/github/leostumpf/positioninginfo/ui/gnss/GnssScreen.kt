@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.gnss
 
+import io.github.leostumpf.positioninginfo.domain.counted
 import io.github.leostumpf.positioninginfo.ui.common.rememberLogTimeFormat
 import java.util.Locale
 import io.github.leostumpf.positioninginfo.ui.common.TileRow
@@ -401,7 +402,7 @@ private fun AlmanacReadiness.tone(): Tone = when (this) {
 private fun GnssUiState.isFixed() = gpsEnabled && usedInFix >= AlmanacStatus.SATELLITES_FOR_FIX
 
 private fun headline(state: GnssUiState): String = when {
-    state.isFixed() -> "Fixed on ${state.usedInFix} satellites"
+    state.isFixed() -> "Fixed on ${state.usedInFix.counted("satellite")}"
     state.readiness == AlmanacReadiness.HOT -> "Ready to fix"
     state.readiness == AlmanacReadiness.WARM -> "Almost ready"
     state.readiness == AlmanacReadiness.COLD -> "Searching blind"
@@ -418,7 +419,7 @@ private fun explanationFor(state: GnssUiState): String = when {
         state.ephemerisUnavailable -> "The receiver is computing a position right now."
         state.readiness == AlmanacReadiness.HOT ->
             "The receiver is computing a position right now. It also holds precise orbits for " +
-                "${state.withEphemeris} satellites, so after a restart it would fix again within seconds."
+                "${state.withEphemeris.counted("satellite")}, so after a restart it would fix again within seconds."
         state.readiness == AlmanacReadiness.WARM ->
             "The receiver is computing a position right now, but holds precise orbits for only a " +
                 "few satellites; a restart would take about half a minute."
