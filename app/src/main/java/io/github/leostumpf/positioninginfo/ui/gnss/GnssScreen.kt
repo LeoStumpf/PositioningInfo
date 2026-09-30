@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.gnss
 
+import kotlin.math.roundToInt
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import io.github.leostumpf.positioninginfo.domain.counted
 import io.github.leostumpf.positioninginfo.ui.common.rememberLogTimeFormat
 import java.util.Locale
@@ -343,7 +348,21 @@ private fun ConstellationRow(summary: ConstellationSummary, last: Boolean) {
 private fun SatelliteRow(satellite: SatelliteInfo, detail: SignalDetail?, onClick: () -> Unit) {
     val color = satellite.constellation.color()
     val heard = satellite.cn0DbHz > 0f
-    Column(Modifier.alpha(if (heard) 1f else 0.55f).clickable(onClickLabel = "Show satellite details", onClick = onClick)) {
+    // One spoken line instead of "G07, L1, 42, A E": the letters and grey levels mean nothing aloud.
+    val spoken = buildString {
+        append("${satellite.code()}, ${satellite.constellation.label}")
+        satellite.band?.shortLabel()?.let { append(", $it") }
+        append(if (heard) ", ${satellite.cn0DbHz.roundToInt()} dB-Hz" else ", not heard")
+        if (satellite.usedInFix) append(", in the fix")
+        detail?.stage?.takeIf { heard }?.let { append(", ${it.label}") }
+        append(if (satellite.hasAlmanac) ", almanac" else ", no almanac")
+        append(if (satellite.hasEphemeris) ", ephemeris" else ", no ephemeris")
+    }
+    Column(
+        Modifier.alpha(if (heard) 1f else 0.55f)
+            .clickable(onClickLabel = "Show satellite details", onClick = onClick)
+            .clearAndSetSemantics { contentDescription = spoken },
+    ) {
         Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Box(
                 Modifier.size(8.dp).then(
@@ -454,12 +473,16 @@ private fun DiagnosisCard(d: Diagnosis, modifier: Modifier = Modifier) {
             .background(if (tone == Tone.NEUTRAL) Palette.Surface else tone.color.copy(alpha = 0.07f))
             .border(1.dp, if (tone == Tone.NEUTRAL) Palette.CardBorder else tone.color.copy(alpha = 0.3f), shape)
             .clickable(onClickLabel = if (expanded) "Hide the checks" else "Show all checks") { expanded = !expanded }
+            .semantics { stateDescription = if (expanded) "expanded" else "collapsed" }
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("WHY NO FIX?", style = OverlineStyle, color = Palette.TextTertiary, modifier = Modifier.weight(1f))
-            Text(if (expanded) "▾" else "▸", style = OverlineStyle, color = Palette.TextTertiary)
+            Text(
+                if (expanded) "▾" else "▸", style = OverlineStyle, color = Palette.TextTertiary,
+                modifier = Modifier.clearAndSetSemantics { },
+            )
         }
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Box(Modifier.size(8.dp).background(tone.color, CircleShape))
@@ -619,7 +642,13 @@ private fun HistoryChart(
             Text(label, style = BodyStyle.copy(fontSize = 14.sp), color = Palette.TextSecondary, modifier = Modifier.weight(1f))
             Text(points.lastOrNull()?.let { fmt(it.second) + unit } ?: "—", style = DataStyle, color = Palette.TextPrimary)
         }
-        Canvas(Modifier.fillMaxWidth().height(44.dp)) {
+        Canvas(
+            Modifier.fillMaxWidth().height(44.dp).semantics {
+                contentDescription = "$label over the last 30 minutes" + (
+                    points.takeIf { it.isNotEmpty() }?.let { p -> ", from ${fmt(p.minOf { it.second })} to ${fmt(p.maxOf { it.second })}$unit" } ?: ""
+                    )
+            },
+        ) {
             drawLine(Palette.Hairline, androidx.compose.ui.geometry.Offset(0f, size.height), androidx.compose.ui.geometry.Offset(size.width, size.height))
             if (points.size < 2) return@Canvas
             val end = samples.last().atMs

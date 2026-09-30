@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.trip
 
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import io.github.leostumpf.positioninginfo.ui.common.grouped
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -154,7 +156,11 @@ fun TripScreen(
 @Composable
 private fun ElevationProfile(heights: List<Double>) {
     InfoCard(padding = androidx.compose.foundation.layout.PaddingValues(12.dp)) {
-        Canvas(Modifier.fillMaxWidth().height(72.dp)) {
+        Canvas(
+            Modifier.fillMaxWidth().height(72.dp).semantics {
+                contentDescription = "Elevation profile, from ${heights.min().roundToInt()} to ${heights.max().roundToInt()} metres"
+            },
+        ) {
             val min = heights.min()
             val span = (heights.max() - min).coerceAtLeast(10.0)
             val step = size.width / (heights.size - 1)

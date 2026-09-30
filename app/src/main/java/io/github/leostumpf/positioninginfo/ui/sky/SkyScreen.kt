@@ -1,6 +1,10 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.sky
 
+import io.github.leostumpf.positioninginfo.domain.counted
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -202,7 +206,7 @@ private fun CompassTrustLine(measuredUt: Double, trust: CompassTrust?) {
 private fun CompassToggle(on: Boolean, onToggle: () -> Unit) {
     OutlinedButton(
         onClick = onToggle,
-        modifier = Modifier.height(46.dp),
+        modifier = Modifier.heightIn(min = 48.dp).semantics { stateDescription = if (on) "on" else "off" },
         shape = RoundedCornerShape(12.dp),
         contentPadding = PaddingValues(horizontal = 14.dp),
         border = BorderStroke(1.dp, if (on) Palette.TextPrimary else Palette.Outline),
@@ -306,10 +310,14 @@ private fun SkyPlot(state: SkyUiState, modifier: Modifier = Modifier) {
     val measurer = rememberTextMeasurer()
     val ringColour = Palette.Hairline
     val labelColour = Palette.TextTertiary
+    val heard = markers.filter { it.current != null && it.tracked }
+    val description = "Sky plot: ${heard.size.counted("satellite")} plotted, ${heard.count { it.usedInFix }} in the fix" +
+        if (state.compassMode) ", turned with the phone" else ", north up"
     Canvas(
         modifier
             .fillMaxWidth()
-            .aspectRatio(1f),
+            .aspectRatio(1f)
+            .semantics { contentDescription = description },
     ) {
         val radius = size.minDimension / 2f - 18.dp.toPx()
         val centre = Offset(size.width / 2f, size.height / 2f)

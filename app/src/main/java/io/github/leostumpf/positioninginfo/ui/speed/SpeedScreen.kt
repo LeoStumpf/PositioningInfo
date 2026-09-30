@@ -260,7 +260,9 @@ private fun Readout(state: SpeedUiState, size: TextUnit, inline: Boolean = false
         }
     }
     // Deliberately not tappable: in a car mount a stray touch must never change the unit.
-    val readoutSemantics = Modifier.semantics(mergeDescendants = true) { contentDescription = "Speed $speedText ${state.unit.symbol}" }
+    val readoutSemantics = Modifier.semantics(mergeDescendants = true) { contentDescription = "Speed $speedText ${state.unit.symbol}" +
+            if (state.freshness == FixFreshness.STALE) ", not current" else ""
+    }
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         if (inline) {
             Row(readoutSemantics, verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(14.dp)) { content() }
@@ -332,7 +334,11 @@ private fun SpeedChart(state: SpeedUiState, modifier: Modifier = Modifier, heigh
     val end = samples.last().atMs
     val max = samples.maxOf { it.mps }
     Column(modifier, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Canvas(Modifier.fillMaxWidth().height(height)) {
+        Canvas(
+            Modifier.fillMaxWidth().height(height).semantics {
+                contentDescription = "Speed since the last reset, highest ${formatSpeed(max, state.unit)} ${state.unit.symbol}"
+            },
+        ) {
             val span = (end - start).coerceAtLeast(1L).toFloat()
             val top = (max * 1.15f).coerceAtLeast(1f)
             fun x(t: Long) = (t - start) / span * size.width

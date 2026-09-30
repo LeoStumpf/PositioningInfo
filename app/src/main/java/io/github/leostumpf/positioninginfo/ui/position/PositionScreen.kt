@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.position
 
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import io.github.leostumpf.positioninginfo.domain.counted
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
@@ -209,7 +211,12 @@ private fun Figure(label: String, value: String, labelColor: Color = Palette.Tex
 /** Each fix around the mean, with the CEP50 and CEP95 circles and the claimed radius dashed. */
 @Composable
 private fun ScatterPlot(stats: ScatterStats, modifier: Modifier) {
-    Canvas(modifier) {
+    Canvas(
+        modifier.semantics {
+            contentDescription = "Scatter of ${stats.count} fixes around their mean: half within " +
+                "${stats.cep50M.fmt(1)} metres, 95 percent within ${stats.cep95M.fmt(1)} metres"
+        },
+    ) {
         drawRoundRect(Palette.Surface, cornerRadius = androidx.compose.ui.geometry.CornerRadius(16.dp.toPx()))
         val half = size.minDimension / 2f - 10.dp.toPx()
         val c = Offset(size.width / 2, size.height / 2)

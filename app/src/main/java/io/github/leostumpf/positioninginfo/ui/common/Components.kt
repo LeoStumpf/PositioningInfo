@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.common
 
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import android.text.format.DateFormat
@@ -195,7 +197,7 @@ fun SectionHeader(
     modifier: Modifier = Modifier,
 ) {
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(title.uppercase(Locale.ROOT), style = OverlineStyle, color = Palette.TextTertiary)
+        Text(title.uppercase(Locale.ROOT), style = OverlineStyle, color = Palette.TextTertiary, modifier = Modifier.semantics { heading() })
         Box(Modifier.weight(1f).height(1.dp).background(Palette.Hairline))
         trailing?.let { Text(it, style = OverlineStyle.copy(fontWeight = FontWeight.Normal), color = trailingColor) }
     }
@@ -455,7 +457,7 @@ fun SegmentedToggle(options: List<String>, selected: Int, onSelect: (Int) -> Uni
             val on = index == selected
             TextButton(
                 onClick = { onSelect(index) },
-                modifier = Modifier.heightIn(min = 40.dp),
+                modifier = Modifier.heightIn(min = 48.dp).semantics { this.selected = on },
                 shape = RoundedCornerShape(9.dp),
                 contentPadding = PaddingValues(horizontal = 14.dp),
                 colors = ButtonDefaults.textButtonColors(
@@ -503,7 +505,8 @@ fun SwitchRow(title: String, subtitle: String, checked: Boolean, onCheckedChange
 /** A horizontal level bar, e.g. signal strength. */
 @Composable
 fun LevelBar(fraction: Float, color: Color, modifier: Modifier = Modifier) {
-    Box(modifier.height(6.dp).clip(RoundedCornerShape(3.dp)).background(Palette.Divider)) {
+    // Decorative: the value it shows is always written next to it.
+    Box(modifier.clearAndSetSemantics { }.height(6.dp).clip(RoundedCornerShape(3.dp)).background(Palette.Divider)) {
         if (fraction > 0f) {
             Box(Modifier.fillMaxWidth(fraction.coerceIn(0f, 1f)).fillMaxHeight().background(color, RoundedCornerShape(3.dp)))
         }

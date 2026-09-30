@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.network
 
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
@@ -271,7 +273,12 @@ private fun Comparison(state: NetworkUiState) {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
             val claimed = state.accuracyM?.toDouble()
-            Canvas(Modifier.size(88.dp)) {
+            Canvas(
+                Modifier.size(88.dp).semantics {
+                    contentDescription = "Network position ${formatDistance(c.distanceM)} from the GNSS fix" +
+                        (claimed?.let { ", claimed accuracy ${formatDistance(it)}" } ?: "")
+                },
+            ) {
                 val centre = Offset(size.width / 2, size.height / 2)
                 val r = size.minDimension / 2 - 4.dp.toPx()
                 val scale = if (claimed != null && claimed > 0) r / maxOf(claimed, c.distanceM) else r / maxOf(c.distanceM, 1.0)

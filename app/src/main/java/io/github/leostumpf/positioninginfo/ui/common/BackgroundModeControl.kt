@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui.common
 
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import android.Manifest
@@ -89,7 +92,7 @@ fun BackgroundModeButton(active: Boolean, onSetActive: (Boolean) -> Unit) {
     BackgroundModeGate(active, onSetActive) { toggle ->
         OutlinedButton(
             onClick = toggle,
-            modifier = Modifier.height(44.dp),
+            modifier = Modifier.heightIn(min = 48.dp).semantics { stateDescription = if (active) "on" else "off" },
             shape = RoundedCornerShape(22.dp),
             contentPadding = PaddingValues(horizontal = 14.dp),
             border = BorderStroke(1.dp, if (active) Palette.Good.copy(alpha = 0.4f) else Palette.Outline),
