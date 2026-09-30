@@ -255,7 +255,7 @@ private fun AccessPointSheet(ap: AccessPoint, onDismiss: () -> Unit) {
 }
 
 /** 2.4 GHz channels start at 2412 MHz, 5 GHz at 5000, 6 GHz at 5950 — all in 5 MHz steps. */
-private fun wifiChannel(mhz: Int): Int? = when (mhz) {
+internal fun wifiChannel(mhz: Int): Int? = when (mhz) {
     2484 -> 14
     in 2412..2472 -> (mhz - 2407) / 5
     in 5160..5885 -> (mhz - 5000) / 5

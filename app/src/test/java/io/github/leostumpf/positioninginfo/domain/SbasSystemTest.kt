@@ -21,12 +21,24 @@ class SbasSystemTest {
     }
 
     @Test
-    fun `no PRN is claimed by two systems`() {
-        // A duplicate in the mapping would silently shadow one service, so the whole
-        // allocated range is swept rather than spot-checked.
-        val assignments = (120..158).map { it to SbasSystem.fromSvid(it) }
-        val named = assignments.filter { it.second != SbasSystem.UNKNOWN_SBAS }
-        assertEquals(named.size, named.map { it.first }.distinct().size)
+    fun `every allocated PRN belongs to its system and no other`() {
+        // The allocation table, written out independently of the mapping: a PRN moved to the
+        // wrong system, or dropped, fails here. The whole range is swept, so a PRN mapped that
+        // the table does not list fails too.
+        val allocation = mapOf(
+            SbasSystem.EGNOS to listOf(120, 121, 123, 124, 126, 136),
+            SbasSystem.SOUTHPAN to listOf(122),
+            SbasSystem.SDCM to listOf(125, 140, 141),
+            SbasSystem.GAGAN to listOf(127, 128, 132),
+            SbasSystem.MSAS to listOf(129, 137),
+            SbasSystem.BDSBAS to listOf(130, 143, 144),
+            SbasSystem.WAAS to listOf(131, 133, 135, 138),
+            SbasSystem.KASS to listOf(134),
+        )
+        val expected = allocation.flatMap { (system, prns) -> prns.map { it to system } }.toMap()
+        for (prn in 120..158) {
+            assertEquals("PRN $prn", expected[prn] ?: SbasSystem.UNKNOWN_SBAS, SbasSystem.fromSvid(prn))
+        }
     }
 
     @Test

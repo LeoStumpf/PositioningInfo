@@ -53,6 +53,22 @@ class BaroAltimeterTest {
     }
 
     @Test
+    fun `calibration averages out slowly wandering GNSS height`() {
+        // Real GNSS height is not independent noise: it drifts by metres over minutes as the
+        // satellites move. Ten minutes of a ±6 m wander plus ±5 m jitter still calibrate the
+        // barometer to within a few metres of the truth.
+        val random = Random(11)
+        var baro = BaroAltimeter().onPressure(950f, atMs = 0)
+        for (i in 1..600) {
+            val t = i * 1_000L
+            val wander = 6.0 * Math.sin(i / 90.0)
+            baro = baro.onPressure(950f, t)
+                .onGnssAltitude(540.0 + wander + random.nextDouble(-5.0, 5.0), verticalAccuracyM = 6f, atMs = t)
+        }
+        assertEquals(540.0, baro.calibratedAltitudeM!!, 3.0)
+    }
+
+    @Test
     fun `precise samples outweigh vague ones`() {
         val baro = BaroAltimeter().onPressure(950f, atMs = 0)
             .onGnssAltitude(500.0, verticalAccuracyM = 1f, atMs = 0)
