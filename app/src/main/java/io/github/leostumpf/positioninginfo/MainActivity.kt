@@ -7,7 +7,6 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
-import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.addCallback
@@ -47,9 +46,6 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
         )
         super.onCreate(savedInstanceState)
-        // A speedometer that blanks mid-journey is useless; the screen stays awake for as
-        // long as the app is in front.
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         // Back on the last screen only moves the app behind others, as Android 12 and newer
         // do anyway. Before that it finished the activity, and with it the session — which
         // silently ended background mode, although the user had only left the app. Handlers

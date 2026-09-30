@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 package io.github.leostumpf.positioninginfo.ui
 
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -50,6 +52,19 @@ fun PositioningInfoApp(viewModel: PositioningInfoViewModel, modifier: Modifier =
     ) { uri -> uri?.let(viewModel.analysis::exportTrip) }
 
     val pagerState = rememberPagerState(initialPage = Page.SPEED.ordinal) { Page.entries.size }
+
+    // The screen stays awake where blanking would defeat the purpose: the speedometer and
+    // trip pages (a car mount), and while a trip or the accuracy test is running — without
+    // background mode, a screen that goes off ends the measurement. Elsewhere it times out
+    // as usual.
+    val keepAwake = pagerState.currentPage == Page.SPEED.ordinal ||
+        pagerState.currentPage == Page.TRIP.ordinal ||
+        tripState.recording || positionState.scatterRunning
+    val view = LocalView.current
+    DisposableEffect(view, keepAwake) {
+        view.keepScreenOn = keepAwake
+        onDispose { view.keepScreenOn = false }
+    }
 
     // The background runs under the system bars; the content stays clear of them and of
     // any display cutout, which matters in a landscape car mount.
