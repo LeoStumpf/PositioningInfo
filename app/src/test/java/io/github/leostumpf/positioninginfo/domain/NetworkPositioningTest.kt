@@ -57,4 +57,10 @@ class NetworkPositioningTest {
         assertEquals(149.9, TimingAdvance.nrMetres(1)!!, 0.1)
         assertNull(TimingAdvance.lteMetres(Int.MAX_VALUE))
     }
+
+    @Test
+    fun `LTE timing advance at its ceiling counts as unknown`() {
+        assertEquals(100_071.7, TimingAdvance.lteMetres(1_281)!!, 0.1)
+        assertNull(TimingAdvance.lteMetres(1_282))
+    }
 }

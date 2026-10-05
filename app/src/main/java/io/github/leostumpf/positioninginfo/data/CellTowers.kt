@@ -30,7 +30,7 @@ internal fun CellInfo.toCellTower(): CellTower? = when {
 private fun CellInfoLte.toCellTower(): CellTower {
     val id = cellIdentity
     val s = cellSignalStrength
-    val timingAdvance = s.timingAdvance.valid()?.takeIf { isRegistered }
+    val timingAdvance = s.timingAdvance.valid()?.takeIf { isRegistered && TimingAdvance.lteMetres(it) != null }
     return CellTower(
         technology = "LTE",
         registered = isRegistered,
